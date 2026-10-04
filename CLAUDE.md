@@ -64,7 +64,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 
 ## Estado
 
-- 2026-10-04: estructura inicial creada. Ninguna ficha empezada. Próxima: 00 (seguridad del visor actual) y 01 (esqueleto Django).
+- 2026-10-04: estructura inicial creada. Ninguna ficha empezada. Próxima: 01 (esqueleto Django). La 00 (seguridad del visor actual) quedó postergada por decisión de Martín.
 
 ## Pendientes
 
