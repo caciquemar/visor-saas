@@ -1,0 +1,13 @@
+__pycache__/
+*.pyc
+.venv/
+venv/
+.env
+*.sqlite3
+/media/
+/datos/
+.pytest_cache/
+.coverage
+node_modules/
+.DS_Store
+Thumbs.db

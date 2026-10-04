@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#DCE1E4">
+<title>Armado — escanear pieza</title>
+<link rel="icon" href="favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="assets/icono-192.png">
+<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Armado">
+<script>
+  // app instalable (pantalla de inicio) solo para el taller: el link del cliente tiene que abrir su proyecto
+  if (!new URLSearchParams(location.search).get('c'))
+    document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --fondo:#DCE1E4; --tinta:#1B2630; --tinta-2:#55626D; --hoja:#FFFFFF; --linea:#B9C2C8;
+  --tiza:#1D5FE0; --tiza-suave:#E3ECFD; --alerta:#B3261E; --canto:#E89B0C;
+  --sans:"Barlow",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --cond:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --fondo:#1A2128; --tinta:#E8EDF0; --tinta-2:#9AA7B1; --hoja:#243039; --linea:#3A4751;
+    --tiza:#5B8DF0; --tiza-suave:#20324F;
+  }
+}
+:root[data-theme="dark"]{
+  --fondo:#1A2128; --tinta:#E8EDF0; --tinta-2:#9AA7B1; --hoja:#243039; --linea:#3A4751;
+  --tiza:#5B8DF0; --tiza-suave:#20324F;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{height:100%;margin:0;background:var(--fondo);color:var(--tinta);font-family:var(--sans);
+  font-size:17px;line-height:1.4;overflow:hidden;-webkit-tap-highlight-color:transparent}
+.app{height:100%;display:grid;grid-template-rows:auto 1fr auto;grid-template-columns:minmax(0,1fr)}
+
+header{display:flex;align-items:center;gap:12px;padding:10px 16px}
+header h1{font-family:var(--cond);font-weight:700;font-size:22px;margin:0;letter-spacing:.01em}
+.btn-muebles{margin-left:auto;display:flex;align-items:center;gap:6px;font:600 15px var(--sans);color:var(--tinta);
+  background:var(--hoja);border:1px solid var(--linea);border-radius:8px;padding:6px 10px}
+header select{font:inherit;font-size:16px;color:var(--tinta);background:var(--hoja);
+  border:1px solid var(--linea);border-radius:8px;padding:6px 10px;min-width:0;flex:0 1 auto;text-overflow:ellipsis}
+header h1,.btn-muebles{flex:none}
+.btn-muebles.btn-trabajos{margin-left:0}
+@media (max-width:430px){ header{gap:8px} .btn-muebles{padding:6px 8px;font-size:14px} }
+.insignia{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--alerta);color:#fff;
+  font:700 13px var(--sans);display:inline-grid;place-items:center}
+.insignia[hidden],.aviso-trab[hidden],.panel-trabajos[hidden]{display:none}
+
+/* trabajos a realizar */
+.aviso-trab{display:flex;width:100%;margin-top:10px;padding:8px 10px;border:1px solid var(--canto);border-radius:10px;
+  background:none;color:var(--tinta);font:600 15px var(--sans);text-align:left}
+.panel-trabajos{margin-bottom:12px}
+.pt-cab{display:flex;align-items:center;gap:10px;min-height:36px}
+.pt-cab .pm-titulo{margin:0;flex:1}
+.btn-prim,.btn-sec{font:600 16px var(--sans);border-radius:10px;padding:9px 14px;display:inline-flex;align-items:center;gap:6px}
+.btn-prim{color:#fff;background:var(--tiza);border:0}
+.btn-sec{color:var(--tinta);background:var(--fondo);border:1px solid var(--linea)}
+.btn-peligro{color:var(--alerta)}
+.trab{display:grid;grid-template-columns:auto 1fr;gap:12px;align-items:start;padding:11px 2px;border-top:1px solid var(--linea)}
+.trab .check{width:30px;height:30px;border-radius:50%;border:2px solid var(--linea);background:none;padding:0;
+  display:grid;place-items:center;color:transparent;font:700 16px var(--sans)}
+.trab.est-pendiente .check{border-color:#F57C00}
+.trab.est-en-proceso .check{background:#7B3FE4;border-color:#7B3FE4;color:#fff}
+.trab.est-hecho .check{background:#2E9D5B;border-color:#2E9D5B;color:#fff}
+.trab.est-instalado .check{background:#78909C;border-color:#78909C;color:#fff}
+.trab .cuerpo{background:none;border:0;padding:0;text-align:left;color:inherit;font:inherit;min-width:0}
+.t-texto{font-size:16px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.trab.est-instalado .t-texto{text-decoration:line-through;color:var(--tinta-2)}
+.t-seccion{font:700 15px var(--cond);letter-spacing:.02em;color:var(--tinta-2);margin:14px 0 2px;text-transform:uppercase}
+.estados{display:flex;gap:6px;margin-top:14px}
+.estados button{flex:1;font:600 14px var(--sans);padding:9px 2px;border-radius:10px;border:2px solid var(--c);background:none;color:var(--tinta)}
+.estados button[aria-pressed="true"]{background:var(--c);color:#fff}
+.t-meta{font-size:14px;color:var(--tinta-2);margin-top:2px}
+.vencido{color:var(--alerta);font-weight:600}
+.t-detalle{white-space:pre-wrap;font-size:17px;margin:8px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.chip{font:500 14px var(--sans);color:var(--tinta);background:var(--fondo);border:1px solid var(--linea);border-radius:16px;padding:5px 10px}
+.chip[aria-pressed="true"],.chip.pieza{background:#7B3FE4;border-color:#7B3FE4;color:#fff}
+.form-trab label{display:block;font-size:14px;color:var(--tinta-2);margin:12px 0 4px}
+.form-trab textarea,.form-trab input:not([type=file]){width:100%;font:16px var(--sans);color:var(--tinta);background:var(--fondo);
+  border:1px solid var(--linea);border-radius:8px;padding:8px 10px}
+.fila2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.marcando{padding:8px 10px;border-radius:8px;border:1px dashed #7B3FE4;font-size:15px;color:var(--tinta)}
+.fotos{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0}
+.foto{position:relative}
+.foto img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--linea);display:block}
+.foto .quitar{position:absolute;top:-6px;right:-6px;width:24px;height:24px;border-radius:50%;border:0;background:var(--alerta);
+  color:#fff;font:700 14px var(--sans);padding:0}
+.botonera{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}
+.leyenda{display:flex;flex-wrap:wrap;gap:4px 14px;margin:10px 0 2px;font-size:14px;color:var(--tinta-2)}
+.leyenda i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+
+#escena{position:relative;min-height:0}
+#escena canvas{display:block;width:100%;height:100%;touch-action:none}
+.vista{position:absolute;left:12px;right:12px;top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;pointer-events:none}
+.vista button{pointer-events:auto}
+.vista button[aria-pressed="true"]{background:var(--tiza);border-color:var(--tiza);color:#fff}
+.vista button{font:500 15px var(--sans);color:var(--tinta);background:var(--hoja);border:1px solid var(--linea);
+  border-radius:20px;padding:6px 9px}
+@media (max-width:380px){ .vista button{font-size:14px;padding:5px 7px} }
+.cargando[hidden],.vista[hidden]{display:none}
+
+/* modo cliente (?c=código): sin datos de taller, con cotas */
+body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:none!important}
+.h-proyecto{color:var(--tinta-2);font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.h-proyecto[hidden],.vista button[hidden]{display:none}
+.cotas{position:absolute;inset:0;pointer-events:none;overflow:hidden}
+.cota{position:absolute;transform:translate(-50%,-50%);font:600 16px var(--cond);color:var(--tinta);background:var(--hoja);
+  border:1px solid var(--linea);border-radius:6px;padding:1px 7px;white-space:nowrap;font-variant-numeric:tabular-nums;
+  box-shadow:0 1px 3px rgba(27,38,48,.12)}
+#cliente .pm-sub{margin:6px 0 4px}
+.compartir{margin:4px 0 12px;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;background:var(--fondo)}
+.compartir input{display:block;width:100%;margin:6px 0 8px;font:15px var(--sans);color:var(--tinta);background:var(--hoja);
+  border:1px solid var(--linea);border-radius:8px;padding:7px 9px}
+.compartir .botones{display:flex;flex-wrap:wrap;align-items:center;gap:8px 14px}
+.compartir button{font:600 16px var(--sans);color:#fff;background:var(--tiza);border:0;border-radius:8px;padding:8px 14px}
+.compartir a{font:600 16px var(--sans);color:var(--tiza)}
+body.modo-cliente .hoja{max-height:36vh}
+.btn-ar{margin:10px 0 4px;font-size:17px}
+.capa-ar{position:fixed;inset:0;z-index:12;background:var(--fondo);display:flex;flex-direction:column}
+.capa-ar[hidden]{display:none}
+.capa-ar model-viewer{flex:1;width:100%;min-height:0;background:var(--fondo)}
+.capa-ar model-viewer[hidden]{display:none}
+.ar-lanzar{position:absolute;left:50%;bottom:16px;transform:translateX(-50%);font-size:18px;padding:12px 22px}
+.ar-estado{margin:auto 16px;text-align:center;color:var(--tinta);font-size:17px}
+.ar-estado[hidden]{display:none}
+.ar-ayuda{margin:10px 16px 0;color:var(--tinta-2);font-size:15px}
+.ar-ayuda p{margin:0 0 4px}
+.ar-ayuda ul{margin:0;padding-left:20px}
+.ar-ayuda b{color:var(--tinta)}
+.capa-ar .cerrar{align-self:center;margin:12px 0 calc(16px + env(safe-area-inset-bottom,0px));font:600 17px var(--sans);
+  color:var(--tinta);background:var(--hoja);border:1px solid var(--linea);border-radius:24px;padding:10px 28px}
+#cliente .lista button[aria-current="true"] .n,#cliente .lista button[aria-current="true"]{color:var(--tiza)}
+.cargando{position:absolute;inset:0;display:grid;place-items:center;color:var(--tinta-2)}
+
+.hoja{max-height:60vh;overflow-y:auto;background:var(--hoja);border-top:1px solid var(--linea);padding:14px 16px 16px;
+  border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(27,38,48,.08)}
+.ficha{display:none;margin-bottom:14px}
+.ficha.visible{display:block}
+.ficha .fila{display:flex;align-items:center;gap:14px;width:100%;padding:0;margin:0;border:0;background:none;
+  color:inherit;font:inherit;text-align:left}
+.bloque-num{display:flex;flex-direction:column;flex:none}
+.etiqueta-num{font-size:14px;font-weight:500;color:var(--tinta-2);margin-bottom:2px}
+.titulo{display:flex;flex-direction:column;min-width:0;flex:1}
+.flecha{flex:none;color:var(--tinta-2);transition:transform .2s}
+.fila[aria-expanded="true"] .flecha{transform:rotate(180deg)}
+.detalle[hidden]{display:none}
+.ficha:not(.abierta) .num{font-size:44px}
+.ficha:not(.abierta) .num.sin{font-size:32px}
+.num{font-family:var(--cond);font-weight:700;font-size:64px;line-height:.9;color:var(--tiza);
+  font-variant-numeric:tabular-nums}
+.nombre{font-size:21px;font-weight:600;line-height:1.2}
+.mueble{color:var(--tinta-2);font-size:16px}
+.datos{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:16px}
+.datos b{font-family:var(--cond);font-weight:500;font-size:20px}
+.taladros{margin-top:8px;font-size:15px;color:var(--tinta-2);display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
+.taladros b{color:var(--tinta);font-weight:600}
+.mat{margin-top:10px;font-size:16px}
+.muestra{display:inline-block;width:14px;height:14px;border-radius:3px;margin-right:6px;vertical-align:-2px;
+  border:1px solid rgba(27,38,48,.3)}
+.muestra.canto{box-shadow:inset 0 -4px 0 var(--canto)}
+.panel-muebles[hidden]{display:none}
+.panel-muebles{margin-bottom:12px}
+.pm-cab{display:flex;align-items:center;min-height:36px}
+.volver,.link{display:inline-flex;align-items:center;gap:4px;font:600 16px var(--sans);color:var(--tiza);background:none;border:0;padding:6px 0}
+.volver[hidden]{display:none}
+.cerrar-pm{margin-left:auto;color:var(--tinta-2);background:none;border:0;padding:6px}
+.pm-titulo{font:700 24px var(--cond);margin:2px 0 0}
+.pm-sub{color:var(--tinta-2);font-size:15px;margin-bottom:8px}
+.lista{list-style:none;margin:6px 0 0;padding:0}
+.lista li{border-top:1px solid var(--linea)}
+.lista button{width:100%;display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:12px;padding:11px 2px;
+  background:none;border:0;color:var(--tinta);font:inherit;font-size:16px;text-align:left}
+.lista .n{font:700 20px var(--cond);min-width:28px;color:var(--tinta-2)}
+.lista .d{font-size:14px;color:var(--tinta-2)}
+.lista .m{font:500 17px var(--cond);color:var(--tiza)}
+.nota{margin-top:8px;font-size:15px;color:var(--tinta-2)}
+.ayuda{margin:0 0 12px;color:var(--tinta-2);font-size:16px}
+.ayuda[hidden]{display:none}
+.num.sin{color:var(--tinta);font-size:44px}
+.error{display:none;margin-bottom:12px;color:var(--alerta);font-weight:500}
+.error.visible{display:block}
+
+.acciones{display:grid;grid-template-columns:1fr auto;gap:10px}
+.btn-escanear{font:600 20px var(--sans);color:#fff;background:var(--tiza);border:0;border-radius:12px;
+  min-height:60px;display:flex;align-items:center;justify-content:center;gap:10px}
+.manual{display:flex;gap:6px}
+.manual input{width:74px;font:500 22px var(--cond);text-align:center;color:var(--tinta);background:var(--fondo);
+  border:1px solid var(--linea);border-radius:12px;padding:0 8px}
+.manual button{font:600 17px var(--sans);color:var(--tinta);background:var(--fondo);border:1px solid var(--linea);
+  border-radius:12px;padding:0 12px}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid var(--tiza);outline-offset:2px}
+
+/* escáner */
+.scanner{position:fixed;inset:0;z-index:10;background:#000;display:none}
+.scanner.visible{display:block}
+.scanner video{width:100%;height:100%;object-fit:cover}
+.guia{position:absolute;left:8%;right:8%;top:50%;height:3px;background:var(--tiza);
+  box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 18px var(--tiza)}
+.marco{position:absolute;left:8%;right:8%;top:calc(50% - 70px);height:140px;border:2px solid rgba(255,255,255,.85);border-radius:10px}
+.scanner p{position:absolute;left:0;right:0;top:calc(50% + 90px);text-align:center;color:#fff;font-size:17px;margin:0;padding:0 24px}
+.scanner .cerrar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(28px + env(safe-area-inset-bottom,0px));
+  font:600 18px var(--sans);color:var(--tinta);background:#fff;border:0;border-radius:30px;padding:14px 30px}
+@media (prefers-reduced-motion:no-preference){
+  .guia{animation:respira 1.6s ease-in-out infinite}
+  @keyframes respira{50%{opacity:.45}}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <header>
+    <h1 id="titulo">Armado</h1>
+    <span class="h-proyecto" id="hProyecto" hidden></span>
+    <button class="btn-muebles solo-taller" id="btnMuebles" aria-controls="panelMuebles">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16M3 12h9"/></svg>
+      Muebles
+    </button>
+    <button class="btn-muebles btn-trabajos solo-taller" id="btnTrabajos" aria-controls="panelTrabajos">
+      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V3h6v1M8.5 11l2 2 4-4M8.5 17h7"/></svg>
+      Trabajos<span class="insignia" id="tbInsignia" hidden></span>
+    </button>
+    <select id="proyecto" class="solo-taller" aria-label="Proyecto"></select>
+  </header>
+
+  <main id="escena">
+    <div class="cargando" id="cargando">Cargando proyecto…</div>
+    <div class="cotas" id="cotas" aria-hidden="true"></div>
+    <div class="vista" hidden id="vista">
+      <button id="verPieza" class="solo-taller">Pieza</button>
+      <button id="verMueble" class="solo-taller">Mueble</button>
+      <button id="verDespiece" class="solo-taller" aria-pressed="false">Despiece</button>
+      <button id="verCotas" aria-pressed="false">Cotas</button>
+      <button id="verTransp" class="solo-cliente" aria-pressed="false">Transparente</button>
+      <button id="verAislar" aria-pressed="false">Aislar</button>
+      <button id="verTodo">Todo</button>
+    </div>
+  </main>
+
+  <section class="hoja" aria-live="polite">
+    <div class="solo-cliente" id="cliente"></div>
+    <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada o tocá una pieza en el dibujo. Tocá de nuevo para llegar a la de atrás.</p>
+    <div class="error solo-taller" id="error"></div>
+    <div class="ficha solo-taller" id="ficha">
+      <button class="fila" id="fCabecera" aria-expanded="false" aria-controls="fDetalle">
+        <span class="bloque-num">
+          <span class="etiqueta-num" id="fEtiqueta">Nº de mecanizado</span>
+          <span class="num" id="fNum"></span>
+        </span>
+        <span class="titulo">
+          <span class="nombre" id="fNombre"></span>
+          <span class="mueble" id="fMueble"></span>
+        </span>
+        <svg class="flecha" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+      </button>
+      <button class="aviso-trab" id="fTrab" hidden></button>
+      <div class="detalle" id="fDetalle" hidden>
+        <div class="datos" id="fDatos"></div>
+        <div class="mat" id="fMat"></div>
+        <div class="taladros" id="fTal"></div>
+        <div class="nota" id="fNota"></div>
+        <button class="link" id="fVerMueble">Ver datos del mueble</button>
+        <button class="link" id="fAnotar">Anotar trabajo en esta pieza</button>
+      </div>
+    </div>
+    <div class="panel-trabajos solo-taller" id="panelTrabajos" hidden></div>
+    <div class="panel-muebles solo-taller" id="panelMuebles" hidden>
+      <div class="pm-cab">
+        <button class="volver" id="pmVolver" hidden>
+          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
+          Todos los muebles
+        </button>
+        <button class="cerrar-pm" id="pmCerrar" aria-label="Cerrar lista de muebles">
+          <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
+        </button>
+      </div>
+      <div id="pmContenido"></div>
+    </div>
+    <div class="acciones solo-taller">
+      <button class="btn-escanear" id="btnEscanear">
+        <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 9v6M10 9v6M13 9v6M16.5 9v6"/></svg>
+        Escanear pieza
+      </button>
+      <form class="manual" id="manual" onsubmit="return false">
+        <input id="numManual" inputmode="numeric" autocomplete="off" placeholder="Nº" aria-label="Número de mecanizado">
+        <button id="btnBuscar" type="submit">Ver</button>
+      </form>
+    </div>
+  </section>
+</div>
+
+<div class="capa-ar" id="capaAR" hidden role="dialog" aria-label="Ver en tu espacio">
+  <model-viewer id="arVisor" hidden ar ar-modes="webxr scene-viewer quick-look" ar-scale="fixed" ar-placement="floor"
+    camera-controls touch-action="pan-y" shadow-intensity="1" environment-image="neutral" exposure="1">
+    <button slot="ar-button" class="btn-prim ar-lanzar">Ver en tu espacio</button>
+  </model-viewer>
+  <p class="ar-estado" id="arEstado"></p>
+  <div class="ar-ayuda">
+    <p><b>Está a tamaño real</b> (no se agranda ni se achica). Apuntá al piso donde iría y mové el celular despacio hasta que aparezca.</p>
+    <ul>
+      <li><b>Un dedo:</b> arrastralo para ubicarlo sobre el piso.</li>
+      <li><b>Dos dedos:</b> giralos para rotarlo.</li>
+      <li>Si se ve muy grande, <b>retrocedé unos pasos</b> para verlo entero.</li>
+    </ul>
+  </div>
+  <button class="cerrar" id="arCerrar">Volver</button>
+</div>
+
+<div class="scanner" id="scanner" role="dialog" aria-label="Escanear código de barras">
+  <video id="video" playsinline muted></video>
+  <div class="marco"></div><div class="guia"></div>
+  <p id="scanMsg">Apuntá al código de barras de la etiqueta</p>
+  <button class="cerrar" id="btnCerrar">Cancelar</button>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+<script>
+/* Datos embebidos (versión demo). En el servidor queda vacío y se lee data/index.json */
+window.DATOS_EMBEBIDOS = /*__DATOS__*/null;
+</script>
+<script>
+(() => {
+const $ = id => document.getElementById(id);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+
+/* ---------- escena 3D ---------- */
+const cont = $('escena');
+const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
+renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+cont.appendChild(renderer.domElement);
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(40, 1, 10, 50000);
+const controls = new THREE.OrbitControls(camera, renderer.domElement);
+controls.enableDamping = true; controls.dampingFactor = .12;
+scene.add(new THREE.HemisphereLight(0xffffff, 0x8894a0, .85));
+const sol = new THREE.DirectionalLight(0xffffff, .55); sol.position.set(1500, 3000, 2500); scene.add(sol);
+
+function tamano(){
+  const r = cont.getBoundingClientRect();
+  renderer.setSize(r.width, r.height, false);
+  camera.aspect = r.width / Math.max(r.height,1); camera.updateProjectionMatrix();
+}
+// Si el área cambia de tamaño (se abre/cierra la ficha, se gira el celular) se vuelve a encuadrar
+// solo si el usuario no movió la cámara desde el último encuadre: no pisar su zoom.
+if (new URLSearchParams(location.search).has('debug')) window.__visor = {camera, controls, get paneles(){ return paneles; }, get sel(){ return seleccion; }, get tr(){ return TR; }};
+let camaraMovida = false;
+controls.addEventListener('start', () => { camaraMovida = true; animacion = null; });
+// Con la cámara movida a mano se compensa la distancia: con el ángulo vertical fijo, más alto de
+// área agranda el dibujo; alejando la cámara en la misma proporción el tamaño en pantalla no cambia.
+let altoPrevio = 0;
+new ResizeObserver(() => {
+  const alto = cont.getBoundingClientRect().height;
+  if (camaraMovida && altoPrevio && alto){
+    const off = camera.position.clone().sub(controls.target).multiplyScalar(alto / altoPrevio);
+    camera.position.copy(controls.target).add(off);
+  }
+  altoPrevio = alto;
+  tamano();
+  if (ultimoEncuadre && !camaraMovida) encuadrar(ultimoEncuadre[0], false, ultimoEncuadre[1]);
+}).observe(cont);
+
+let grupo = null, datos = null, paneles = [], herrajes = [], muros = [];
+let seleccion = null, animacion = null, modoPieza = false, ultimoEncuadre = null, transparente = false;
+// trabajos a realizar: lista del proyecto, vista del panel y piezas/muebles resaltados o en carga
+// estados: pendiente -> en proceso -> hecho (en el taller) -> instalado (ya no se colorea)
+const ESTADOS = ['pendiente', 'en proceso', 'hecho', 'instalado'];
+const NOMBRE_ESTADO = {pendiente: 'Pendiente', 'en proceso': 'En proceso', hecho: 'Hecho', instalado: 'Instalado'};
+const COLOR_ESTADO = {vencido: [0xD32F2F, 0xEF9A9A], pendiente: [0xF57C00, 0xFFCC80], 'en proceso': [0x7B3FE4, 0xB9A2EE],
+  hecho: [0x2E9D5B, 0x9ED6B3], instalado: [0x78909C, 0xCFD8DC]};
+const hex = n => '#' + n.toString(16).padStart(6, '0');
+const abierto = t => t.estado !== 'instalado';
+const TR = { lista: [], disponible: null, verHechos: false, vista: null, filtro: null, resaltar: null, marcando: null };
+// identificador de una pieza que sobrevive a una nueva conversión: el id del conversor (bloque del
+// modelo de Polyboard, distinto para cada puerta de un par) o, en datos viejos, nº de mecanizado
+const claveP = p => p.id || p.num || `${p.mueble}|${p.pieza || ''}|${p.nombre}`;
+// trabajos anotados antes de los ids guardaban el nº de mecanizado: siguen valiendo (marcan todas las de ese nº)
+const enClaves = (claves, p) => claves.has(claveP(p)) || (!!p.num && claves.has(p.num));
+const grupoTal = new THREE.Group(); scene.add(grupoTal);
+const matCanto = new THREE.MeshBasicMaterial({color:0xE89B0C, side:THREE.DoubleSide});
+function dibujarCantos(mallas){
+  mallas.forEach(m => {
+    const caja = new THREE.Box3().setFromObject(m), centro = caja.getCenter(new THREE.Vector3());
+    (m.userData.p.cantos || []).filter(c => c.mat).forEach(c => {
+      const v = c.v, q = [0,1,2,3].map(i => new THREE.Vector3(v[i*3], v[i*3+1], v[i*3+2]).add(m.position));
+      const fc = q.reduce((a,b) => a.add(b), new THREE.Vector3()).multiplyScalar(.25);
+      const n = fc.clone().sub(centro); const ejes = ['x','y','z'];
+      const e = ejes.reduce((a,b) => Math.abs(n[a]) >= Math.abs(n[b]) ? a : b);
+      const off = new THREE.Vector3(); off[e] = Math.sign(n[e]) * .8;
+      const p = q.map(x => x.clone().add(off));
+      const g = new THREE.BufferGeometry().setFromPoints([p[0],p[1],p[2], p[0],p[2],p[3]]);
+      grupoTal.add(new THREE.Mesh(g, matCanto));
+    });
+  });
+}
+const POS = {frente:'al frente', 'atrás':'atrás', arriba:'arriba', abajo:'abajo', derecha:'a la derecha', izquierda:'a la izquierda'};
+function muestra(mat, canto){
+  const info = infoMaterial(mat), tex = info && info.textura && !/["'()\\]/.test(info.textura)
+    ? ` url('data/${encodeURI(info.textura)}') center/cover` : '';
+  return `<span class="muestra${canto ? ' canto' : ''}" style="background:${colorMaterial(mat)}${tex}" aria-hidden="true"></span>`;
+}
+function textoMaterial(p){
+  const esp = Math.round(p.med[2]*10)/10;
+  let t = `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>`;
+  const con = (p.cantos || []).filter(c => c.mat);
+  if (!con.length) return t + '<br>Sin cantos';
+  const porMat = {};
+  con.forEach(c => (porMat[c.mat] = porMat[c.mat] || []).push(c));
+  const lineas = Object.entries(porMat).map(([mat, cs]) => {
+    const lista = cs.length === 4 ? 'en los 4 lados'
+      : cs.map(c => `${c.lado} ${Math.round(c.largo)} ${POS[c.pos] || c.pos}`).join(', ');
+    const esp = (infoMaterial(mat) || {}).espesor;   // del .ocp o de la biblioteca de cantos
+    return `${muestra(mat, true)}Canto <b>${mat}${esp ? ` ${String(esp).replace('.', ',')} mm` : ''}</b>: ${lista}`;
+  });
+  return t + '<br>' + lineas.join('<br>');
+}
+const matTal = new THREE.MeshLambertMaterial({color:0x0E151B});
+const EJE_Y = new THREE.Vector3(0,1,0);
+/* Taladros como agujeros de verdad, sin recortar la pieza (stencil):
+   1. la boca, un disco invisible 1 mm afuera de la superficie (por encima del canto, que está a
+      0,8 mm), marca en el stencil los píxeles donde se ve el agujero;
+   2. solo en esos píxeles, y sin prueba de profundidad (la cara de la pieza está delante), se
+      dibujan el fondo oscuro y la pared interior con luz. Cada taladro usa su propio valor de
+      stencil para que el interior de uno no se vea por la boca de otro. */
+const SALIENTE = 1;   // mm por fuera de la superficie
+const TAL_PARED = 0x7D8791, TAL_FONDO = 0x0E1216;
+const matBordeTal = new THREE.LineBasicMaterial({color: 0x0E151B});
+function matStencil(ref, fase){
+  const comun = {stencilWrite: true, stencilRef: ref};
+  if (fase === 'boca') return new THREE.MeshBasicMaterial({...comun, colorWrite: false, depthWrite: false,
+    stencilFunc: THREE.AlwaysStencilFunc, stencilZPass: THREE.ReplaceStencilOp, side: THREE.DoubleSide});
+  return new THREE.MeshLambertMaterial({...comun, stencilFunc: THREE.EqualStencilFunc, depthTest: false, depthWrite: false,
+    color: fase === 'pared' ? TAL_PARED : TAL_FONDO, side: fase === 'pared' ? THREE.BackSide : THREE.DoubleSide});
+}
+function dibujarTaladros(mallas){
+  grupoTal.clear();
+  let ref = 0;
+  mallas.forEach(m => (m.userData.p.tal || []).forEach(t => {
+    const [x,y,z,nx,ny,nz,d,prof,vis] = t;
+    ref = ref % 255 + 1;
+    const n = new THREE.Vector3(nx,ny,nz).normalize();   // hacia adentro de la pieza
+    const q = new THREE.Quaternion().setFromUnitVectors(EJE_Y, n);
+    const boca = new THREE.Vector3(x,y,z).add(m.position);   // m.position: desplazamiento del despiece
+    const hondo = Math.max(vis, .5), seg = d > 20 ? 40 : 24;
+    const pieza = (geo, fase, orden, pos) => {
+      const o = new THREE.Mesh(geo, matStencil(ref, fase));
+      o.quaternion.copy(q); o.position.copy(pos); o.renderOrder = orden; grupoTal.add(o);
+    };
+    const disco = new THREE.CircleGeometry(d/2, seg).rotateX(-Math.PI/2);   // círculo en el plano XZ, normal Y
+    pieza(disco, 'boca', 20, boca.clone().addScaledVector(n, -SALIENTE));
+    pieza(disco.clone(), 'fondo', 21, boca.clone().addScaledVector(n, hondo));
+    pieza(new THREE.CylinderGeometry(d/2, d/2, hondo + SALIENTE, seg, 1, true), 'pared', 22,
+      boca.clone().addScaledVector(n, (hondo - SALIENTE) / 2));
+    // borde de la boca, para que el agujero se distinga en pantallas chicas
+    const borde = new THREE.LineSegments(new THREE.EdgesGeometry(disco), matBordeTal);   // solo el contorno
+    borde.quaternion.copy(q); borde.position.copy(boca).addScaledVector(n, -SALIENTE); grupoTal.add(borde);
+  }));
+}
+function resumenTaladros(p){
+  const g = {};
+  (p.tal || []).forEach(t => { const k = `${Math.floor(t[6])}|${t[7]}|${t[9]}`; g[k] = (g[k]||0) + 1; });
+  const filas = Object.entries(g).sort((a,b) => b[1]-a[1]).map(([k,n]) => {
+    const [d,prof,canto] = k.split('|');
+    const donde = canto === '1' ? 'canto' : 'cara';
+    return +prof <= 1
+      ? `<span><b>${n}× Ø${d}</b> marca en ${donde}</span>`
+      : `<span><b>${n}× Ø${d}</b> ${prof} mm en ${donde}</span>`;
+  });
+  return filas.length ? filas.join('') : '';
+}
+
+const COL = { hoja:0xF6F6F2, borde:0x7E8992, herraje:0x9AA3AA, muro:0xC9CFD3 };
+
+/* ---------- colores por material ---------- */
+// Se elige por palabra contenida en el nombre del material (sin mayúsculas ni acentos).
+// Se pueden pisar o ampliar con data/materiales.json:  { "Roble Kendal": "#B07F4E", "grafito": "#45484B" }
+const COLORES_BASE = {
+  'blanco':'#F4F4F0', 'negro':'#2A2C2E', 'grafito':'#4C4F52', 'gris humo':'#7D8083', 'gris':'#A2A6A9',
+  'aluminio':'#BCC0C2', 'almendra':'#E6D9BF', 'lino':'#DCD5C6', 'arena':'#D8C7A5', 'cashmere':'#D3C6B5',
+  'roble':'#BA8C5C', 'nogal':'#6F4D35', 'cedro':'#9C5D3E', 'haya':'#D3A77A', 'peral':'#C9966A',
+  'wengue':'#4B372A', 'cerezo':'#9D5234', 'teka':'#A2693C', 'fresno':'#CFB590', 'olmo':'#AA8663',
+  'pino':'#DAB97F', 'mdf':'#B58F63', 'crudo':'#B58F63', 'fibro':'#8E6B48', 'hardboard':'#8E6B48'
+};
+let COLORES = {...COLORES_BASE};
+const USUARIO = {};   // colores de data/materiales.json: ganan siempre
+let MATS = {};        // materiales del proyecto (conversor con --texturas): {nombre: {color, textura, ancho, alto}}
+const sinAcento = t => String(t || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim();
+const cacheColor = {};
+// Polyboard distingue 'Blanco' (tablero) de 'blanco' (canto): primero el nombre exacto
+function buscarNombre(dic, nombre){
+  if (!nombre) return null;
+  if (dic[nombre]) return dic[nombre];
+  const n = sinAcento(nombre), k = Object.keys(dic).find(x => sinAcento(x) === n);
+  return k ? dic[k] : null;
+}
+const infoMaterial = nombre => buscarNombre(MATS, nombre);
+function colorMaterial(nombre){
+  const n = sinAcento(nombre);
+  if (cacheColor[nombre]) return cacheColor[nombre];
+  const info = infoMaterial(nombre);
+  let c = buscarNombre(USUARIO, nombre) || (info && /^#[0-9a-f]{6}$/i.test(info.color) ? info.color : null) || COLORES[n];
+  if (!c){
+    const clave = Object.keys(COLORES).sort((a,b) => b.length - a.length).find(k => n.includes(sinAcento(k)));
+    c = clave ? COLORES[clave] : null;
+  }
+  if (!c){   // material desconocido: color apagado estable según el nombre
+    let h = 0; for (const ch of n) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+    c = '#' + new THREE.Color().setHSL((h % 360) / 360, .28, .62).getHexString();
+  }
+  return cacheColor[nombre] = c;
+}
+function cargarColores(extra){
+  if (extra && typeof extra === 'object'){
+    // "Roble": "#BA8C5C"  o  "Roble": {"color": "#BA8C5C", "textura": ...}
+    Object.entries(extra).forEach(([k,v]) => { const c = v && typeof v === 'object' ? v.color : v;
+      if (/^#[0-9a-f]{6}$/i.test(c)){ COLORES[sinAcento(k)] = c; USUARIO[k] = c; } });
+  }
+  Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
+}
+
+/* ---------- texturas ---------- */
+const cargador = new THREE.TextureLoader(), texturas = {};
+function cargarTextura(ruta, listo){
+  let e = texturas[ruta];
+  if (!e){
+    e = texturas[ruta] = {tex:null, espera:[]};
+    cargador.load('data/' + ruta, t => {
+      t.wrapS = t.wrapT = THREE.RepeatWrapping;
+      t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+      e.tex = t; e.espera.forEach(f => f(t)); e.espera = [];
+    }, undefined, () => { e.espera = []; });   // sin imagen: queda el color
+  }
+  if (e.tex) listo(e.tex); else e.espera.push(listo);
+}
+let repintar = 0;
+function pintarLuego(){ if (!repintar) repintar = requestAnimationFrame(() => { repintar = 0; pintar(); }); }
+function colTiza(){ return new THREE.Color(css('--tiza') || '#1D5FE0'); }
+
+function mallaDe(tris, color){
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(tris, 3));
+  g.computeVertexNormals();
+  const m = new THREE.MeshLambertMaterial({color, side:THREE.DoubleSide, transparent:true, opacity:1,
+    polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1});
+  const mesh = new THREE.Mesh(g, m);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20),
+    new THREE.LineBasicMaterial({color:COL.borde, transparent:true, opacity:1}));
+  mesh.add(e); mesh.userData.borde = e;
+  return mesh;
+}
+
+/* Panel: caras grandes con la textura (veta a lo largo del lado mayor) y cantos con el color
+   del material del canto o, si no tiene, el color promedio del tablero. */
+function mallaPanel(p){
+  const t = p.t, V = i => new THREE.Vector3(t[i], t[i+1], t[i+2]);
+  const tris = [];
+  for (let i = 0; i < t.length; i += 9){
+    const a = V(i), b = V(i+3), c = V(i+6);
+    const n = new THREE.Vector3().crossVectors(b.clone().sub(a), c.clone().sub(a));
+    const area = n.length(); tris.push({a, b, c, n: n.normalize(), area});
+  }
+  // ejes de la pieza a partir del triángulo más grande (media cara grande):
+  // normal = espesor; la veta va por el cateto más largo, o por el corto si p.vt (veta cruzada según el .ocp)
+  const big = tris.reduce((x, y) => y.area > x.area ? y : x);
+  const lados = [[big.a, big.b], [big.b, big.c], [big.c, big.a]].map(([u, v]) => v.clone().sub(u))
+    .sort((x, y) => x.length() - y.length());
+  const eL = lados[p.vt ? 0 : 1].clone().normalize(), eN = big.n.clone(), eS = new THREE.Vector3().crossVectors(eN, eL).normalize();
+  const info = infoMaterial(p.mat), tex = info && info.textura;
+  const aU = tex && info.ancho || 1000, aV = tex && info.alto || aU;
+  // cantos: color por cara delgada según el canto que la cubre
+  const cantos = (p.cantos || []).map(c => {
+    const q = [0,1,2,3].map(i => new THREE.Vector3(c.v[i*3], c.v[i*3+1], c.v[i*3+2]));
+    const n = new THREE.Vector3().crossVectors(q[1].clone().sub(q[0]), q[2].clone().sub(q[0])).normalize();
+    return {q0: q[0], n, color: new THREE.Color(colorMaterial(c.mat || p.mat))};
+  });
+  const colTablero = new THREE.Color(colorMaterial(p.mat));
+  const caras = tris.filter(x => Math.abs(x.n.dot(eN)) > .9), finas = tris.filter(x => Math.abs(x.n.dot(eN)) <= .9);
+  const pos = [], uv = [], col = [];
+  [...caras, ...finas].forEach((x, i) => {
+    let color = colTablero;
+    if (i >= caras.length){
+      const cen = x.a.clone().add(x.b).add(x.c).multiplyScalar(1/3);
+      const c = cantos.find(k => Math.abs(k.n.dot(x.n)) > .9 && Math.abs(cen.clone().sub(k.q0).dot(k.n)) < 1);
+      if (c) color = c.color;
+    }
+    [x.a, x.b, x.c].forEach(v => {
+      pos.push(v.x, v.y, v.z); uv.push(v.dot(eL) / aU, v.dot(eS) / aV); col.push(color.r, color.g, color.b);
+    });
+  });
+  const g = new THREE.BufferGeometry();
+  g.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+  g.setAttribute('uv', new THREE.Float32BufferAttribute(uv, 2));
+  g.setAttribute('color', new THREE.Float32BufferAttribute(col, 3));
+  g.computeVertexNormals();
+  g.addGroup(0, caras.length * 3, 0); g.addGroup(caras.length * 3, finas.length * 3, 1);
+  const opc = {side:THREE.DoubleSide, transparent:true, opacity:1, polygonOffset:true, polygonOffsetFactor:1, polygonOffsetUnits:1};
+  const mCara = new THREE.MeshLambertMaterial({...opc, color: colTablero});
+  const mCanto = new THREE.MeshLambertMaterial({...opc, vertexColors: true});
+  const mesh = new THREE.Mesh(g, [mCara, mCanto]);
+  const e = new THREE.LineSegments(new THREE.EdgesGeometry(g, 20),
+    new THREE.LineBasicMaterial({color:COL.borde, transparent:true, opacity:1}));
+  mesh.add(e); mesh.userData.borde = e; mesh.userData.p = p;
+  if (tex) cargarTextura(tex, t => { mesh.userData.mapa = t; pintarLuego(); });
+  return mesh;
+}
+
+function construir(d){
+  if (grupo) scene.remove(grupo);
+  grupo = new THREE.Group(); scene.add(grupo);
+  paneles = d.paneles.map(p => { const m = mallaPanel(p); grupo.add(m); return m; });
+  destino.clear(); despiece = null; animDespiece = null; aislado = null; limpiarCotas();
+  $('verAislar').setAttribute('aria-pressed', false);
+  $('verDespiece').textContent = 'Despiece'; $('verDespiece').setAttribute('aria-pressed', false);
+  herrajes = d.herrajes.map(h => {
+    const [x0,y0,z0,x1,y1,z1] = h.b;
+    const m = new THREE.Mesh(new THREE.BoxGeometry(x1-x0||1, y1-y0||1, z1-z0||1),
+      new THREE.MeshLambertMaterial({color:COL.herraje, transparent:true}));
+    m.position.set((x0+x1)/2,(y0+y1)/2,(z0+z1)/2); m.userData.mueble = h.mueble; grupo.add(m); return m;
+  });
+  muros = d.muros.map(t => { const m = mallaDe(t, COL.muro); m.material.opacity = .18; m.material.depthWrite = false;
+    m.userData.borde.material.opacity = .25; m.renderOrder = -1; grupo.add(m); return m; });
+  seleccion = null; grupoTal.clear(); pintar(); encuadrar(cajaDe(paneles), true);
+}
+
+// caja de las piezas donde van a quedar (con el despiece ya terminado); armado=true: sin despiece
+function cajaDe(mallas, armado){
+  const b = new THREE.Box3();
+  mallas.forEach(m => {
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const bb = m.geometry.boundingBox.clone();
+    b.union(armado ? bb : bb.translate(destino.get(m) || m.position));
+  });
+  return b;
+}
+
+/* ---------- despiece: separar las piezas de un mueble desde su centro ---------- */
+const SEPARACION = .75;          // 0 = armado; 1 = cada pieza se aleja una vez su distancia al centro
+const destino = new Map();       // malla -> desplazamiento final
+let despiece = null, animDespiece = null;
+function separar(mueble){
+  despiece = mueble;
+  const mallas = mueble ? paneles.filter(m => m.userData.p.mueble === mueble) : [];
+  const c = cajaDe(mallas, true).getCenter(new THREE.Vector3());
+  const origen = new Map(paneles.map(m => [m, m.position.clone()]));
+  paneles.forEach(m => destino.set(m, mallas.includes(m)
+    ? m.geometry.boundingBox.getCenter(new THREE.Vector3()).sub(c).multiplyScalar(SEPARACION) : new THREE.Vector3()));
+  grupoTal.clear();   // taladros y cantos se vuelven a dibujar al terminar
+  const t0 = performance.now(), dur = matchMedia('(prefers-reduced-motion: reduce)').matches ? 0 : 600;
+  animDespiece = ahora => {
+    const k = dur ? Math.min((ahora - t0) / dur, 1) : 1, e = 1 - Math.pow(1 - k, 3);
+    paneles.forEach(m => m.position.lerpVectors(origen.get(m), destino.get(m), e));
+    if (k === 1){
+      animDespiece = null;
+      if (seleccion && seleccion.mallas.length){ dibujarTaladros(seleccion.mallas); dibujarCantos(seleccion.mallas); }
+    }
+  };
+  $('verDespiece').textContent = mueble ? 'Armar' : 'Despiece';
+  $('verDespiece').setAttribute('aria-pressed', !!mueble);
+  pintar();
+}
+// al pasar a otro mueble (o a ninguno) se vuelve a armar; el aislamiento sigue al mueble elegido
+function armarSiCambia(){
+  if (despiece && (!seleccion || seleccion.mueble !== despiece)) separar(null);
+  if (aislado) aislar(seleccion ? seleccion.mueble : null);
+}
+
+/* ---------- cotas: ancho al frente, alto a la izquierda, profundidad a la derecha ---------- */
+const grupoCotas = new THREE.Group(); grupoCotas.renderOrder = 10; scene.add(grupoCotas);
+let etiquetas = [], claveCotas = '';
+// en el taller se recuerda si se dejaron prendidas; al cliente se le muestran de entrada
+let conCotas = true;
+try{ if (!new URLSearchParams(location.search).get('c')) conCotas = localStorage.getItem('armado.cotas') === '1'; }catch(e){ conCotas = false; }
+// qué acotar según lo que se está mirando: la pieza elegida, el mueble o todo el proyecto
+function actualizarCotas(){
+  const pieza = seleccion && seleccion.mallas.length ? seleccion.mallas[0] : null;
+  const caja = pieza ? cajaDe([pieza]) : cajaDe(seleccion ? mallasDe(seleccion.mueble) : paneles, true);
+  const clave = conCotas + '|' + caja.min.toArray().concat(caja.max.toArray()).map(Math.round).join(',');
+  if (clave === claveCotas) return;   // pintar() se llama seguido: no rehacer si no cambió nada
+  claveCotas = clave;
+  cotas(caja);
+}
+const margenCotas = caja => { const s = caja.getSize(new THREE.Vector3()); return Math.max(60, Math.max(s.x, s.y, s.z) * .07); };
+// encuadre que deja lugar a las cotas cuando se muestran
+const marco = caja => etiquetas.length ? caja.clone().expandByScalar(margenCotas(caja) * 1.3) : caja;
+function limpiarCotas(){ grupoCotas.clear(); etiquetas.forEach(e => e.el.remove()); etiquetas = []; claveCotas = ''; }
+function cotas(caja){
+  limpiarCotas();
+  if (!conCotas || caja.isEmpty()) return;
+  const a = caja.min, b = caja.max, s = caja.getSize(new THREE.Vector3()), off = margenCotas(caja);
+  const mat = new THREE.LineBasicMaterial({color: new THREE.Color(css('--tinta') || '#1B2630'), depthTest: false, transparent: true, opacity: .85});
+  const V = (x, y, z) => new THREE.Vector3(x, y, z);
+  const cota = (p1, p2, dir, valor) => {
+    const q1 = p1.clone().addScaledVector(dir, off), q2 = p2.clone().addScaledVector(dir, off);
+    const hueco = off * .15, pasa = off * .12, tic = off * .12;
+    const u = p2.clone().sub(p1).normalize(), d = dir.clone().add(u).normalize().multiplyScalar(tic / 2);   // marcas a 45°
+    const pts = [
+      p1.clone().addScaledVector(dir, hueco), q1.clone().addScaledVector(dir, pasa),   // líneas de referencia
+      p2.clone().addScaledVector(dir, hueco), q2.clone().addScaledVector(dir, pasa),
+      q1, q2,                                                                             // línea de cota
+      q1.clone().sub(d), q1.clone().add(d), q2.clone().sub(d), q2.clone().add(d)];
+    const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts), mat);
+    l.renderOrder = 10; grupoCotas.add(l);
+    const el = document.createElement('div'); el.className = 'cota'; el.textContent = Math.round(valor);
+    $('cotas').appendChild(el); etiquetas.push({el, pos: q1.clone().add(q2).multiplyScalar(.5)});
+  };
+  cota(V(a.x, a.y, b.z), V(b.x, a.y, b.z), V(0, 0, 1), s.x);    // ancho, en el piso al frente
+  cota(V(a.x, a.y, b.z), V(a.x, b.y, b.z), V(-1, 0, 0), s.y);   // alto, a la izquierda del frente
+  cota(V(b.x, a.y, a.z), V(b.x, a.y, b.z), V(1, 0, 0), s.z);    // profundidad, en el piso a la derecha
+}
+function moverEtiquetas(){
+  if (!etiquetas.length) return;
+  const w = renderer.domElement.clientWidth, h = renderer.domElement.clientHeight;
+  camera.updateMatrixWorld();   // la cámara recién movida por los controles, sin esperar al render
+  etiquetas.forEach(e => {
+    const v = e.pos.clone().project(camera);
+    e.el.style.display = v.z < 1 ? '' : 'none';
+    e.el.style.left = ((v.x + 1) / 2 * w) + 'px'; e.el.style.top = ((1 - v.y) / 2 * h) + 'px';
+  });
+}
+
+/* ---------- modo cliente: ?c=<código> abre data/clientes/<código>.json ---------- */
+const CLIENTE = new URLSearchParams(location.search).get('c');
+if (CLIENTE) document.body.classList.add('modo-cliente');
+const mallasDe = mueble => paneles.filter(m => m.userData.p.mueble === mueble);
+function verCliente(mueble, mover){
+  seleccion = mueble ? { mallas: [], mueble, soloMueble: true } : null;
+  armarSiCambia(); pintar();   // pintar() actualiza las cotas
+  if (mover) encuadrar(marco(cajaDe(mueble ? mallasDe(mueble) : paneles)));
+  $('verAislar').hidden = !mueble;
+  const lista = datosMuebles(), m = mueble && lista.find(x => x.nombre === mueble);
+  const tot = cajaDe(paneles, true).getSize(new THREE.Vector3());
+  const medidas = (an, al, pr) => `<div class="datos"><span>ancho <b>${an}</b></span><span>alto <b>${al}</b></span><span>prof. <b>${pr}</b> mm</span></div>`;
+  const botonAR = `<button class="btn-prim btn-ar" id="cAR">
+      <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5"/></svg>
+      ${m ? 'Ver este mueble en tu espacio (AR)' : 'Ver en tu espacio (AR)'}</button>`;
+  $('cliente').innerHTML = (m
+      ? `<div class="pm-titulo">${esc(m.nombre)}</div>${medidas(m.ancho, m.alto, m.prof)}${botonAR}
+         <button class="link" id="cTodo">Ver todo el proyecto</button>`
+      : `<div class="pm-titulo">${esc(datos.proyecto)}</div>${medidas(Math.round(tot.x), Math.round(tot.y), Math.round(tot.z))}${botonAR}
+         <p class="pm-sub">Tocá un mueble para ver sus medidas. Arrastrá para girar y pellizcá para acercar.</p>`)
+    + (lista.length > 1 ? `<ul class="lista">${lista.map((x, i) => `<li><button data-i="${i}"${x.nombre === mueble ? ' aria-current="true"' : ''}>
+        <span class="n">${i + 1}</span><span>${esc(x.nombre)}</span>
+        <span class="d">${x.ancho} × ${x.alto} × ${x.prof}</span></button></li>`).join('')}</ul>` : '');
+  $('cliente').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => verCliente(lista[+b.dataset.i].nombre, true));
+  if ($('cTodo')) $('cTodo').onclick = () => verCliente(null, true);
+  $('cAR').onclick = () => abrirAR(mueble);
+}
+
+/* ---------- realidad aumentada (link del cliente): el mueble a escala real en su espacio ----------
+   Se exporta lo que se ve a un GLB (metros, apoyado en el piso, centrado) y se abre con <model-viewer>:
+   WebXR / Scene Viewer en Android y AR Quick Look en iPhone (arma el USDZ solo). Necesita HTTPS. */
+const cargarScript = (src, modulo) => new Promise((ok, mal) => {
+  if (document.querySelector(`script[src="${src}"]`)) return ok();
+  const s = document.createElement('script'); s.src = src; if (modulo) s.type = 'module';
+  s.onload = ok; s.onerror = () => mal(new Error('No se pudo cargar ' + src)); document.head.appendChild(s);
+});
+// un tramo de una geometría sin índice (un grupo de caras) como geometría propia
+function tramo(geo, g, conColor){
+  const out = new THREE.BufferGeometry();
+  ['position', 'normal', 'uv'].concat(conColor ? ['color'] : []).forEach(n => {
+    const a = geo.getAttribute(n); if (!a) return;
+    out.setAttribute(n, new THREE.Float32BufferAttribute(a.array.slice(g.start * a.itemSize, (g.start + g.count) * a.itemSize), a.itemSize));
+  });
+  return out;
+}
+// glTF espera los colores en espacio lineal (el visor los usa tal como se ven)
+const colorAR = hex => new THREE.Color(hex).convertSRGBToLinear();
+function modeloAR(mueble){
+  const grupo = new THREE.Group();
+  // todo lo del mismo material en UNA malla: en AR el celular dibuja pocas mallas grandes mucho más
+  // fluido que cientos de piezas sueltas (el rack pasa de ~250 a ~5)
+  const porMaterial = new Map();   // clave -> {material, geos: []}
+  const agregar = (clave, crear, geo) => {
+    if (!porMaterial.has(clave)) porMaterial.set(clave, {material: crear(), geos: []});
+    porMaterial.get(clave).geos.push(geo);
+  };
+  const base = {roughness: .75, metalness: 0, side: THREE.DoubleSide};
+  (mueble ? mallasDe(mueble) : paneles).forEach(m => {
+    const p = m.userData.p, mapa = m.userData.mapa || null, [gCaras, gCantos] = m.geometry.groups;
+    // caras y cantos por separado (con una malla de dos materiales el exportador superpone los cantos)
+    agregar(mapa ? 'tex:' + mapa.uuid : 'col:' + colorMaterial(p.mat), () => new THREE.MeshStandardMaterial({
+      ...base, map: mapa, color: mapa ? 0xFFFFFF : colorAR(colorMaterial(p.mat))}), tramo(m.geometry, gCaras, false));
+    // cantos: para el cliente, el color real del tablero (los de Polyboard son de señalización)
+    if (gCantos && gCantos.count) agregar('canto:' + colorMaterial(p.mat), () => new THREE.MeshStandardMaterial({...base,
+      color: colorAR(mapa && infoMaterial(p.mat) ? infoMaterial(p.mat).color || '#BBBBBB' : colorMaterial(p.mat))}),
+      tramo(m.geometry, gCantos, false));
+  });
+  herrajes.filter(h => !mueble || h.userData.mueble === mueble).forEach(h => {
+    const geo = h.geometry.toNonIndexed(); geo.translate(h.position.x, h.position.y, h.position.z);
+    agregar('herraje', () => new THREE.MeshStandardMaterial({color: colorAR('#9AA3AA'), roughness: .4, metalness: .6}), geo);
+  });
+  porMaterial.forEach(({material, geos}) => {
+    const unida = THREE.BufferGeometryUtils.mergeBufferGeometries(geos);
+    if (unida) grupo.add(new THREE.Mesh(unida, material));
+  });
+  // milímetros -> metros, apoyado en el piso y centrado
+  const caja = new THREE.Box3().setFromObject(grupo), c = caja.getCenter(new THREE.Vector3());
+  grupo.children.forEach(o => o.position.sub(new THREE.Vector3(c.x, caja.min.y, c.z)));
+  const raiz = new THREE.Group(); raiz.scale.setScalar(.001); raiz.add(grupo);
+  return raiz;
+}
+async function abrirAR(mueble){
+  const capa = $('capaAR'), estado = $('arEstado');
+  capa.hidden = false; estado.hidden = false; estado.textContent = 'Preparando el modelo…';
+  $('arVisor').hidden = true;
+  try{
+    await Promise.all([
+      cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/exporters/GLTFExporter.js'),
+      cargarScript('https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/utils/BufferGeometryUtils.js'),
+      cargarScript('https://cdn.jsdelivr.net/npm/@google/model-viewer@3.5.0/dist/model-viewer.min.js', true)]);
+    await customElements.whenDefined('model-viewer');
+    const mv = $('arVisor');
+    if (mv.dataset.url){ URL.revokeObjectURL(mv.dataset.url); delete mv.dataset.url; }
+    const publicado = datos.ar && datos.ar[mueble || ''];
+    if (publicado){
+      // modelo generado por el conversor: Scene Viewer (Android) lo abre nativo y lo apoya en el piso
+      mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
+      mv.src = new URL('data/clientes/' + publicado, location.href).href;
+    } else {
+      // sin modelo publicado (datos viejos): se arma acá; solo sirve WebXR / Quick Look
+      mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
+      const glb = await new Promise(ok => new THREE.GLTFExporter().parse(modeloAR(mueble), ok, {binary: true}));
+      mv.dataset.url = URL.createObjectURL(new Blob([glb], {type: 'model/gltf-binary'}));
+      mv.src = mv.dataset.url;
+    }
+    mv.alt = mueble ? `${mueble} de ${datos.proyecto}` : datos.proyecto;
+    mv.hidden = false; estado.hidden = true;
+    mv.addEventListener('load', () => {
+      if (!mv.canActivateAR){ estado.hidden = false; estado.textContent = 'Este dispositivo no permite ver en realidad aumentada. Podés girar el modelo con el dedo.'; }
+    }, {once: true});
+  }catch(e){ estado.textContent = 'No se pudo preparar la realidad aumentada: ' + e.message; }
+}
+$('arCerrar').onclick = () => { $('capaAR').hidden = true; };
+
+/* ---------- aislar: ocultar los demás muebles ---------- */
+let aislado = null;
+function aislar(mueble){
+  aislado = mueble;
+  $('verAislar').setAttribute('aria-pressed', !!mueble);
+  pintar();
+}
+
+function encuadrar(caja, inmediato, dirVista){
+  const c = caja.getCenter(new THREE.Vector3()), s = caja.getSize(new THREE.Vector3());
+  ultimoEncuadre = [caja.clone(), dirVista]; camaraMovida = false;
+  const radio = s.length() / 2;
+  const vfov = THREE.MathUtils.degToRad(camera.fov);
+  const hfov = 2 * Math.atan(Math.tan(vfov / 2) * camera.aspect);
+  const dist = radio / Math.sin(Math.min(vfov, hfov) / 2) * 1.02;
+  const dir = (dirVista || new THREE.Vector3(.45, .55, 1)).clone().normalize();   // por defecto: frente, desde arriba a la derecha
+  const destino = c.clone().add(dir.multiplyScalar(dist));
+  if (inmediato || matchMedia('(prefers-reduced-motion: reduce)').matches){
+    camera.position.copy(destino); controls.target.copy(c); controls.update(); return;
+  }
+  const p0 = camera.position.clone(), t0 = controls.target.clone(), ini = performance.now();
+  animacion = ahora => {
+    const k = Math.min((ahora - ini) / 650, 1), e = 1 - Math.pow(1 - k, 3);
+    camera.position.lerpVectors(p0, destino, e); controls.target.lerpVectors(t0, c, e);
+    if (k === 1) animacion = null;
+  };
+}
+
+function pintar(){
+  const tiza = colTiza();
+  const mueble = seleccion ? seleccion.mueble : null;
+  paneles.forEach(m => {
+    const p = m.userData.p;
+    let esSel = seleccion && seleccion.mallas.includes(m);
+    const mismo = mueble && p.mueble === mueble;
+    let op = 1, borde = 1;
+    if (seleccion){ op = esSel ? 1 : mismo ? (seleccion.soloMueble ? 1 : modoPieza ? .08 : .3) : .06; borde = esSel ? 1 : mismo ? (modoPieza ? .2 : .9) : .08; }
+    if (transparente && op > .3){ op = .3; borde = 1; }   // ver el interior: tableros translúcidos, bordes marcados
+    // trabajo abierto o en carga: sus piezas en violeta, sus muebles normales, el resto casi invisible
+    const tr = TR.marcando || TR.resaltar;
+    let color = esSel ? tiza : null;
+    if (tr){
+      // color del estado del trabajo (tono fuerte: la pieza; claro: el mueble entero)
+      const enPieza = enClaves(tr.piezas, p), enMueble = tr.muebles.has(p.mueble);
+      esSel = enPieza || enMueble;
+      const est = tr.estado ? tr.estado(p) : 'pendiente';   // sin estado: el trabajo que se está cargando
+      color = !esSel ? null : new THREE.Color(COLOR_ESTADO[est || 'pendiente'][enPieza ? 0 : 1]);
+      op = esSel ? 1 : .1; borde = esSel ? 1 : .1;
+    }
+    const [cara, canto] = m.material;
+    // elegida: color liso; si no, la textura (color blanco para no teñirla) o el color del material
+    const mapa = esSel ? null : m.userData.mapa || null;
+    if (cara.map !== mapa){ cara.map = mapa; cara.needsUpdate = true; }
+    cara.color.set(esSel ? color : mapa ? 0xFFFFFF : colorMaterial(p.mat));
+    if (canto.vertexColors === !!esSel){ canto.vertexColors = !esSel; canto.needsUpdate = true; }
+    canto.color.set(esSel ? color : 0xFFFFFF);
+    const transp = op < 1;
+    m.material.forEach(x => {
+      if (x.transparent !== transp){ x.transparent = transp; x.needsUpdate = true; }
+      x.opacity = op; x.depthWrite = !transp;
+    });
+    m.userData.borde.material.opacity = borde;
+    m.userData.borde.material.color.set(esSel ? 0x0B2A66 : COL.borde);
+  });
+  paneles.forEach(m => { m.visible = !aislado || m.userData.p.mueble === aislado; });
+  herrajes.forEach(h => { const vis = !seleccion || h.userData.mueble === mueble;
+    h.visible = !(despiece && h.userData.mueble === despiece)    // en el despiece no se sabe dónde irían
+      && (!aislado || h.userData.mueble === aislado);
+    h.material.opacity = seleccion ? (vis && !modoPieza ? .35 : .04) : 1; h.material.depthWrite = !seleccion; });
+  muros.forEach(m => { m.visible = !aislado; m.material.opacity = modoPieza ? .03 : .18; m.userData.borde.material.opacity = modoPieza ? .05 : .25; });
+  actualizarCotas();
+}
+
+function loop(t){
+  if (animacion) animacion(t);
+  if (animDespiece) animDespiece(t);
+  controls.update(); moverEtiquetas(); renderer.render(scene, camera);
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+/* ---------- búsqueda de pieza ---------- */
+const normalizar = s => { const m = String(s).match(/\d+/g); return m ? String(parseInt(m[m.length-1],10)) : ''; };
+
+function mostrar(codigo){
+  const n = normalizar(codigo);
+  $('error').classList.remove('visible');
+  const mallas = paneles.filter(m => m.userData.p.num && normalizar(m.userData.p.num) === n);
+  if (!n || !mallas.length){
+    $('error').textContent = n
+      ? `El mecanizado ${codigo} no está en el proyecto ${datos.proyecto}. Revisá que sea el proyecto correcto.`
+      : `No se reconoció un número en "${codigo}". Probá escanear de nuevo o escribirlo.`;
+    $('error').classList.add('visible');
+    return;
+  }
+  seleccionar(mallas);
+  if (navigator.vibrate) navigator.vibrate(60);
+}
+
+/* ---------- muebles ---------- */
+function datosMuebles(){
+  const m = {};
+  paneles.forEach(x => { const p = x.userData.p; (m[p.mueble] = m[p.mueble] || []).push(x); });
+  return Object.entries(m).map(([nombre, mallas]) => {
+    const s = cajaDe(mallas, true).getSize(new THREE.Vector3());
+    return { nombre, mallas, ancho: Math.round(s.x), alto: Math.round(s.y), prof: Math.round(s.z) };
+  }).sort((a,b) => a.nombre.localeCompare(b.nombre, 'es', {numeric:true}));
+}
+const pl = (n, uno, varios) => `${n} ${n === 1 ? uno : varios}`;
+const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+function abrirMuebles(){
+  $('panelMuebles').hidden = false; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
+  $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
+  $('pmVolver').hidden = true;
+  const lista = datosMuebles();
+  const link = datos.cliente ? location.origin + location.pathname + '?c=' + encodeURIComponent(datos.cliente) : '';
+  $('pmContenido').innerHTML = `<div class="pm-titulo">Muebles</div>
+    <div class="pm-sub">${lista.length} muebles en ${esc(datos.proyecto)}</div>
+    ${link ? `<div class="compartir">
+      <span class="etiqueta-num">Link para el cliente (vista 3D con medidas, sin datos de taller)</span>
+      <input id="linkCliente" readonly value="${esc(link)}" aria-label="Link para el cliente">
+      <div class="botones">
+        ${navigator.share ? '<button id="btnCompartir">Compartir</button>' : ''}
+        <button id="btnCopiar">Copiar</button>
+        <a href="${esc(link)}" target="_blank" rel="noopener">Ver como cliente</a>
+      </div></div>` : ''}
+    <ul class="lista">${lista.map((m,i) => `<li><button data-i="${i}">
+      <span class="n">${i+1}</span>
+      <span>${esc(m.nombre)}<br><span class="d">${m.ancho} × ${m.alto} × ${m.prof} mm</span></span>
+      <span class="d">${pl(m.mallas.length,'pieza','piezas')}</span></button></li>`).join('')}</ul>`;
+  $('pmContenido').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => verMueble(lista[+b.dataset.i].nombre));
+  if (link){
+    if ($('btnCompartir')) $('btnCompartir').onclick = () =>
+      navigator.share({title: `${datos.proyecto} — Nord Good`, text: `Tu proyecto ${datos.proyecto} en 3D`, url: link}).catch(() => {});
+    $('btnCopiar').onclick = async () => {
+      const b = $('btnCopiar');
+      try{ await navigator.clipboard.writeText(link); b.textContent = 'Copiado ✓'; }
+      catch(e){ const i = $('linkCliente'); i.focus(); i.select(); document.execCommand('copy') ? b.textContent = 'Copiado ✓' : b.textContent = 'Seleccionado: copialo'; }
+      setTimeout(() => { if (b.isConnected) b.textContent = 'Copiar'; }, 2000);
+    };
+  }
+  seleccion = null; modoPieza = false; armarSiCambia(); grupoTal.clear(); pintar(); encuadrar(cajaDe(paneles));
+}
+function verMueble(nombre){
+  const m = datosMuebles().find(x => x.nombre === nombre); if (!m) return;
+  $('panelMuebles').hidden = false; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
+  $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
+  const pendM = TR.lista.filter(t => abierto(t) && (t.muebles.includes(nombre) || t.piezas.some(k => mallasDeClave(k).some(x => x.userData.p.mueble === nombre))));
+  $('pmVolver').hidden = false; $('vista').hidden = false;
+  // agrupar piezas iguales (mismo nº de pieza)
+  const grupos = {};
+  m.mallas.forEach(x => { const p = x.userData.p; const k = (p.pieza || '') + '|' + p.nombre; (grupos[k] = grupos[k] || []).push(x); });
+  const filas = Object.values(grupos).sort((a,b) => (+a[0].userData.p.pieza || 999) - (+b[0].userData.p.pieza || 999));
+  const conMec = m.mallas.filter(x => x.userData.p.num).length;
+  const mats = [...new Map(m.mallas.map(x => { const p = x.userData.p;
+    return [`${p.mat}|${Math.round(p.med[2]*10)/10}`, `${muestra(p.mat)}${esc(p.mat)} ${Math.round(p.med[2]*10)/10} mm`]; })).values()];
+  const tal = m.mallas.reduce((a,x) => a + (x.userData.p.tal || []).length, 0);
+  $('pmContenido').innerHTML = `<div class="pm-titulo">${esc(m.nombre)}</div>
+    <div class="datos"><span>ancho <b>${m.ancho}</b></span><span>alto <b>${m.alto}</b></span><span>prof. <b>${m.prof}</b> mm</span></div>
+    <div class="mat">${pl(m.mallas.length,'pieza','piezas')}, ${conMec} con mecanizado, ${pl(tal,'taladro','taladros')}<br>Tableros: ${mats.join(' ')}</div>
+    ${pendM.length ? `<button class="aviso-trab" id="pmTrab">⚠ ${pendM.length === 1 ? '1 trabajo sin instalar' : pendM.length + ' trabajos sin instalar'} en este mueble</button>` : ''}
+    <button class="link" id="pmAnotar">Anotar trabajo en este mueble</button>
+    <ul class="lista">${filas.map((g,i) => { const p = g[0].userData.p; return `<li><button data-i="${i}">
+      <span class="n">${esc(p.pieza || '–')}</span>
+      <span>${esc(limpiarNombre(p.nombre))}${g.length > 1 ? ` <span class="d">× ${g.length}</span>` : ''}<br>
+        <span class="d">${Math.round(p.med[0])} × ${Math.round(p.med[1])} × ${Math.round(p.med[2]*10)/10}</span></span>
+      <span class="m">${p.num ? esc(p.num) : '<span class="d">sin mec.</span>'}</span></button></li>`; }).join('')}</ul>`;
+  $('pmContenido').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
+    const g = filas[+b.dataset.i], p = g[0].userData.p;
+    $('panelMuebles').hidden = true;
+    $('numManual').value = p.num || '';
+    seleccionar(p.num ? paneles.filter(x => x.userData.p.num === p.num) : g);
+  });
+  $('pmAnotar').onclick = () => abrirForm({muebles: [m.nombre]});
+  if ($('pmTrab')) $('pmTrab').onclick = () => abrirTrabajos({mueble: m.nombre});
+  seleccion = { mallas: [], mueble: m.nombre, soloMueble: true }; modoPieza = false;
+  armarSiCambia(); grupoTal.clear(); pintar(); encuadrar(cajaDe(m.mallas));
+}
+$('btnMuebles').onclick = () => $('panelMuebles').hidden || $('pmVolver').hidden === false ? abrirMuebles() : cerrarMuebles();
+$('pmVolver').onclick = abrirMuebles;
+$('pmCerrar').onclick = () => cerrarMuebles();
+function cerrarMuebles(){
+  $('panelMuebles').hidden = true;
+  if (seleccion && seleccion.soloMueble){ seleccion = null; pintar(); }
+  if (!seleccion) $('ayuda').hidden = false; else $('ficha').classList.add('visible');
+}
+
+// Con despiece o aislado, el primer toque suelta la pieza y deja el mueble; el segundo, todo.
+function deseleccionar(){
+  if (!seleccion) return;
+  if (CLIENTE){ verCliente(null, false); return; }
+  if (seleccion.mallas.length && (despiece || aislado)){
+    seleccion = { mallas: [], mueble: seleccion.mueble, soloMueble: true };
+  } else {
+    seleccion = null; armarSiCambia();
+    $('vista').hidden = true; $('ayuda').hidden = false;
+  }
+  modoPieza = false; grupoTal.clear();
+  $('ficha').classList.remove('visible'); $('panelMuebles').hidden = true; $('error').classList.remove('visible');
+  $('numManual').value = '';
+  pintar();
+}
+
+function seleccionar(mallas){
+  const p = mallas[0].userData.p;
+  seleccion = { mallas, mueble: p.mueble }; modoPieza = false; armarSiCambia();
+  $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null;
+  $('ayuda').hidden = true; $('panelMuebles').hidden = true; $('error').classList.remove('visible');
+  const num = $('fNum');
+  if (p.num){ num.textContent = p.num; num.classList.remove('sin'); $('fEtiqueta').textContent = 'Nº de mecanizado'; }
+  else { num.textContent = 'Pieza ' + (p.pieza || '?'); num.classList.add('sin'); $('fEtiqueta').textContent = 'Sin mecanizado'; }
+  $('fNombre').textContent = limpiarNombre(p.nombre);
+  $('fMueble').textContent = (p.num && p.pieza ? `Pieza ${p.pieza} del mueble ` : 'Mueble ') + p.mueble;
+  const [a,b,e] = p.med.map(v => Math.round(v*10)/10);
+  $('fDatos').innerHTML = `<span><b>${a} × ${b}</b> mm</span><span>espesor <b>${e}</b> mm</span>`
+    + (p.cant > 1 ? `<span><b>${p.cant}</b> piezas iguales</span>` : '')
+    + ((infoMaterial(p.mat) || {}).textura && Math.abs(a - b) > 1.5 ? `<span>veta a lo largo de <b>${p.vt ? b : a}</b> mm</span>` : '');
+  let nota = '';
+  if (!p.num) nota = 'Sin mecanizado: esta pieza no lleva código de barras.';
+  else if (p.cant > 1) nota = mallas.length > 1
+    ? `El mecanizado ${p.num} es igual para ${p.cant} piezas; están todas marcadas en azul.`
+    : `Hay ${p.cant} piezas con el mecanizado ${p.num}; está marcada la que tocaste.`;
+  $('fNota').textContent = nota;
+  $('fTal').innerHTML = resumenTaladros(p);
+  $('fMat').innerHTML = textoMaterial(p);
+  $('ficha').classList.add('visible');
+  $('vista').hidden = false;
+  avisoFicha();
+  pintar();
+  dibujarTaladros(mallas);
+  dibujarCantos(mallas);
+  encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === p.mueble)));
+}
+
+/* tocar una pieza en el dibujo */
+const rayo = new THREE.Raycaster(), puntero = new THREE.Vector2();
+let toque = null;
+renderer.domElement.addEventListener('pointerdown', e => { toque = {x:e.clientX, y:e.clientY}; });
+renderer.domElement.addEventListener('pointerup', e => {
+  if (!toque || Math.hypot(e.clientX - toque.x, e.clientY - toque.y) > 8) { toque = null; return; }
+  toque = null;
+  const r = renderer.domElement.getBoundingClientRect();
+  puntero.set(((e.clientX - r.left) / r.width) * 2 - 1, -((e.clientY - r.top) / r.height) * 2 + 1);
+  rayo.setFromCamera(puntero, camera);
+  // con una pieza elegida, priorizar las del mismo mueble (las otras están casi invisibles)
+  // (el raycaster también encuentra objetos ocultos: solo los visibles, por "Aislar")
+  const visibles = paneles.filter(m => m.visible);
+  const objetivos = seleccion ? visibles.filter(m => m.userData.p.mueble === seleccion.mueble) : visibles;
+  let hits = rayo.intersectObjects(objetivos, false);
+  if (!hits.length && seleccion) hits = rayo.intersectObjects(visibles, false);
+  // quitar repetidos (una pieza tiene varias caras) y, si la primera ya está elegida,
+  // pasar a la de atrás: tocar de nuevo en el mismo lugar "entra" en el mueble
+  const unicos = [...new Set(hits.map(h => h.object))];
+  if (TR.marcando){ if (unicos.length) marcarPieza(unicos[0]); return; }   // cargando un trabajo: marcar piezas
+  if (!unicos.length){ deseleccionar(); return; }   // tocar donde no hay nada
+  let i = 0;
+  if (seleccion && seleccion.mallas.includes(unicos[0])){
+    const pos = unicos.findIndex(o => !seleccion.mallas.includes(o));
+    i = pos < 0 ? 0 : pos;
+  }
+  if (CLIENTE){ verCliente(unicos[0].userData.p.mueble, true); return; }   // el cliente elige muebles, no piezas
+  const hit = {object: unicos[i]};
+  const p = hit.object.userData.p;
+  // tocar el dibujo elige esa pieza sola (al escanear sí se marcan todas las del mismo nº, no se sabe cuál es)
+  const grupoIgual = [hit.object];
+  $('numManual').value = p.num || '';
+  seleccionar(grupoIgual);
+});
+
+let fichaAbierta = false;
+try{ fichaAbierta = localStorage.getItem('armado.ficha') === '1'; }catch(e){}
+function aplicarFicha(){
+  $('fDetalle').hidden = !fichaAbierta;
+  $('fCabecera').setAttribute('aria-expanded', fichaAbierta);
+  $('ficha').classList.toggle('abierta', fichaAbierta);
+}
+$('fCabecera').onclick = () => {
+  fichaAbierta = !fichaAbierta; aplicarFicha();
+  try{ localStorage.setItem('armado.ficha', fichaAbierta ? '1' : '0'); }catch(e){}
+};
+aplicarFicha();
+function limpiarNombre(s){ return s.replace(/\s*\[\d+\]/g,'').replace(/_(\d+)$/,' $1'); }
+
+$('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ mostrar(v); $('numManual').blur(); } });
+$('fVerMueble').onclick = () => seleccion && verMueble(seleccion.mueble);
+$('verPieza').onclick = () => { if (!seleccion || seleccion.soloMueble) return; modoPieza = true; pintar(); verPieza(); };
+function verPieza(){
+  // mirar de frente la cara con más taladros
+  const m = seleccion.mallas[0], p = m.userData.p;
+  const caja = new THREE.Box3().setFromObject(m), s = caja.getSize(new THREE.Vector3());
+  const ejes = ['x','y','z'], fino = ejes.reduce((a,b) => s[a] <= s[b] ? a : b);
+  let suma = 0;
+  (p.tal || []).forEach(t => { if (!t[9]) suma += ({x:t[3], y:t[4], z:t[5]})[fino]; });
+  const dir = new THREE.Vector3(); dir[fino] = suma > 0 ? -1 : 1;   // los taladros entran en sentido n: se ven desde -n
+  const otros = ejes.filter(e => e !== fino); dir[otros[0]] += .18; dir[otros[1]] += .18;
+  encuadrar(caja, false, dir);
+}
+$('verTodo').onclick = () => {
+  if (CLIENTE){ verCliente(null, true); return; }
+  modoPieza = false; if (despiece) separar(null); if (aislado) aislar(null); pintar(); encuadrar(cajaDe(paneles));
+};
+$('verAislar').onclick = () => {
+  if (!seleccion) return;
+  aislar(aislado ? null : seleccion.mueble);
+  encuadrar(marco(cajaDe(mallasDe(seleccion.mueble))));
+};
+$('verCotas').onclick = () => {
+  conCotas = !conCotas; $('verCotas').setAttribute('aria-pressed', conCotas);
+  if (!CLIENTE) try{ localStorage.setItem('armado.cotas', conCotas ? '1' : '0'); }catch(e){}
+  actualizarCotas();
+};
+$('verCotas').setAttribute('aria-pressed', conCotas);
+$('verTransp').onclick = () => {
+  transparente = !transparente; $('verTransp').setAttribute('aria-pressed', transparente); pintar();
+};
+$('verDespiece').onclick = () => {
+  if (!seleccion) return;
+  modoPieza = false;
+  separar(despiece === seleccion.mueble ? null : seleccion.mueble);
+  encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === seleccion.mueble)));
+};
+$('verMueble').onclick = () => { if (!seleccion) return; modoPieza = false; pintar(); encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === seleccion.mueble))); };
+
+/* ---------- escáner ---------- */
+let flujo = null, detenido = true, zxing = null;
+const FORMATOS = ['code_128','code_39','code_93','ean_13','ean_8','itf','codabar','qr_code','data_matrix'];
+
+async function abrirEscaner(){
+  $('scanMsg').textContent = 'Apuntá al código de barras de la etiqueta';
+  $('scanner').classList.add('visible');
+  detenido = false;
+  try{
+    flujo = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}}});
+  }catch(err){
+    $('scanMsg').textContent = 'No se pudo abrir la cámara. Dale permiso al navegador o escribí el número a mano.';
+    return;
+  }
+  const v = $('video'); v.srcObject = flujo; await v.play();
+  if ('BarcodeDetector' in window){
+    const disp = await BarcodeDetector.getSupportedFormats();
+    const det = new BarcodeDetector({formats: FORMATOS.filter(f => disp.includes(f))});
+    const leer = async () => {
+      if (detenido) return;
+      try{ const r = await det.detect(v); if (r.length){ leido(r[0].rawValue); return; } }catch(e){}
+      requestAnimationFrame(leer);
+    };
+    leer();
+  } else {
+    await cargarZXing();
+    const lector = new ZXing.BrowserMultiFormatReader();
+    zxing = lector;
+    lector.decodeFromVideoElementContinuously(v, (res) => { if (res && !detenido) leido(res.getText()); });
+  }
+}
+function cargarZXing(){
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((ok, mal) => { const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload = ok; s.onerror = () => { $('scanMsg').textContent = 'No se pudo cargar el lector. Escribí el número a mano.'; mal(); };
+    document.head.appendChild(s); });
+}
+function cerrarEscaner(){
+  detenido = true;
+  if (zxing){ try{ zxing.reset(); }catch(e){} zxing = null; }
+  if (flujo){ flujo.getTracks().forEach(t => t.stop()); flujo = null; }
+  $('scanner').classList.remove('visible');
+}
+function leido(txt){ cerrarEscaner(); $('numManual').value = normalizar(txt).padStart(4,'0'); mostrar(txt); }
+$('btnEscanear').onclick = abrirEscaner;
+$('btnCerrar').onclick = cerrarEscaner;
+
+/* ---------- trabajos a realizar (servicio servidor/api.py, en /api/) ---------- */
+const nombreYo = () => { try{ return localStorage.getItem('armado.nombre') || ''; }catch(e){ return ''; } };
+const guardarNombre = n => { try{ localStorage.setItem('armado.nombre', n); }catch(e){} };
+async function api(ruta, opciones){
+  const r = await fetch('api/' + ruta, {cache: 'no-store', ...opciones});
+  if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'error ' + r.status);
+  return r.status === 204 ? null : r.json();
+}
+const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
+let pedidoLista = 0;
+async function cargarTrabajos(){
+  if (CLIENTE || !datos) return;
+  const pedido = ++pedidoLista;   // solo vale la respuesta del último pedido: una vieja que llega tarde no pisa un cambio
+  let lista = null;
+  try{ lista = await api('trabajos?proyecto=' + encodeURIComponent(datos.proyecto)); }catch(e){}
+  if (pedido !== pedidoLista) return;
+  TR.lista = lista || []; TR.disponible = !!lista;
+  const n = TR.lista.filter(abierto).length;
+  $('tbInsignia').hidden = !n; $('tbInsignia').textContent = n;
+  if (seleccion && seleccion.mallas.length) avisoFicha();
+  if (!$('panelTrabajos').hidden && !TR.vista?.form) mostrarTrabajos();
+}
+document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarTrabajos(); });
+const pendientesDe = p => TR.lista.filter(t => abierto(t) && (enClaves(new Set(t.piezas), p) || t.muebles.includes(p.mueble)));
+function avisoFicha(){
+  const p = seleccion.mallas[0].userData.p, n = pendientesDe(p).length;
+  $('fTrab').hidden = !n;
+  $('fTrab').textContent = `⚠ ${n === 1 ? '1 trabajo sin instalar' : n + ' trabajos sin instalar'} en esta pieza o su mueble`;
+  $('fTrab').onclick = () => abrirTrabajos({pieza: claveP(p), num: p.num, mueble: p.mueble});
+}
+const mallasDeClave = k => paneles.filter(m => claveP(m.userData.p) === k || m.userData.p.num === k);
+function etiquetaPieza(k){
+  const m = mallasDeClave(k)[0]; if (!m) return k;
+  const p = m.userData.p; return `${p.num ? p.num + ' · ' : ''}${limpiarNombre(p.nombre)} (${p.mueble})`;
+}
+const fecha = f => f ? f.slice(8, 10) + '/' + f.slice(5, 7) : '';
+const hoy = () => new Date().toISOString().slice(0, 10);
+const vencido = t => (t.estado === 'pendiente' || t.estado === 'en proceso') && t.limite && t.limite < hoy();
+// estado para colorear: vencido > pendiente > en proceso > hecho (una pieza puede estar en varios trabajos)
+const RANGO = ['vencido', 'pendiente', 'en proceso', 'hecho'];
+function estadosDe(trabajos){
+  const m = new Map(), poner = (k, r) => m.set(k, Math.min(m.has(k) ? m.get(k) : 9, r));
+  trabajos.filter(abierto).forEach(t => {
+    const r = vencido(t) ? 0 : RANGO.indexOf(t.estado);
+    t.piezas.forEach(k => poner('p:' + k, r)); t.muebles.forEach(n => poner('m:' + n, r));
+  });
+  const de = k => m.has(k) ? m.get(k) : 9;
+  return p => {
+    const r = Math.min(de('p:' + claveP(p)), p.num ? de('p:' + p.num) : 9, de('m:' + p.mueble));
+    return r < 9 ? RANGO[r] : null;
+  };
+}
+function metaTrabajo(t){
+  const partes = [];
+  if (t.estado === 'instalado') partes.push(`instalado${t.instalado_por ? ' por ' + esc(t.instalado_por) : ''} ${fecha(t.instalado_en)}`);
+  else if (t.estado === 'hecho') partes.push(`hecho${t.hecho_por ? ' por ' + esc(t.hecho_por) : ''} ${fecha(t.hecho_en)}, falta instalar`);
+  else {
+    if (t.estado === 'en proceso') partes.push(`empezado${t.iniciado_por ? ' por ' + esc(t.iniciado_por) : ''} ${fecha(t.iniciado_en)}`);
+    if (t.asignado) partes.push('para ' + esc(t.asignado));
+    if (t.limite) partes.push(`<span class="${vencido(t) ? 'vencido' : ''}">vence ${fecha(t.limite)}</span>`);
+  }
+  const np = t.piezas.length, nm = t.muebles.length;
+  if (np) partes.push(pl(np, 'pieza', 'piezas'));
+  if (nm) partes.push(pl(nm, 'mueble', 'muebles'));
+  if (t.fotos.length) partes.push(`${t.fotos.length} foto${t.fotos.length > 1 ? 's' : ''}`);
+  return partes.join(' · ');
+}
+const cabecera = (titulo, extra = '') => `<div class="pt-cab">${extra}<div class="pm-titulo">${titulo}</div>
+  <button class="cerrar-pm" data-cerrar aria-label="Cerrar trabajos"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
+
+function abrirTrabajos(filtro){
+  TR.filtro = filtro || null; TR.vista = 'lista'; TR.resaltar = null; TR.marcando = null;
+  $('panelTrabajos').hidden = false; $('panelMuebles').hidden = true; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
+  pintar(); mostrarTrabajos(); cargarTrabajos();
+}
+function cerrarTrabajos(){
+  $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
+  pintar();
+  if (seleccion && seleccion.mallas.length) $('ficha').classList.add('visible'); else $('ayuda').hidden = false;
+}
+$('btnTrabajos').onclick = () => $('panelTrabajos').hidden ? abrirTrabajos() : cerrarTrabajos();
+$('fAnotar').onclick = () => seleccion && abrirForm({piezas: [...new Set(seleccion.mallas.map(m => claveP(m.userData.p)))]});
+
+function mostrarTrabajos(){
+  const el = $('panelTrabajos'), v = TR.vista;
+  if (v && v.form) return;   // el formulario se dibuja una vez (no perder lo que se está escribiendo)
+  if (v && v.detalle) return mostrarDetalle(v.detalle);
+  if (TR.disponible === false){
+    el.innerHTML = cabecera('Trabajos') + '<p class="nota">Los trabajos no están disponibles en este servidor (falta el servicio api del NAS).</p>';
+    el.querySelector('[data-cerrar]').onclick = cerrarTrabajos; return;
+  }
+  const f = TR.filtro;
+  // con filtro: los de la pieza, los del mueble y (si se filtra por mueble) los de sus piezas
+  const lista = TR.lista.filter(t => !f || t.muebles.includes(f.mueble) || t.piezas.some(k => k === f.pieza || (f.num && k === f.num)
+    || (!f.pieza && mallasDeClave(k).some(x => x.userData.p.mueble === f.mueble))));
+  const pend = lista.filter(abierto), pendientes = pend.filter(t => t.estado === 'pendiente'), proceso = pend.filter(t => t.estado === 'en proceso'),
+        hechos = pend.filter(t => t.estado === 'hecho'), instalados = lista.filter(t => t.estado === 'instalado');
+  // en el dibujo, en el color de su estado todo lo que no está instalado (los de la lista, con su filtro)
+  TR.resaltar = pend.length ? {piezas: new Set(pend.flatMap(t => t.piezas)), muebles: new Set(pend.flatMap(t => t.muebles)),
+    estado: estadosDe(pend)} : null;
+  pintar();
+  const sig = {pendiente: 'en proceso', 'en proceso': 'hecho', hecho: 'instalado'};
+  const item = t => `<div class="trab est-${t.estado.replace(' ', '-')}">
+    <button class="check" data-avanzar="${t.id}" ${sig[t.estado] ? `aria-label="${NOMBRE_ESTADO[t.estado]}: pasar a ${sig[t.estado]}"` : 'aria-label="Instalado" disabled'}>✓</button>
+    <button class="cuerpo" data-ver="${t.id}"><div class="t-texto">${esc(t.texto)}</div><div class="t-meta">${metaTrabajo(t)}</div></button></div>`;
+  el.innerHTML = cabecera('Trabajos', '') + `
+    <div class="pm-sub">${f ? `${f.pieza ? 'De esta pieza o su mueble' : 'Del mueble ' + esc(f.mueble)} · <button class="link" data-todos>ver todos</button>` : `${pend.length} sin instalar en ${esc(datos.proyecto)}`}</div>
+    <button class="btn-prim" data-nuevo>+ Nuevo trabajo</button>
+    ${pend.length ? `<div class="leyenda">${['pendiente', 'en proceso', 'hecho'].concat(pend.some(vencido) ? ['vencido'] : [])
+        .map(e => `<span><i style="background:${hex(COLOR_ESTADO[e][0])}"></i>${e}</span>`).join('')}<span>(claro: mueble entero)</span></div>` : ''}
+    ${pendientes.length ? `<div class="t-seccion">Pendientes (${pendientes.length})</div>${pendientes.map(item).join('')}` : ''}
+    ${proceso.length ? `<div class="t-seccion">En proceso (${proceso.length})</div>${proceso.map(item).join('')}` : ''}
+    ${hechos.length ? `<div class="t-seccion">Hechos, a instalar (${hechos.length})</div>${hechos.map(item).join('')}` : ''}
+    ${!pend.length ? '<p class="nota">No hay trabajos sin instalar.</p>' : ''}
+    ${instalados.length ? `<button class="link" data-hechos>${TR.verHechos ? 'Ocultar' : 'Ver'} instalados (${instalados.length})</button>
+      ${TR.verHechos ? instalados.map(item).join('') : ''}` : ''}`;
+  el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
+  el.querySelector('[data-nuevo]').onclick = () => abrirForm(!f ? {} : f.pieza ? {piezas: [f.pieza]} : {muebles: [f.mueble]});
+  if (el.querySelector('[data-todos]')) el.querySelector('[data-todos]').onclick = () => { TR.filtro = null; mostrarTrabajos(); };
+  if (el.querySelector('[data-hechos]')) el.querySelector('[data-hechos]').onclick = () => { TR.verHechos = !TR.verHechos; mostrarTrabajos(); };
+  el.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { TR.vista = {detalle: +b.dataset.ver}; mostrarTrabajos(); });
+  el.querySelectorAll('[data-avanzar]').forEach(b => b.onclick = () => {
+    const t = TR.lista.find(x => x.id === +b.dataset.avanzar); if (t) cambiarEstado(t.id, sig[t.estado]);
+  });
+}
+
+let guardandoEstado = false;
+async function cambiarEstado(id, estado){
+  const t = TR.lista.find(x => x.id === id); if (!t || !estado || estado === t.estado || guardandoEstado) return;
+  guardandoEstado = true;
+  $('panelTrabajos').querySelectorAll('[data-est], [data-avanzar]').forEach(b => b.disabled = true);
+  try{
+    // se muestra lo que devuelve el cambio (el trabajo ya guardado): no depende de que la lista
+    // pedida después llegue con el cambio aplicado
+    const nuevo = await api('trabajos/' + id, jsonApi('PATCH', {estado, quien: nombreYo() || null}));
+    TR.lista = TR.lista.map(x => x.id === id ? nuevo : x);
+  }catch(e){ alert('No se pudo guardar: ' + e.message); }
+  guardandoEstado = false;
+  mostrarTrabajos();
+  cargarTrabajos();
+}
+
+function mostrarDetalle(id){
+  const el = $('panelTrabajos'), t = TR.lista.find(x => x.id === id);
+  if (!t){ TR.vista = 'lista'; return mostrarTrabajos(); }
+  TR.resaltar = {piezas: new Set(t.piezas), muebles: new Set(t.muebles), estado: () => vencido(t) ? 'vencido' : t.estado};
+  pintar();
+  const mallas = paneles.filter(m => enClaves(TR.resaltar.piezas, m.userData.p) || TR.resaltar.muebles.has(m.userData.p.mueble));
+  if (mallas.length) encuadrar(cajaDe(mallas));
+  const volver = `<button class="volver" data-volver><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>Trabajos</button>`;
+  el.innerHTML = cabecera('', volver) + `
+    <div class="t-detalle">${esc(t.texto)}</div>
+    <div class="t-meta">Anotado${t.autor ? ' por ' + esc(t.autor) : ''} el ${fecha(t.creado)}${t.asignado ? ' · para ' + esc(t.asignado) : ''}${t.limite ? ` · <span class="${vencido(t) ? 'vencido' : ''}">vence ${fecha(t.limite)}</span>` : ''}</div>
+    ${t.iniciado_en ? `<div class="t-meta">Empezado${t.iniciado_por ? ' por ' + esc(t.iniciado_por) : ''} el ${fecha(t.iniciado_en)}</div>` : ''}
+    ${t.hecho_en ? `<div class="t-meta">Hecho${t.hecho_por ? ' por ' + esc(t.hecho_por) : ''} el ${fecha(t.hecho_en)}</div>` : ''}
+    ${t.instalado_en ? `<div class="t-meta">Instalado${t.instalado_por ? ' por ' + esc(t.instalado_por) : ''} el ${fecha(t.instalado_en)}</div>` : ''}
+    ${t.piezas.length || t.muebles.length ? `<div class="chips">${t.piezas.map(k => `<button class="chip pieza" data-pieza="${esc(k)}">${esc(etiquetaPieza(k))}</button>`).join('')}
+      ${t.muebles.map(n => `<button class="chip" data-mueble="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
+    ${t.fotos.length ? `<div class="fotos">${t.fotos.map(f => `<a class="foto" href="api/fotos/${encodeURIComponent(f)}" target="_blank" rel="noopener"><img src="api/fotos/${encodeURIComponent(f)}" alt="Foto del trabajo" loading="lazy"></a>`).join('')}</div>` : ''}
+    <div class="estados" role="group" aria-label="Estado">${ESTADOS.map(e =>
+      `<button data-est="${e}" aria-pressed="${t.estado === e}" style="--c:${hex(COLOR_ESTADO[e][0])}">${NOMBRE_ESTADO[e]}</button>`).join('')}</div>
+    <div class="botonera">
+      <button class="btn-sec" data-editar>Editar</button>
+      <button class="btn-sec btn-peligro" data-borrar>Borrar</button>
+    </div>`;
+  el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
+  el.querySelector('[data-volver]').onclick = () => { TR.vista = 'lista'; TR.resaltar = null; pintar(); mostrarTrabajos(); };
+  el.querySelectorAll('[data-est]').forEach(b => b.onclick = () => cambiarEstado(t.id, b.dataset.est));
+  el.querySelector('[data-editar]').onclick = () => abrirForm(t);
+  el.querySelector('[data-borrar]').onclick = async () => {
+    if (!confirm('¿Borrar este trabajo y sus fotos?')) return;
+    try{ await api('trabajos/' + t.id, {method: 'DELETE'}); }catch(e){ alert('No se pudo borrar: ' + e.message); }
+    TR.vista = 'lista'; TR.resaltar = null; pintar(); cargarTrabajos(); mostrarTrabajos();
+  };
+  el.querySelectorAll('[data-pieza]').forEach(b => b.onclick = () => { const ms = mallasDeClave(b.dataset.pieza); if (ms.length){ cerrarTrabajos(); seleccionar(ms); } });
+  el.querySelectorAll('[data-mueble]').forEach(b => b.onclick = () => { cerrarTrabajos(); verMueble(b.dataset.mueble); });
+}
+
+/* formulario: nuevo o editar; las piezas se marcan tocándolas en el dibujo */
+function abrirForm(base){
+  const f = {id: base.id || null, texto: base.texto || '', asignado: base.asignado || '', limite: base.limite || '',
+    piezas: new Set(base.piezas || []), muebles: new Set(base.muebles || []), fotos: [...(base.fotos || [])], quitar: [], nuevas: []};
+  TR.vista = {form: f}; TR.marcando = f; TR.resaltar = null;
+  $('panelTrabajos').hidden = false; $('panelMuebles').hidden = true; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
+  const nombres = [...new Set(TR.lista.flatMap(t => [t.autor, t.asignado]).filter(Boolean))];
+  const muebles = datosMuebles().map(m => m.nombre);
+  const el = $('panelTrabajos');
+  el.innerHTML = cabecera(f.id ? 'Editar trabajo' : 'Nuevo trabajo') + `<div class="form-trab">
+    <label for="ftTexto">Qué hay que hacer</label><textarea id="ftTexto" rows="3" maxlength="4000">${esc(f.texto)}</textarea>
+    <div class="fila2"><div><label for="ftAsig">Para quién</label><input id="ftAsig" list="ftNombres" maxlength="80" value="${esc(f.asignado)}"></div>
+      <div><label for="ftLim">Fecha límite</label><input id="ftLim" type="date" value="${esc(f.limite)}"></div></div>
+    <datalist id="ftNombres">${nombres.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
+    <label>Piezas</label><div class="marcando">Tocá piezas en el dibujo para marcarlas o desmarcarlas.</div>
+    <div class="chips" id="ftPiezas"></div>
+    <label>Muebles</label><div class="chips">${muebles.map(n => `<button class="chip" data-mueble="${esc(n)}" aria-pressed="${f.muebles.has(n)}">${esc(n)}</button>`).join('')}</div>
+    <label>Fotos</label><div class="fotos" id="ftFotos"></div>
+    <label class="btn-sec" for="ftArchivo" style="display:inline-flex;margin:0;color:var(--tinta);font-size:16px">📷 Agregar foto</label>
+    <input id="ftArchivo" type="file" accept="image/*" multiple hidden>
+    ${nombreYo() ? '' : '<label for="ftYo">Tu nombre (queda guardado en este celular)</label><input id="ftYo" maxlength="80" autocomplete="name">'}
+    <p class="error" id="ftError"></p>
+    <div class="botonera"><button class="btn-prim" data-guardar>Guardar</button><button class="btn-sec" data-cancelar>Cancelar</button></div>
+  </div>`;
+  el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
+  el.querySelector('[data-cancelar]').onclick = () => { if (f.id){ TR.marcando = null; TR.vista = {detalle: f.id}; mostrarTrabajos(); } else cerrarTrabajos(); };
+  el.querySelectorAll('[data-mueble]').forEach(b => b.onclick = () => {
+    const n = b.dataset.mueble; f.muebles.has(n) ? f.muebles.delete(n) : f.muebles.add(n);
+    b.setAttribute('aria-pressed', f.muebles.has(n)); pintar();
+  });
+  $('ftArchivo').onchange = e => { f.nuevas.push(...[...e.target.files].filter(x => x.type.startsWith('image/'))); e.target.value = ''; fotosForm(f); };
+  el.querySelector('[data-guardar]').onclick = () => guardarForm(f);
+  piezasForm(f); fotosForm(f); pintar();
+  const mallas = paneles.filter(m => enClaves(f.piezas, m.userData.p) || f.muebles.has(m.userData.p.mueble));
+  if (mallas.length) encuadrar(cajaDe(paneles.filter(m => mallas.some(x => x.userData.p.mueble === m.userData.p.mueble))));
+  if (!f.id) $('ftTexto').focus();
+}
+function piezasForm(f){
+  $('ftPiezas').innerHTML = [...f.piezas].map(k => `<button class="chip pieza" data-quitar="${esc(k)}" aria-label="Quitar ${esc(etiquetaPieza(k))}">${esc(etiquetaPieza(k))} ×</button>`).join('')
+    || '<span class="nota" style="margin:0">Ninguna</span>';
+  $('ftPiezas').querySelectorAll('[data-quitar]').forEach(b => b.onclick = () => { f.piezas.delete(b.dataset.quitar); piezasForm(f); pintar(); });
+}
+function marcarPieza(malla){   // desde el toque en el dibujo
+  const f = TR.marcando, k = claveP(malla.userData.p);
+  f.piezas.has(k) ? f.piezas.delete(k) : f.piezas.add(k);
+  piezasForm(f); pintar();
+  if (navigator.vibrate) navigator.vibrate(30);
+}
+function fotosForm(f){
+  const urls = f.nuevas.map(b => b._url || (b._url = URL.createObjectURL(b)));
+  $('ftFotos').innerHTML = f.fotos.map((n, i) => `<div class="foto"><img src="api/fotos/${encodeURIComponent(n)}" alt=""><button class="quitar" data-vieja="${i}" aria-label="Quitar foto">×</button></div>`).join('')
+    + urls.map((u, i) => `<div class="foto"><img src="${u}" alt=""><button class="quitar" data-nueva="${i}" aria-label="Quitar foto">×</button></div>`).join('');
+  $('ftFotos').querySelectorAll('[data-vieja]').forEach(b => b.onclick = () => { f.quitar.push(...f.fotos.splice(+b.dataset.vieja, 1)); fotosForm(f); });
+  $('ftFotos').querySelectorAll('[data-nueva]').forEach(b => b.onclick = () => { f.nuevas.splice(+b.dataset.nueva, 1); fotosForm(f); });
+}
+// fotos del celular: se achican a 1600 px en JPEG antes de subir (unos 300 KB en vez de varios MB)
+async function reducir(archivo){
+  try{
+    const img = await createImageBitmap(archivo);
+    const k = Math.min(1, 1600 / Math.max(img.width, img.height));
+    const c = document.createElement('canvas'); c.width = Math.round(img.width * k); c.height = Math.round(img.height * k);
+    c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+    return await new Promise(r => c.toBlob(r, 'image/jpeg', .82)) || archivo;
+  }catch(e){ return archivo; }
+}
+async function guardarForm(f){
+  const texto = $('ftTexto').value.trim(), boton = document.querySelector('[data-guardar]');
+  if (!texto){ $('ftError').textContent = 'Escribí qué hay que hacer.'; $('ftError').classList.add('visible'); return; }
+  if ($('ftYo')){ const yo = $('ftYo').value.trim(); if (!yo){ $('ftError').textContent = 'Escribí tu nombre.'; $('ftError').classList.add('visible'); return; } guardarNombre(yo); }
+  const cuerpo = {texto, asignado: $('ftAsig').value.trim() || null, limite: $('ftLim').value || null,
+    piezas: [...f.piezas], muebles: [...f.muebles]};
+  boton.disabled = true; boton.textContent = 'Guardando…';
+  try{
+    const t = f.id ? await api('trabajos/' + f.id, jsonApi('PATCH', cuerpo))
+                   : await api('trabajos', jsonApi('POST', {...cuerpo, proyecto: datos.proyecto, autor: nombreYo()}));
+    f.id = t.id;   // si falla una foto, reintentar edita este trabajo en vez de crear otro
+    while (f.quitar.length){ await api(`trabajos/${t.id}/fotos/${encodeURIComponent(f.quitar[0])}`, {method: 'DELETE'}); f.quitar.shift(); }
+    while (f.nuevas.length){
+      boton.textContent = `Subiendo foto (${f.nuevas.length})…`;
+      const b = await reducir(f.nuevas[0]);
+      await api(`trabajos/${t.id}/fotos`, {method: 'POST', headers: {'Content-Type': b.type || 'image/jpeg'}, body: b});
+      f.nuevas.shift();
+    }
+    TR.marcando = null; TR.vista = {detalle: t.id};
+    await cargarTrabajos(); mostrarTrabajos();
+  }catch(e){
+    $('ftError').textContent = 'No se pudo guardar: ' + e.message; $('ftError').classList.add('visible');
+    boton.disabled = false; boton.textContent = 'Guardar';
+  }
+}
+
+/* ---------- proyectos ---------- */
+const guardar = v => { try{ localStorage.setItem('armado.proyecto', v); }catch(e){} };
+const recordar = () => { try{ return localStorage.getItem('armado.proyecto'); }catch(e){ return null; } };
+
+async function iniciar(){
+  let lista;
+  if (window.MATERIALES_EMBEBIDOS) cargarColores(window.MATERIALES_EMBEBIDOS);
+  else if (!window.DATOS_EMBEBIDOS){
+    try{ const r = await fetch('data/materiales.json', {cache:'no-store'}); if (r.ok) cargarColores(await r.json()); }catch(e){}
+  }
+  if (CLIENTE){
+    let d = null;
+    try{ const r = await fetch('data/clientes/' + encodeURIComponent(CLIENTE) + '.json', {cache:'no-store'}); if (r.ok) d = await r.json(); }catch(e){}
+    if (!d){ $('cargando').textContent = 'Este link no es válido o el proyecto ya no está disponible.'; return; }
+    return cargar({proyecto: d.proyecto, datos: d});
+  }
+  if (window.DATOS_EMBEBIDOS){
+    const d = window.DATOS_EMBEBIDOS;
+    lista = [{proyecto:d.proyecto, datos:d}];
+  } else {
+    try{ lista = await (await fetch('data/index.json', {cache:'no-store'})).json(); }
+    catch(e){ $('cargando').textContent = 'No se encontró data/index.json. Generalo con polyboard_a_app.py.'; return; }
+  }
+  const sel = $('proyecto');
+  sel.innerHTML = lista.map(x => `<option value="${x.proyecto}">${x.proyecto}</option>`).join('');
+  const previo = recordar(); if (previo && lista.some(x => x.proyecto === previo)) sel.value = previo;
+  sel.onchange = () => cargar(lista.find(x => x.proyecto === sel.value));
+  cargar(lista.find(x => x.proyecto === sel.value));
+}
+async function cargar(item){
+  $('cargando').hidden = false; $('cargando').textContent = 'Cargando proyecto…';
+  try{
+    datos = item.datos || await (await fetch('data/' + item.archivo, {cache:'no-store'})).json();
+  }catch(e){ $('cargando').textContent = 'No se pudo cargar el proyecto ' + item.proyecto + '.'; return; }
+  if (!CLIENTE) guardar(datos.proyecto);
+  MATS = datos.materiales || {}; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
+  $('ficha').classList.remove('visible'); $('error').classList.remove('visible'); $('vista').hidden = true; $('ayuda').hidden = false; $('panelMuebles').hidden = true;
+  tamano(); construir(datos);
+  $('cargando').hidden = true;
+  TR.lista = []; TR.vista = null; TR.resaltar = null; TR.marcando = null; TR.filtro = null;
+  $('panelTrabajos').hidden = true; $('tbInsignia').hidden = true; cargarTrabajos();
+  if (CLIENTE){
+    $('titulo').textContent = 'Nord Good'; $('hProyecto').textContent = datos.proyecto; $('hProyecto').hidden = false;
+    document.title = `${datos.proyecto} — Nord Good`;
+    $('vista').hidden = false; verCliente(null, false); encuadrar(marco(cajaDe(paneles)), true);
+    return;
+  }
+  const q = new URLSearchParams(location.search).get('pieza'); if (q) mostrar(q);
+}
+iniciar();
+})();
+</script>
+</body>
+</html>
