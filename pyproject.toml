@@ -1,0 +1,31 @@
+[project]
+name = "visor"
+version = "0.1.0"
+description = "Visor de armado de proyectos de Polyboard, por suscripción, para talleres de muebles"
+requires-python = ">=3.12"
+dependencies = [
+    "django>=5.2,<5.3",
+    "django-environ>=0.12",
+    "huey>=2.5",
+    "django-storages[s3]>=1.14",
+    "psycopg[binary]>=3.2",
+    "redis>=5",
+    "ezdxf>=1.4",
+    "pillow>=11",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-django>=4.9"]
+
+[tool.setuptools]
+# no es un paquete instalable: `pip install -e .[dev]` solo instala las dependencias
+packages = []
+
+[tool.pytest.ini_options]
+pythonpath = [".", "app"]
+testpaths = ["tests"]
+DJANGO_SETTINGS_MODULE = "config.settings_pruebas"
+markers = [
+    "muestras: convierte los proyectos reales de muestras/ (lento, unos 8 minutos)",
+]
+addopts = "-ra"

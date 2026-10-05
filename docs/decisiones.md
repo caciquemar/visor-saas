@@ -2,6 +2,30 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-04 · Muestras con nombres reales en el repo privado
+Martín decidió subir las muestras de `muestras/` tal como salen de Polyboard, con los nombres de los clientes,
+porque el repo es privado. Descartado por ahora: re-exportarlas con nombres inventados (lleva tiempo) o dejarlas
+fuera de git (las pruebas no correrían en otra PC). Si el repo se comparte o se hace público, se anonimizan antes.
+
+## 2026-10-04 · Django 5.2 LTS
+Versión con soporte largo (hasta abril de 2028) y compatible con Python 3.14. Descartado: Django 6.1 (más nueva,
+pero con soporte más corto). Pasar a 6.2 LTS cuando salga.
+
+## 2026-10-04 · Cola de tareas: Huey
+Las conversiones van a una cola con Huey. En el servidor usa Redis; en la PC puede correr en el mismo proceso
+(`HUEY_INMEDIATO=1`) o guardar la cola en un SQLite, sin Redis ni Docker. Descartado: RQ, porque necesita `fork` y
+no corre en Windows, que es donde se desarrolla. Celery es demasiado para el tamaño del proyecto.
+
+## 2026-10-04 · Archivos: django-storages con Cloudflare R2
+`ALMACENAMIENTO=r2` usa `storages.backends.s3.S3Storage` contra el endpoint de R2, con archivos privados y URL
+firmadas. En la PC, `ALMACENAMIENTO=local` guarda en `datos/archivos/`. El resto del código usa el almacenamiento
+de Django y no sabe cuál es.
+
+## 2026-10-04 · Conversor: un solo módulo, cambios mínimos
+`conversor/polyboard_a_app.py` sigue siendo un solo archivo, con `convertir()` y `ErrorConversion` agregados, para
+que los arreglos se puedan llevar fácil al visor actual de Nord Good. El código del link del cliente lo decide
+quien llama (la app lo guardará en la base; la línea de comandos sigue usando `.clientes.json`).
+
 ## 2026-10-04 · Zicar como módulo privado de Nord Good
 El conversor Polyboard → Zicar no se vende. Se integra como módulo que se prende por taller y solo está prendido
 para Nord Good. Su código queda en su propio repo privado.

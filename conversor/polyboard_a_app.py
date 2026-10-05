@@ -10,23 +10,42 @@ Uso:
 Genera data/<proyecto>.json y actualiza data/index.json.
 Con --texturas, copia reducida de la imagen de cada material en data/texturas/.
 Requiere: pip install ezdxf   (y pillow para --texturas)
+
+Desde Python:  from conversor import convertir, ErrorConversion
 """
-import argparse, bz2, hashlib, json, math, re, struct, sys, unicodedata
+import argparse, bz2, hashlib, json, logging, math, re, secrets, struct, sys, unicodedata
+from dataclasses import dataclass, field
 from pathlib import Path
 import ezdxf
+
+log = logging.getLogger('conversor')
+
+class ErrorConversion(Exception):
+    """El proyecto no se puede convertir. El mensaje es para el taller: dice qué pasó y qué hacer."""
 
 def descomprimir(path):
     """Archivos de Boole (.ocp, .mat-boole): cabecera + bloque bzip2."""
     raw = Path(path).read_bytes()
     i = raw.find(b'BZh9')
-    return bz2.BZ2Decompressor().decompress(raw[i:]) if i >= 0 else None
+    if i < 0:
+        return None
+    dec = bz2.BZ2Decompressor()
+    try:
+        d = dec.decompress(raw[i:])
+    except (OSError, EOFError):
+        return None
+    return d if dec.eof else None      # bloque cortado: el archivo está incompleto
 
 # ---------------------------------------------------------------- OCP (OptiCut)
 def leer_ocp(path):
     """Devuelve las piezas del .ocp: número, nombre, mueble, proyecto, largo, ancho, cantidad."""
+    nombre_archivo = Path(path).name
+    if not Path(path).is_file():
+        raise ErrorConversion(f"No se encontró el archivo de OptiCut {nombre_archivo}.")
     d = descomprimir(path)
     if d is None:
-        sys.exit("El .ocp no tiene el formato esperado (no se encontró el bloque comprimido).")
+        raise ErrorConversion(f"{nombre_archivo} no parece una lista de OptiCut (.ocp) o está dañado. "
+                              "Volvé a exportarla desde Polyboard.")
 
     def texto(o):
         if o + 4 > len(d):
@@ -72,12 +91,21 @@ def leer_ocp(path):
                 o = o5
                 continue
         o += 1
+    if not piezas:
+        raise ErrorConversion(f"{nombre_archivo} no tiene piezas. Revisá que sea la lista de OptiCut del proyecto.")
     return piezas
 
 # ---------------------------------------------------------------- DXF 3D
 def leer_dxf(path):
     """Recorre los bloques del DXF y devuelve paneles, herrajes y muros en coordenadas de mundo."""
-    doc = ezdxf.readfile(path)
+    nombre_archivo = Path(path).name
+    if not Path(path).is_file():
+        raise ErrorConversion(f"No se encontró el archivo 3D {nombre_archivo}.")
+    try:
+        doc = ezdxf.readfile(path)
+    except (IOError, ezdxf.DXFError, UnicodeDecodeError, ValueError) as e:
+        raise ErrorConversion(f"No se pudo leer {nombre_archivo} como DXF ({e}). "
+                              "Exportá de nuevo el proyecto desde Polyboard como DXF 3D.") from e
     paneles, herrajes, muros, taladros = [], [], [], []
 
     def caras(block, m):
@@ -119,6 +147,9 @@ def leer_dxf(path):
         n = e.dxf.name
         cuenta[n] = cuenta.get(n, 0) + 1
         recorrer(doc.blocks[n], e.matrix44(), [n], cuenta[n] - 1)
+    if not paneles:
+        raise ErrorConversion(f"{nombre_archivo} no tiene muebles. Revisá que sea el DXF 3D del proyecto "
+                              "(y no un plano 2D o un mapa de corte).")
     asignar_taladros(paneles, taladros)
     return paneles, herrajes, muros, cuenta
 
@@ -358,11 +389,12 @@ class Texturas:
         try:
             import PIL
         except ImportError:
-            sys.exit("Para usar --texturas hace falta Pillow:  pip install pillow")
+            raise ErrorConversion("Para usar texturas hace falta Pillow:  pip install pillow") from None
+        self.avisos = []
         self.carpetas = [Path(c) for c in carpetas if Path(c).is_dir()]
         for c in carpetas:
             if not Path(c).is_dir():
-                print(f"AVISO: no existe la carpeta de texturas {c}")
+                self.avisos.append(f"no existe la carpeta de texturas {c}")
         self.salida = Path(salida)
         # índice de imágenes por nombre de archivo, para rutas que no coinciden exactamente
         self.por_nombre = {}
@@ -394,7 +426,7 @@ class Texturas:
             self.col_cantos = colores_de(bib / 'Edge.mat-boole') if (bib / 'Edge.mat-boole').exists() else {}
             self.cantos = texturas_de(bib / 'Edge.mat-boole', True) if (bib / 'Edge.mat-boole').exists() else {}
         elif biblioteca:
-            print(f"AVISO: no se encontró la biblioteca de materiales {biblioteca}")
+            self.avisos.append(f"no se encontró la biblioteca de materiales {biblioteca}")
 
     def buscar(self, rel):
         """Ruta de Polyboard ('Egger\\x.jpg', relativa a Textures) -> archivo, o None."""
@@ -426,7 +458,7 @@ class Texturas:
                 info.update(self.procesar(archivo, ancho, 'color' not in info))
                 info['origen'] = f"{origen}: {rel}"
             else:
-                print(f"AVISO: {nombre}: no se encontró la imagen {rel} ({origen})")
+                self.avisos.append(f"{nombre}: no se encontró la imagen {rel} ({origen})")
         # color (sin textura) y espesor (cantos) tal como están en Polyboard. En el .ocp solo el
         # nombre exacto: sin distinguir mayúsculas se confundirían tablero ('f-Tribal') y canto ('f-tribal')
         pb, origen = (self.col_ocp[nombre], '.ocp') if nombre in self.col_ocp else \
@@ -482,8 +514,8 @@ def resolver_materiales(paneles, tex):
         info = tex.material(nombre, es_canto)
         estado = (f"textura {info['textura']}  ({info['origen']})" if info.get('textura')
                   else f"sin textura, {info['origen']}" if info.get('origen') else 'sin textura')
-        print(f"Material {nombre!r}: {estado}" + (f"  color {info['color']}" if info.get('color') else '')
-              + (f"  espesor {info['espesor']} mm" if info.get('espesor') else ''))
+        log.info(f"Material {nombre!r}: {estado}" + (f"  color {info['color']}" if info.get('color') else '')
+                 + (f"  espesor {info['espesor']} mm" if info.get('espesor') else ''))
         if info:
             info.pop('origen', None)
             materiales[nombre] = info
@@ -508,36 +540,46 @@ def caja(caras):
     a, b = a_y_arriba((x0, y0, z0)), a_y_arriba((x1, y1, z1))
     return [min(a[i], b[i]) for i in range(3)] + [max(a[i], b[i]) for i in range(3)]
 
-def main():
-    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument('dxf')
-    ap.add_argument('ocp', nargs='+', help='uno o varios .ocp (si el proyecto se dividió en partes)')
-    ap.add_argument('-o', '--salida', default='data')
-    ap.add_argument('--texturas', action='append', metavar='CARPETA',
-                    help='carpeta Textures de Polyboard (se puede repetir)')
-    ap.add_argument('--biblioteca', metavar='CARPETA',
-                    help='carpeta Materials con Panel.mat-boole y Edge.mat-boole (por defecto, junto a Textures)')
-    ap.add_argument('--url', default='https://visor.nordgood.com.ar',
-                    help='dirección pública del visor, para armar el link del cliente')
-    args = ap.parse_args()
+@dataclass
+class Resultado:
+    """Lo que devuelve convertir(): el proyecto, dónde quedó y qué conviene revisar."""
+    proyecto: str
+    archivo: Path            # <destino>/<proyecto>.json (versión del taller)
+    codigo: str              # código de la versión del cliente: <destino>/clientes/<codigo>.json
+    avisos: list = field(default_factory=list)
+    resumen: dict = field(default_factory=dict)
 
+def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None):
+    """Convierte un proyecto de Polyboard para el visor.
+
+    dxf: DXF 3D exportado de Polyboard. ocps: uno o varios .ocp (proyecto dividido en partes).
+    destino: carpeta donde se escriben <proyecto>.json, clientes/<codigo>.json, clientes/<codigo>/*.glb
+    y texturas/. texturas: carpetas Textures de Polyboard (opcional); biblioteca: carpeta Materials
+    (por defecto, junto a la primera de texturas). codigo: código del link del cliente, o una función
+    proyecto -> código, para conservar el link entre conversiones; si falta se inventa uno.
+    Si el proyecto no se puede convertir, lanza ErrorConversion con un mensaje para el taller."""
+    ocps = [ocps] if isinstance(ocps, (str, Path)) else list(ocps)
+    if not ocps:
+        raise ErrorConversion("Falta la lista de OptiCut (.ocp) del proyecto.")
+    texturas = [texturas] if isinstance(texturas, (str, Path)) else list(texturas or [])
     piezas = []
-    for ocp in args.ocp:     # un proyecto dividido en partes: se suman las piezas de todos los .ocp
+    for ocp in ocps:     # un proyecto dividido en partes: se suman las piezas de todos los .ocp
         partes = leer_ocp(ocp)
-        if len(args.ocp) > 1:
-            print(f"OCP {Path(ocp).name}: {len(partes)} piezas")
+        if len(ocps) > 1:
+            log.info(f"OCP {Path(ocp).name}: {len(partes)} piezas")
         piezas += partes
-    paneles, herrajes, muros, cuenta = leer_dxf(args.dxf)
+    paneles, herrajes, muros, cuenta = leer_dxf(dxf)
     proyecto, avisos = vincular(piezas, paneles, cuenta)
     for p in paneles:
         p['mat'], p['cantos'] = materiales(p)
-    if not proyecto or len(args.ocp) > 1:    # con varias partes, el nombre es el del DXF
-        proyecto = Path(args.dxf).stem
+    if not proyecto or len(ocps) > 1:    # con varias partes, el nombre es el del DXF
+        proyecto = Path(dxf).stem
     mats = {}
-    if args.texturas:
-        biblioteca = args.biblioteca or Path(args.texturas[0]).parent / 'Materials'
-        tex = Texturas(args.texturas, biblioteca, args.salida, args.ocp)
+    if texturas:
+        biblioteca = biblioteca or Path(texturas[0]).parent / 'Materials'
+        tex = Texturas(texturas, biblioteca, destino, ocps)
         mats = resolver_materiales(paneles, tex)
+        avisos += tex.avisos
 
     # identificador de cada pieza 3D: mueble + ruta de bloques del modelo de Polyboard (las dos puertas
     # de un par comparten nº de mecanizado pero no bloque). Estable mientras no cambie el modelo.
@@ -565,23 +607,66 @@ def main():
     )
     if mats:
         datos['materiales'] = mats
-    salida = Path(args.salida); salida.mkdir(parents=True, exist_ok=True)
-    link, datos['cliente'] = version_cliente(datos, salida, args.url)   # el taller ve el código para compartir el link
-    (salida / f"{proyecto}.json").write_text(json.dumps(datos, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
+    salida = Path(destino); salida.mkdir(parents=True, exist_ok=True)
+    codigo = (codigo(proyecto) if callable(codigo) else codigo) or secrets.token_urlsafe(9)
+    datos['cliente'] = codigo     # el taller ve el código para compartir el link
+    avisos += version_cliente(datos, salida, codigo)
+    archivo = salida / f"{proyecto}.json"
+    archivo.write_text(json.dumps(datos, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
+
+    resumen = dict(
+        piezas_ocp=len(piezas),
+        paneles=len(paneles),
+        con_mecanizado=sum(1 for p in paneles if p['num']),
+        piezas_con_numero=len({p['num'] for p in paneles if p['num']}),
+        vinculados=sum(p['asignado'] for p in paneles),
+        taladros=sum(len(p['taladros']) for p in paneles),
+        herrajes=len(herrajes),
+        muros=len(muros),
+    )
+    return Resultado(proyecto=proyecto, archivo=archivo, codigo=codigo, avisos=avisos, resumen=resumen)
+
+def main(argv=None):
+    ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    ap.add_argument('dxf')
+    ap.add_argument('ocp', nargs='+', help='uno o varios .ocp (si el proyecto se dividió en partes)')
+    ap.add_argument('-o', '--salida', default='data')
+    ap.add_argument('--texturas', action='append', metavar='CARPETA',
+                    help='carpeta Textures de Polyboard (se puede repetir)')
+    ap.add_argument('--biblioteca', metavar='CARPETA',
+                    help='carpeta Materials con Panel.mat-boole y Edge.mat-boole (por defecto, junto a Textures)')
+    ap.add_argument('--url', help='dirección pública del visor, para armar el link del cliente')
+    args = ap.parse_args(argv)
+    logging.basicConfig(level=logging.WARNING, format='%(message)s')
+    log.setLevel(logging.INFO)
+
+    # el código del cliente se conserva entre conversiones (data/.clientes.json, que el servidor no
+    # publica), así el link ya enviado sigue andando con la versión nueva
+    salida = Path(args.salida)
+    mapa_path = salida / '.clientes.json'
+    mapa = json.loads(mapa_path.read_text(encoding='utf-8')) if mapa_path.exists() else {}
+    try:
+        r = convertir(args.dxf, args.ocp, salida, args.texturas, biblioteca=args.biblioteca, codigo=mapa.get)
+    except ErrorConversion as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        return 1
+    mapa[r.proyecto] = r.codigo
+    mapa_path.write_text(json.dumps(mapa, ensure_ascii=False, indent=1), encoding='utf-8')
 
     idx_path = salida / 'index.json'
     idx = json.loads(idx_path.read_text(encoding='utf-8')) if idx_path.exists() else []
-    idx = [x for x in idx if x['proyecto'] != proyecto] + [dict(proyecto=proyecto, archivo=f"{proyecto}.json",
-                                                              piezas=len({p['num'] for p in paneles if p['num']}))]
+    idx = [x for x in idx if x['proyecto'] != r.proyecto] + [dict(proyecto=r.proyecto, archivo=r.archivo.name,
+                                                                piezas=r.resumen['piezas_con_numero'])]
     idx_path.write_text(json.dumps(sorted(idx, key=lambda x: x['proyecto']), ensure_ascii=False, indent=1), encoding='utf-8')
 
-    con_num = [p for p in paneles if p['num']]
-    print(f"Proyecto: {proyecto}")
-    print(f"Taladros: {sum(len(p['taladros']) for p in paneles)}")
-    print(f"Paneles 3D: {len(paneles)}  (con mecanizado: {len(con_num)}, vinculados al .ocp: {sum(p['asignado'] for p in paneles)})  Herrajes: {len(herrajes)}  Muros: {len(muros)}")
-    for a in avisos:
+    n = r.resumen
+    print(f"Proyecto: {r.proyecto}")
+    print(f"Taladros: {n['taladros']}")
+    print(f"Paneles 3D: {n['paneles']}  (con mecanizado: {n['con_mecanizado']}, vinculados al .ocp: {n['vinculados']})  Herrajes: {n['herrajes']}  Muros: {n['muros']}")
+    for a in r.avisos:
         print("AVISO:", a)
-    print(f"Link para el cliente: {link}")
+    print(f"Link para el cliente: {args.url.rstrip('/')}/?c={r.codigo}" if args.url else f"Código del cliente: {r.codigo}")
+    return 0
 
 # ---------------------------------------------------------------- modelo para AR (GLB)
 # Mismos colores que el visor (index.html: colorMaterial) para los materiales sin textura.
@@ -730,16 +815,10 @@ def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True):
     return (struct.pack('<III', 0x46546C67, 2, total) + struct.pack('<II', len(js), 0x4E4F534A) + js
             + struct.pack('<II', len(binario), 0x004E4942) + bytes(binario))
 
-def version_cliente(datos, salida, url):
-    """data/clientes/<código>.json: solo geometría y materiales, sin números, taladros ni nombres de
-    piezas. El código es aleatorio y se conserva entre conversiones (data/.clientes.json, que el
-    servidor no publica), así el link ya enviado sigue andando con la versión nueva."""
-    import secrets
-    mapa_path = salida / '.clientes.json'
-    mapa = json.loads(mapa_path.read_text(encoding='utf-8')) if mapa_path.exists() else {}
-    codigo = mapa.get(datos['proyecto']) or secrets.token_urlsafe(9)
-    mapa[datos['proyecto']] = codigo
-    mapa_path.write_text(json.dumps(mapa, ensure_ascii=False, indent=1), encoding='utf-8')
+def version_cliente(datos, salida, codigo):
+    """<salida>/clientes/<codigo>.json: solo geometría y materiales, sin números, taladros ni nombres
+    de piezas, y los modelos de AR en clientes/<codigo>/. Devuelve los avisos."""
+    avisos = []
     cliente = dict(
         proyecto=datos['proyecto'],
         muebles=datos['muebles'],
@@ -773,10 +852,10 @@ def version_cliente(datos, salida, url):
                 ar[mueble or ''] = f'{codigo}/{nombre}'
         cliente['ar'] = ar
     except Exception as e:   # sin AR nativa: el visor arma el modelo en el celular
-        print(f"AVISO: no se pudieron generar los modelos de AR: {e}")
+        avisos.append(f"no se pudieron generar los modelos de AR: {e}")
     (salida / 'clientes' / f"{codigo}.json").write_text(
         json.dumps(cliente, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
-    return f"{url.rstrip('/')}/?c={codigo}", codigo
+    return avisos
 
 if __name__ == '__main__':
-    main()
+    sys.exit(main())

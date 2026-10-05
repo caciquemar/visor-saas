@@ -1,0 +1,29 @@
+# PostgreSQL y Redis para desarrollo (opcional: sin Docker la app usa SQLite).
+#   docker compose up -d
+# y en el .env:
+#   DATABASE_URL=postgres://visor:visor@localhost:5432/visor
+#   REDIS_URL=redis://localhost:6379/0
+services:
+  postgres:
+    image: postgres:17
+    environment:
+      POSTGRES_DB: visor
+      POSTGRES_USER: visor
+      POSTGRES_PASSWORD: visor
+    ports:
+      - "127.0.0.1:5432:5432"
+    volumes:
+      - postgres:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  redis:
+    image: redis:7
+    ports:
+      - "127.0.0.1:6379:6379"
+    volumes:
+      - redis:/data
+    restart: unless-stopped
+
+volumes:
+  postgres:
+  redis:

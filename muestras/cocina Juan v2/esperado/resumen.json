@@ -1,0 +1,61 @@
+{
+ "proyecto": "cocina Juan v2",
+ "piezas_ocp": 134,
+ "paneles": 151,
+ "con_mecanizado": 92,
+ "piezas_con_numero": 89,
+ "vinculados": 142,
+ "taladros": 1142,
+ "herrajes": 36,
+ "muros": 3,
+ "paneles_por_mueble": {
+  "REVESTIMIENTO ISLA": 9,
+  "alacena 1p torre": 7,
+  "alacena 2p": 9,
+  "bajo 2p gola 72x18": 9,
+  "bajo pileta 2p gola 72x18": 9,
+  "caj 2+1 gola 72x18 slimbox": 16,
+  "caj950-A": 16,
+  "caj950-B": 16,
+  "despensa 1p": 6,
+  "esquinero recto derecho gola": 12,
+  "esquinero recto izquierdo gola": 14,
+  "esquinero recto izquierdo gola[1]": 14,
+  "gola 72": 1,
+  "horno 60 + 1 cajon gola mdf": 11,
+  "lateral terminacion": 1,
+  "lateral terminacion[1]": 1
+ },
+ "materiales": [
+  "Blanco",
+  "Recuperado sobrantes",
+  "blanco",
+  "e-Roble Nebraska gris",
+  "e-Roble nebraska gris",
+  "e-roble nebraska gris",
+  "no construir"
+ ],
+ "avisos": [
+  "Sin panel 3D para Lateral Derecho (lat isla, mec. -)",
+  "Sin panel 3D para Lateral Derecho (trasera isla, mec. -)"
+ ],
+ "glb": {
+  "mueble-1.glb": "5ab8d3995ddcdb2915de053c0260aba1d409b95659e9de41686485a8a97e1186",
+  "mueble-10.glb": "9c808b4e95cfb8867f7dc6b7a5d0481d6642cf9992778eda4d4374b886d2e553",
+  "mueble-11.glb": "3342c0d9c1be6be5959251f5a6e5d3cc827f582de2fa4fa685a43bb5b1848cd5",
+  "mueble-12.glb": "e354cbaed916ba38fbabfa146f103df101790b49a82da5f800933e370092d004",
+  "mueble-13.glb": "bcc82e314fc37afda48e370a3cd789a5516e26e5da8d124181ce675b6b38e197",
+  "mueble-14.glb": "8eaccb15cf0a0ebbcbad34adeca2bcb6c4210361fc7b63b8038cdf294b19341e",
+  "mueble-15.glb": "90950d4555535adfa253717a263566bbb9dda23727fcfac99cb5f36a8fd6721e",
+  "mueble-16.glb": "2ae249bbfced6ce9b617644472010af508294d6f05e02880f755182c1f3a2083",
+  "mueble-2.glb": "325bce1f46800ecb535db8bdd2ba2b7bfffd688bd402f644ad08422f3ed6bb11",
+  "mueble-3.glb": "867f7dbc7a68b1227125bd4d9fa387b5b136b9b8d94d1b4d3f109044bf470153",
+  "mueble-4.glb": "5e96e54ef763907b695c464498e46acfde9b3ed85258bda0dd9e4008af0e90f5",
+  "mueble-5.glb": "ca9e70a99155919800b5d490e46903b737576543366ac086e5d5d7104b0acfd5",
+  "mueble-6.glb": "316c0be7f421ebf00e071fe863e217fd73e3358890a11bbdca42157c7a152890",
+  "mueble-7.glb": "d2e1a9bfaf452200e4a5d63a40052ea346c91fe2e5b1f024efd16935d0e3ac1a",
+  "mueble-8.glb": "d2e1a9bfaf452200e4a5d63a40052ea346c91fe2e5b1f024efd16935d0e3ac1a",
+  "mueble-9.glb": "568d42ce36004616e6a787a8ed8d37b0c3b32f8761347e197474f668efc5b5c3",
+  "todo.glb": "24005f46ccfbc8afcfd7d4597fdfabb89ff6f4f4683cdad0cc88ffac9d32f583"
+ }
+}

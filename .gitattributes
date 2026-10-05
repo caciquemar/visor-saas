@@ -1,0 +1,4 @@
+# Archivos de Polyboard y resultados guardados: tal cual, sin convertir fines de línea ni mostrar diferencias
+*.dxf binary
+*.ocp binary
+*.gz binary

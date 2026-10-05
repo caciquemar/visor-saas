@@ -23,7 +23,7 @@ y los trabajos pendientes quedan registrados con fotos.
 ## Stack
 
 - Python (Martín tiene 3.14 en la PC). App web en **Django** con **PostgreSQL** (SQLite solo para pruebas locales rápidas).
-- Cola de tareas para las conversiones (RQ + Redis o Huey; se decide en la ficha 01).
+- Django 5.2 LTS. Cola de tareas para las conversiones: **Huey** (Redis en el servidor, SQLite o modo inmediato en la PC).
 - Archivos (proyectos convertidos, texturas, GLB, fotos, ZIP) en **Cloudflare R2** vía API S3; en local, carpeta del disco.
 - Visor: `visor/index.html`, JavaScript sin framework. Se adapta lo mínimo: hoy pide `data/…` y `api/…` con rutas relativas.
 - Cobro: Mercado Pago Suscripciones (preapproval) + webhooks. Factura electrónica ARCA.
@@ -32,14 +32,26 @@ y los trabajos pendientes quedan registrados con fotos.
 ## Estructura
 
 ```
-conversor/        polyboard_a_app.py (copia de armado/armado @59fc33b) -> se convierte en paquete importable
+conversor/        paquete: from conversor import convertir, ErrorConversion (polyboard_a_app.py, base armado/armado @59fc33b)
 visor/            index.html (copia del visor actual) -> se adapta a multi-taller
 referencia/       api.py y nginx.conf actuales, solo como referencia (no se ejecutan)
-muestras/         proyectos reales de Polyboard para pruebas (ver muestras/README.md)
+muestras/         proyectos reales de Polyboard para pruebas, uno por carpeta (ver muestras/README.md)
 docs/             plan, decisiones y fichas de cada sesión
 negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negocio, marca, entrevistas)
-app/              (se crea en la ficha 01) proyecto Django
+app/              proyecto Django (config/ = settings y urls)
+tests/            pytest: tests/conversor y tests/app
+datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
+
+## Cómo correrlo
+
+- Arrancar: `.\iniciar.ps1` (crea `.venv`, instala, copia `.env`, migra y levanta en http://127.0.0.1:8000/admin/).
+- Pruebas: `.venv\Scripts\python -m pytest` (todas, unos 8 minutos) o `-m "not muestras"` (rápidas).
+- Si un cambio del conversor cambia el resultado a propósito: `pytest -m muestras --actualizar-esperados` y revisar
+  el `git diff` de `muestras/*/esperado/resumen.json`.
+- Configuración solo por `.env` (ver `.env.example`). Las pruebas usan `config.settings_pruebas`, que no lee
+  valores del `.env` de la PC.
+- Sin Docker: SQLite y Huey inmediato. Con Docker: `docker compose up -d` + `DATABASE_URL`/`REDIS_URL` en `.env`.
 
 ## Reglas que no se negocian
 
@@ -52,7 +64,9 @@ app/              (se crea en la ficha 01) proyecto Django
    habilitado solo para Nord Good: para los demás no se muestra nada y el servidor rechaza el pedido.
    El código de Zicar vive fuera de este repo (`C:\Users\Asus\GitHub\polyboard\Polyboard_to_zicar`).
 4. **Secretos** (claves de Mercado Pago, R2, base de datos) solo en `.env`, nunca en el repo.
-5. **Muestras sin datos personales:** antes de subir un proyecto a `muestras/`, cambiar nombres de clientes finales.
+5. **Muestras:** por decisión de Martín (2026-10-04) van al repo con sus nombres reales porque el repo es
+   **privado**. Si el repo se comparte con alguien de afuera o se hace público, antes hay que anonimizarlas
+   (re-exportar desde Polyboard con otro nombre de proyecto y regenerar `esperado/`).
 6. **No tocar el visor en producción de Nord Good** (`C:\Users\Asus\GitHub\polyboard\armado\armado`, NAS,
    visor.nordgood.com.ar) salvo que la ficha lo diga (solo la ficha 00).
 7. Los datos de un taller nunca se borran sin aviso: suscripción vencida -> solo lectura -> 90 días -> borrado avisado.
@@ -64,8 +78,19 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 
 ## Estado
 
-- 2026-10-04: estructura inicial creada. Ninguna ficha empezada. Próxima: 01 (esqueleto Django). La 00 (seguridad del visor actual) quedó postergada por decisión de Martín.
+- 2026-10-04: estructura inicial creada. La 00 (seguridad del visor actual) quedó postergada por decisión de Martín.
+- 2026-10-04: **ficha 01 hecha.** Django 5.2 en `app/` (solo administración), Huey y almacenamiento local/R2
+  configurados por `.env`, conversor importable (`convertir()` + `ErrorConversion`, sin `sys.exit` ni URL de
+  Nord Good; la línea de comandos sigue igual), 7 muestras (3 OptiCut viejo, 4 nuevo) con resultado guardado y
+  pruebas. El resultado del conversor es idéntico al del visor actual. Próxima: 02.
 
 ## Pendientes
 
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
+- Muestras que faltan: mueble suelto (proyecto vacío en el .ocp) y proyecto dividido en varios .ocp.
+- Instalar Docker Desktop para probar con PostgreSQL + Redis antes de la ficha 07.
+- Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.
+- Conversor, para revisar con Martín (no se tocó en la 01; si se arregla, avisar para llevarlo al visor actual):
+  en *Rack florencia* el mueble "escritorio flotante\`1cajon con ajuste izq" queda sin vincular (10 avisos "Sin
+  panel 3D"): en el .ocp el nombre tiene un acento grave (\`) y en el DXF aparece como `_`. *cocina grondona*
+  tiene 8 avisos. Ver `muestras/*/esperado/resumen.json`.

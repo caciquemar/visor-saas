@@ -1,0 +1,53 @@
+{
+ "proyecto": "rack tv terrero",
+ "piezas_ocp": 69,
+ "paneles": 110,
+ "con_mecanizado": 77,
+ "piezas_con_numero": 46,
+ "vinculados": 105,
+ "taladros": 578,
+ "herrajes": 48,
+ "muros": 1,
+ "paneles_por_mueble": {
+  "Torre2": 4,
+  "ajuste c-A": 1,
+  "ajuste c-B": 1,
+  "ajuste techo": 6,
+  "bajo": 22,
+  "divisor": 43,
+  "lateral": 1,
+  "lateral[1]": 1,
+  "piso tarima": 6,
+  "torre1": 12,
+  "torre3": 13
+ },
+ "materiales": [
+  "blanco",
+  "color",
+  "e-Gris Cachemira",
+  "e-cerezo locarno",
+  "e-cerezo locarno H1632",
+  "e-cerezp locarno",
+  "e-gris cahcemeria U702",
+  "f-paraiso"
+ ],
+ "avisos": [
+  "Sin panel 3D para Lateral Izquierdo (ajuste c-A, mec. -)",
+  "Sin panel 3D para 1 (torre3, mec. -)",
+  "Sin panel 3D para 3 (torre3, mec. -)"
+ ],
+ "glb": {
+  "mueble-1.glb": "3fde36b8e4b8967014031eb022dfcbee78ca346bf3c08fae58adb90a09a1ea40",
+  "mueble-10.glb": "8f04e008cdee5af760007899a611067742787ba735b16eb0594ba1f2632e9236",
+  "mueble-11.glb": "42f7da9e399ef78e7b68c372ee7f597f1765d71d74d6f1e274639db916a59a3b",
+  "mueble-2.glb": "680d4e9d71a98e0fbff3dfd7df37c0d9039a35a80790bc20a4418c7d2b19511c",
+  "mueble-3.glb": "680d4e9d71a98e0fbff3dfd7df37c0d9039a35a80790bc20a4418c7d2b19511c",
+  "mueble-4.glb": "5976c1897c6bce79fd8f1253e0fa0b939719c1555334ad1052b36d6142743ee7",
+  "mueble-5.glb": "84ce28cc87705e819aaa6f00d015423596165b44adae71b2a9713aca5b0efaac",
+  "mueble-6.glb": "d3cbdbd6c6eb92af364da20c99e22c3e0e7c7b4c34adfe7f934d1c8f695490e0",
+  "mueble-7.glb": "427bab4c298de8eb860da3ad54dff13315a4d5421c5f22e464305dc9d8f8b400",
+  "mueble-8.glb": "a2f2c63c2c0ab69b0cdf7b83c0d9cc994e2d5dda9009d100b9d03389c033ffb2",
+  "mueble-9.glb": "24dd9a0a59bff016872f9c5cb3a5517677e4be4ac46fb281fa28515d87dfcadc",
+  "todo.glb": "fb469fdb5f4b18e78d37b42b2d6d11051fedc5b6ecf6a7fcb76b321b5f3b5888"
+ }
+}
