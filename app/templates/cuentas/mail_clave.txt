@@ -1,0 +1,7 @@
+{% autoescape off %}Pediste una contraseña nueva para entrar al visor con {{ email }}.
+
+Elegila en este link:
+{{ protocol }}://{{ domain }}{% url 'clave_nueva' uidb64=uid token=token %}
+
+Si no lo pediste vos, ignorá este mail: tu contraseña no cambia.
+{% endautoescape %}

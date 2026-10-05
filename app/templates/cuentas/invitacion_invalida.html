@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block titulo %}Invitación{% endblock %}
+{% block contenido %}
+<h1>La invitación no sirve</h1>
+<p>El link no es válido, ya se usó o venció. Pedile al taller que te mande una nueva.</p>
+<p><a href="{% url 'entrar' %}">Entrar</a></p>
+{% endblock %}

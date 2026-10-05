@@ -1,0 +1,42 @@
+{% extends 'base.html' %}
+{% block titulo %}Equipo{% endblock %}
+{% block contenido %}
+<h1>Equipo</h1>
+<div class="caja tabla">
+<table>
+  <thead><tr><th>Nombre</th><th>Mail</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+  <tbody>
+  {% for m in miembros %}
+    <tr>
+      <td>{{ m.usuario }}</td>
+      <td>{{ m.usuario.email|default:"— (entra con PIN)" }}</td>
+      <td>{{ m.get_rol_display }}</td>
+      <td>{% if not m.activa %}Inactivo{% elif m.pin_fallos >= 10 %}<span class="error">PIN bloqueado</span>{% else %}Activo{% endif %}</td>
+      <td>{% if request.membresia.rol == 'dueno' or m.rol != 'dueno' %}<a href="{% url 'taller:miembro' taller=request.taller.slug id=m.pk %}">Cambiar</a>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+</div>
+
+{% if invitaciones %}
+<h2>Invitaciones pendientes</h2>
+<ul>{% for i in invitaciones %}<li>{{ i.email }} · {{ i.get_rol_display }} · vence {{ i.vence|date:"j/n" }}</li>{% endfor %}</ul>
+{% endif %}
+
+<div class="grilla" style="margin-top:2rem">
+  <form class="caja" method="post" action="{% url 'taller:invitar' taller=request.taller.slug %}">{% csrf_token %}
+    <h2 style="margin-top:0">Invitar por mail</h2>
+    <p class="suave">Para quien entra desde su compu o su celular: dueño, oficina o instalador con mail.</p>
+    {{ form_invitar.as_div }}
+    <div class="acciones"><button type="submit">Mandar invitación</button></div>
+  </form>
+  <form class="caja" method="post" action="{% url 'taller:alta_con_pin' taller=request.taller.slug %}">{% csrf_token %}
+    <h2 style="margin-top:0">Alta con PIN</h2>
+    <p class="suave">Para armadores e instaladores sin mail: entran con su PIN en
+      <strong>{{ request.get_host }}{% url 'taller:pin' taller=request.taller.slug %}</strong>.</p>
+    {{ form_alta.as_div }}
+    <div class="acciones"><button type="submit">Dar de alta</button></div>
+  </form>
+</div>
+{% endblock %}

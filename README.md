@@ -17,13 +17,18 @@ Hace falta Python 3.12 o más nuevo (en la PC de Martín: 3.14). En PowerShell, 
 ```
 
 La primera vez crea el entorno `.venv`, instala las dependencias, copia `.env.example` a `.env`, prepara la base y
-levanta el servidor. Las veces siguientes, solo lo levanta. La administración queda en http://127.0.0.1:8000/admin/.
+levanta el servidor. Las veces siguientes, solo lo levanta. La app queda en http://127.0.0.1:8000/ y la administración
+en http://127.0.0.1:8000/admin/.
 
-Para crear el usuario de la administración (una sola vez):
+Para crear el usuario de la administración (una sola vez; pide mail, nombre y contraseña):
 
 ```powershell
 .venv\Scripts\python app\manage.py createsuperuser
 ```
+
+Para probar un taller: en la administración, *Talleres → Añadir* con el mail del dueño. En la PC los mails no se
+mandan: quedan como archivos en `datos/mails/`, y de ahí se copia el link de la invitación. Los armadores entran con
+PIN en http://127.0.0.1:8000/<taller>/pin/.
 
 Por defecto usa SQLite y la cola de tareas corre en el mismo proceso, así que no hace falta Docker. Para trabajar
 con PostgreSQL y Redis como en el servidor: instalar Docker Desktop, correr `docker compose up -d` y descomentar

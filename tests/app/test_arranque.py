@@ -39,7 +39,7 @@ def test_cola_en_modo_inmediato():
 
 def test_configuracion_de_servidor_sin_errores():
     """manage.py check --deploy con la configuración de producción (DEBUG apagado, R2)."""
-    env = {**os.environ, 'DEBUG': '0', 'SECRET_KEY': secrets.token_urlsafe(50), 'ALLOWED_HOSTS': 'visor.ejemplo',
+    env = {**os.environ, 'DEBUG': '0', 'SECRET_KEY': secrets.token_urlsafe(50), 'ALLOWED_HOSTS': 'visor.ejemplo', 'DOMINIO_APP': 'visor.ejemplo',
            'ALMACENAMIENTO': 'r2', 'R2_BUCKET': 'b', 'R2_ACCOUNT_ID': 'c', 'R2_ACCESS_KEY_ID': 'k',
            'R2_SECRET_ACCESS_KEY': 's', 'DATABASE_URL': 'sqlite:///:memory:', 'HUEY_INMEDIATO': '0',
            'DJANGO_SETTINGS_MODULE': 'config.settings'}

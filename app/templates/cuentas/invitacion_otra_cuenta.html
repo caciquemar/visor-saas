@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block titulo %}Invitación{% endblock %}
+{% block contenido %}
+<h1>Esta invitación es para otra cuenta</h1>
+<p>La invitación a {{ inv.taller.nombre }} es para <strong>{{ inv.email }}</strong>, y entraste como {{ user }}.
+  Salí y volvé a abrir el link.</p>
+<form method="post" action="{% url 'salir' %}">{% csrf_token %}<button type="submit">Salir</button></form>
+{% endblock %}

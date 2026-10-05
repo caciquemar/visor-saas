@@ -2,6 +2,32 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-05 · Separación entre talleres: una sola capa que falla cerrada
+Todo modelo con datos de un taller hereda de `DatoDeTaller` (`app/talleres/separacion.py`). Su manager filtra por el
+taller del contexto (`ContextVar`, que pone el middleware en cada pedido a `/<taller>/…`, o `con_taller()` en tareas).
+El filtro está en toda consulta y el taller se lee al armar el SQL: sin taller, la consulta falla (`SinTaller`) en vez
+de traer todo, y un queryset armado al importar (los de los `ModelForm`) usa el taller del pedido. Al guardar se
+revisa que el dato y sus FK sean del taller actual. La única salida sin filtro es `sin_filtro`, permitida solo en los
+archivos de `ARCHIVOS_CON_SIN_FILTRO`. Los archivos van a `talleres/<id>/…` y se entregan solo por
+`abrir_de_taller()`. Pruebas de guardia obligan a que los modelos nuevos hereden y a que ninguna dirección nueva
+quede sin login. Un taller ajeno da 404, igual que uno inexistente.
+Descartado: filtrar a mano en cada vista (regla 1); una base o un esquema por taller (demasiado para este tamaño);
+row-level security de PostgreSQL (buena segunda barrera, queda para la ficha 07: en la PC se usa SQLite).
+
+## 2026-10-05 · Ingreso: mail y contraseña; armadores sin mail, con PIN
+Dueño y oficina entran con mail y contraseña (con "me olvidé la contraseña" por mail). La invitación llega por mail
+y sirve 7 días, una sola vez. Descartado: link mágico (si el mail tarda o va a spam, no se puede entrar).
+Armadores e instaladores pueden existir sin mail: los da de alta el dueño o la oficina con nombre y PIN (4 a 6
+números). El PIN se usa desde **cualquier celular** en `/<taller>/pin/`, eligiendo el nombre de una lista (los
+nombres de armadores e instaladores se ven sin sesión: lo asumimos). Por eso el bloqueo es duro: 15 minutos cada 5
+fallos, bloqueo hasta que lo destrabe el dueño o la oficina a los 10, y 20 fallos por hora por IP y taller. La sesión
+de PIN dura 12 horas, sirve solo en ese taller y no entra a Equipo. Descartado: habilitar solo celulares del taller.
+
+## 2026-10-05 · Usuario propio con mail
+`usuarios.Usuario` (`AUTH_USER_MODEL`) entra con mail; el mail es opcional para los que usan PIN. Un usuario puede
+estar en varios talleres (`Membresia`, con rol dueño, oficina, armador o instalador). La administración de Django es
+solo para el equipo del servicio; los dueños manejan su gente en *Equipo*.
+
 ## 2026-10-04 · Muestras con nombres reales en el repo privado
 Martín decidió subir las muestras de `muestras/` tal como salen de Polyboard, con los nombres de los clientes,
 porque el repo es privado. Descartado por ahora: re-exportarlas con nombres inventados (lleva tiempo) o dejarlas

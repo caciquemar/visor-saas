@@ -38,14 +38,16 @@ referencia/       api.py y nginx.conf actuales, solo como referencia (no se ejec
 muestras/         proyectos reales de Polyboard para pruebas, uno por carpeta (ver muestras/README.md)
 docs/             plan, decisiones y fichas de cada sesión
 negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negocio, marca, entrevistas)
-app/              proyecto Django (config/ = settings y urls)
-tests/            pytest: tests/conversor y tests/app
+app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario), talleres/ (Taller, Membresia,
+                  Invitacion, separación entre talleres, PIN, Equipo), templates/
+tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
 
 ## Cómo correrlo
 
 - Arrancar: `.\iniciar.ps1` (crea `.venv`, instala, copia `.env`, migra y levanta en http://127.0.0.1:8000/admin/).
+  En la PC los mails (invitaciones) quedan como archivos en `datos/mails/`.
 - Pruebas: `.venv\Scripts\python -m pytest` (todas, unos 8 minutos) o `-m "not muestras"` (rápidas).
 - Si un cambio del conversor cambia el resultado a propósito: `pytest -m muestras --actualizar-esperados` y revisar
   el `git diff` de `muestras/*/esperado/resumen.json`.
@@ -58,6 +60,11 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 1. **Separación entre talleres.** Toda consulta y todo archivo se filtra por el taller de la sesión, desde una sola
    capa (manager/queryset o middleware), nunca a mano en cada vista. Cada modelo con datos de un taller tiene `taller`.
    Hay pruebas que intentan leer y escribir datos de otro taller y deben fallar.
+   En la práctica: **todo modelo nuevo con datos de un taller hereda de `DatoDeTaller`**
+   (`app/talleres/separacion.py`), los archivos usan `ruta_de_taller` / `abrir_de_taller`
+   (`app/talleres/archivos.py`), las tareas de la cola usan `@tarea_de_taller`, y nunca se usa `sin_filtro` fuera de
+   los archivos permitidos. `tests/app/test_guardianes.py` falla si algo de esto se saltea. Cada ficha que agregue
+   modelos suma sus pruebas de cruce en `tests/app/test_separacion.py` (o al lado).
 2. **Todo pide login** salvo el link del cliente (`/c/<código>`), que muestra solo la versión sin datos de taller,
    y la página de venta.
 3. **Módulos por taller.** Las funciones extra se prenden por taller (`taller_modulo`). El módulo **Zicar** está
@@ -83,10 +90,20 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   configurados por `.env`, conversor importable (`convertir()` + `ErrorConversion`, sin `sys.exit` ni URL de
   Nord Good; la línea de comandos sigue igual), 7 muestras (3 OptiCut viejo, 4 nuevo) con resultado guardado y
   pruebas. El resultado del conversor es idéntico al del visor actual. Próxima: 02.
+- 2026-10-05: **ficha 02 hecha.** Usuario propio (entra con mail), talleres en `/<taller>/`, roles (dueño, oficina,
+  armador, instalador), invitaciones por mail, alta de armadores con PIN y entrada con PIN desde cualquier celular,
+  pantalla Equipo, crear taller en la administración. Separación entre talleres en una sola capa
+  (`talleres/separacion.py` + `TallerMiddleware`) con pruebas de cruce (lectura, escritura, archivos, tareas, PIN) y
+  pruebas de guardia. Se rehízo la base de la PC (`datos/dev.sqlite3`): hay que volver a crear el superusuario.
+  Próxima: 03.
 
 ## Pendientes
 
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
+- Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
+  límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
+  (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.
+- Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`.
 - Muestras que faltan: mueble suelto (proyecto vacío en el .ocp) y proyecto dividido en varios .ocp.
 - Instalar Docker Desktop para probar con PostgreSQL + Redis antes de la ficha 07.
 - Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.

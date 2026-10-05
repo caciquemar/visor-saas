@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block titulo %}Me olvidé la contraseña{% endblock %}
+{% block contenido %}
+<h1>Me olvidé la contraseña</h1>
+<form class="caja" method="post">{% csrf_token %}
+  <p>Escribí tu mail y te mandamos un link para elegir una contraseña nueva.</p>
+  {{ form.as_div }}
+  <div class="acciones"><button type="submit">Mandar link</button></div>
+</form>
+{% endblock %}

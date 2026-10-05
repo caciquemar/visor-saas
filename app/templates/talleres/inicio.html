@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block titulo %}Inicio{% endblock %}
+{% block contenido %}
+<h1>{{ request.taller.nombre }}</h1>
+<p class="suave">Entraste como {{ request.membresia.get_rol_display|lower }}.</p>
+<div class="caja">
+  <h2 style="margin-top:0">Proyectos</h2>
+  <p class="suave">Próximamente: acá vas a subir los proyectos de Polyboard y verlos en el visor.</p>
+</div>
+{% endblock %}

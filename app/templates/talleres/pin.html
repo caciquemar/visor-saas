@@ -1,0 +1,48 @@
+{% extends 'base.html' %}
+{% block titulo %}Entrar con PIN{% endblock %}
+{% block cabeza %}
+<style>
+  .nombres { display:grid; gap:.5rem; grid-template-columns:repeat(auto-fill, minmax(9rem, 1fr)); }
+  .nombres label { margin:0; font-weight:600; }
+  .nombres input { position:absolute; opacity:0; width:1px; }
+  .nombres span { display:block; padding:.9rem .75rem; text-align:center; border:2px solid var(--borde);
+                  border-radius:10px; background:var(--panel); cursor:pointer; }
+  .nombres input:checked + span { border-color:var(--acento); background:var(--acento); color:var(--acento-texto); }
+  .nombres input:focus-visible + span { outline:3px solid var(--acento); outline-offset:2px; }
+  #pin { font-size:2rem; letter-spacing:.5rem; text-align:center; max-width:12rem; }
+  .teclas { display:grid; grid-template-columns:repeat(3, 4.5rem); gap:.5rem; margin-top:.75rem; }
+  .teclas [type=submit] { font-size:1.1rem; }
+  .teclas button { font-size:1.5rem; padding:.8rem 0; background:var(--panel); color:var(--texto);
+                   border:1px solid var(--borde); }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>¿Quién sos?</h1>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if candidatos %}
+<form method="post" autocomplete="off">{% csrf_token %}
+  <div class="nombres">
+  {% for m in candidatos %}
+    <label><input type="radio" name="miembro" value="{{ m.pk }}" required {% if elegido == m.pk|stringformat:"d" %}checked{% endif %}><span>{{ m.usuario }}</span></label>
+  {% endfor %}
+  </div>
+  <label for="pin">PIN</label>
+  <input id="pin" name="pin" type="password" inputmode="numeric" pattern="\d{4,6}" maxlength="6" required>
+  <div class="teclas">
+    {% for n in "123456789" %}<button type="button" tabindex="-1" aria-hidden="true" data-n="{{ n }}">{{ n }}</button>{% endfor %}
+    <button type="button" tabindex="-1" aria-label="Borrar" data-n="borrar">⌫</button>
+    <button type="button" tabindex="-1" aria-hidden="true" data-n="0">0</button>
+    <button type="submit" style="background:var(--acento);color:var(--acento-texto)">Entrar</button>
+  </div>
+</form>
+<script>
+  const pin = document.getElementById('pin');
+  document.querySelectorAll('.teclas [data-n]').forEach(b => b.addEventListener('click', () => {
+    pin.value = b.dataset.n === 'borrar' ? pin.value.slice(0, -1) : (pin.value + b.dataset.n).slice(0, 6);
+  }));
+</script>
+{% else %}
+<p>Todavía no hay armadores ni instaladores con PIN en este taller. El dueño o la oficina los da de alta en Equipo.</p>
+{% endif %}
+<p class="suave"><a href="{% url 'entrar' %}">Entrar con mail y contraseña</a></p>
+{% endblock %}

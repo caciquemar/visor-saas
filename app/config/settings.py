@@ -16,8 +16,16 @@ DEBUG = env.bool('DEBUG', default=False)
 SECRET_KEY = env('SECRET_KEY', default='') or ('solo-para-desarrollo-no-usar-en-produccion' if DEBUG else '')
 if not SECRET_KEY:
     raise environ.ImproperlyConfigured('Falta SECRET_KEY en el .env (obligatoria con DEBUG=0)')
-ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1'] if DEBUG else [])
-CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[])
+
+# Dirección de la app (app.<dominio>): los talleres quedan en app.<dominio>/<taller>/. Se usa para los links de
+# los mails y, si no se dice otra cosa, para ALLOWED_HOSTS y CSRF_TRUSTED_ORIGINS.
+DOMINIO_APP = env('DOMINIO_APP', default='127.0.0.1:8000' if DEBUG else '')
+if not DOMINIO_APP:
+    raise environ.ImproperlyConfigured('Falta DOMINIO_APP en el .env (obligatorio con DEBUG=0), ej. app.ejemplo.com')
+URL_APP = f"{'http' if DEBUG else 'https'}://{DOMINIO_APP}"
+_host_app = DOMINIO_APP.split(':')[0]
+ALLOWED_HOSTS = env.list('ALLOWED_HOSTS', default=['localhost', '127.0.0.1', _host_app] if DEBUG else [_host_app])
+CSRF_TRUSTED_ORIGINS = env.list('CSRF_TRUSTED_ORIGINS', default=[] if DEBUG else [URL_APP])
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -27,7 +35,14 @@ INSTALLED_APPS = [
     'django.contrib.messages',
     'django.contrib.staticfiles',
     'huey.contrib.djhuey',
+    'usuarios',
+    'talleres',
 ]
+
+AUTH_USER_MODEL = 'usuarios.Usuario'
+LOGIN_URL = 'entrar'
+LOGIN_REDIRECT_URL = 'inicio'
+LOGOUT_REDIRECT_URL = 'entrar'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
@@ -36,6 +51,7 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
+    'talleres.middleware.TallerMiddleware',          # separación entre talleres: ver talleres/separacion.py
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
@@ -45,7 +61,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -125,6 +141,16 @@ STORAGES = {
     'default': _archivos,
     'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
+
+# ---------------------------------------------------------------- mails
+# EMAIL_URL=smtp+tls://usuario:clave@servidor:587 (se define en la ficha 07/10). Sin EMAIL_URL, los mails se
+# guardan como archivos en datos/mails/ para poder abrir los links de invitación en la PC.
+if env('EMAIL_URL', default=''):
+    globals().update(env.email_url('EMAIL_URL'))
+else:
+    EMAIL_BACKEND = 'django.core.mail.backends.filebased.EmailBackend'
+    EMAIL_FILE_PATH = DATOS / 'mails'
+DEFAULT_FROM_EMAIL = env('MAIL_REMITENTE', default='Visor <no-responder@localhost>')
 
 # ---------------------------------------------------------------- seguridad en el servidor
 # Detrás de Cloudflare: el pedido llega por HTTPS aunque al servidor le llegue por HTTP.

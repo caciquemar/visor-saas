@@ -1,0 +1,11 @@
+{% extends 'base.html' %}
+{% block titulo %}Invitación{% endblock %}
+{% block contenido %}
+<h1>Sumate a {{ inv.taller.nombre }}</h1>
+<p>Te invitaron como <strong>{{ inv.get_rol_display|lower }}</strong>. Elegí tu nombre y una contraseña para entrar
+  con <strong>{{ inv.email }}</strong>.</p>
+<form class="caja" method="post">{% csrf_token %}
+  {{ form.as_div }}
+  <div class="acciones"><button type="submit">Crear cuenta y entrar</button></div>
+</form>
+{% endblock %}

@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block titulo %}Elegí el taller{% endblock %}
+{% block contenido %}
+{% if membresias %}
+  <h1>Elegí el taller</h1>
+  <div class="grilla">
+  {% for m in membresias %}
+    <a class="caja" href="{% url 'taller:inicio' taller=m.taller.slug %}"><strong>{{ m.taller.nombre }}</strong><br>
+      <span class="suave">{{ m.get_rol_display }}</span></a>
+  {% endfor %}
+  </div>
+{% else %}
+  <h1>Todavía no estás en ningún taller</h1>
+  <p>Pedile al dueño del taller que te invite.</p>
+  {% if user.is_staff %}<p><a href="{% url 'admin:index' %}">Ir a la administración</a></p>{% endif %}
+{% endif %}
+{% endblock %}

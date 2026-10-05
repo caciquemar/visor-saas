@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block titulo %}Contraseña nueva{% endblock %}
+{% block contenido %}
+<h1>Contraseña nueva</h1>
+{% if validlink %}
+<form class="caja" method="post">{% csrf_token %}
+  {{ form.as_div }}
+  <div class="acciones"><button type="submit">Guardar</button></div>
+</form>
+{% else %}
+<p>El link no es válido o ya se usó. <a href="{% url 'olvide' %}">Pedí uno nuevo</a>.</p>
+{% endif %}
+{% endblock %}

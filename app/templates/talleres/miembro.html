@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block titulo %}{{ otro.usuario }}{% endblock %}
+{% block contenido %}
+<p><a href="{% url 'taller:equipo' taller=request.taller.slug %}">← Equipo</a></p>
+<h1>{{ otro.usuario }}</h1>
+<p class="suave">{{ otro.usuario.email|default:"Sin mail: entra con PIN" }}</p>
+
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="guardar">
+  {{ form.as_div }}
+  <div class="acciones"><button type="submit">Guardar</button></div>
+</form>
+
+{% if otro.usa_pin %}
+<h2>PIN</h2>
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="pin">
+  {% if not otro.pin %}<p class="error">Todavía no tiene PIN.</p>{% endif %}
+  {{ form_pin.as_div }}
+  <div class="acciones"><button type="submit">Cambiar PIN</button></div>
+</form>
+{% if otro.pin_fallos or otro.pin_bloqueado_hasta %}
+<form class="caja" method="post" style="margin-top:1rem">{% csrf_token %}
+  <input type="hidden" name="accion" value="desbloquear">
+  <p>{% if bloqueado %}<strong class="error">PIN bloqueado</strong> por demasiados intentos fallidos.{% else %}
+    {{ otro.pin_fallos }} intento{{ otro.pin_fallos|pluralize }} fallido{{ otro.pin_fallos|pluralize }}.{% endif %}</p>
+  <button type="submit">Desbloquear</button>
+</form>
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,16 @@
+{% extends 'base.html' %}
+{% block titulo %}Entrar{% endblock %}
+{% block contenido %}
+<h1>Entrar</h1>
+<form class="caja" method="post">{% csrf_token %}
+  {% if form.non_field_errors %}<p class="error">Mail o contraseña incorrectos.</p>{% endif %}
+  <label for="id_username">Mail</label>
+  <input id="id_username" name="username" type="email" autocomplete="email" required autofocus value="{{ form.username.value|default:'' }}">
+  <label for="id_password">Contraseña</label>
+  <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+  <input type="hidden" name="next" value="{{ next }}">
+  <div class="acciones"><button type="submit">Entrar</button></div>
+  <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a></p>
+</form>
+<p class="suave">¿Armás en el taller? Entrá con tu PIN desde el celular del taller.</p>
+{% endblock %}

@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% block titulo %}Visor{% endblock %}{% if request.taller %} · {{ request.taller.nombre }}{% endif %}</title>
+<style>
+  :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;
+          --acento-texto:#fff; --error:#a8322d; --ok:#2f6f5e; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo:#171716; --panel:#222220; --texto:#ecebe7; --suave:#a3a19b; --borde:#3a3936; --acento:#5fae97;
+            --acento-texto:#0f1a17; --error:#e27a73; --ok:#7cc4ad; }
+  }
+  * { box-sizing: border-box; }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.45 system-ui, sans-serif; }
+  header { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; padding:.75rem 1rem;
+           border-bottom:1px solid var(--borde); background:var(--panel); }
+  header .marca { font-weight:700; margin-right:auto; text-decoration:none; color:inherit; }
+  header a { color:inherit; }
+  main { max-width:860px; margin:0 auto; padding:1.25rem 1rem 3rem; }
+  h1 { font-size:1.5rem; margin:.25rem 0 1rem; }
+  h2 { font-size:1.15rem; margin:2rem 0 .75rem; }
+  .caja { background:var(--panel); border:1px solid var(--borde); border-radius:10px; padding:1rem; }
+  .suave { color:var(--suave); }
+  a { color:var(--acento); }
+  label { display:block; font-weight:600; margin:.75rem 0 .25rem; }
+  input, select { font:inherit; width:100%; max-width:24rem; padding:.55rem .65rem; border:1px solid var(--borde);
+                  border-radius:8px; background:var(--fondo); color:inherit; }
+  input[type=checkbox] { width:auto; }
+  button, .boton { font:inherit; font-weight:600; padding:.6rem 1rem; border:0; border-radius:8px; cursor:pointer;
+                   background:var(--acento); color:var(--acento-texto); text-decoration:none; display:inline-block; }
+  button.secundario { background:transparent; color:var(--texto); border:1px solid var(--borde); }
+  form.enlinea { display:inline; }
+  .acciones { margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap; }
+  .helptext, .ayuda { display:block; color:var(--suave); font-size:.85rem; }
+  .helptext ul { margin:.25rem 0; padding-left:1.1rem; }
+  .errorlist, .error { color:var(--error); }
+  .errorlist { padding-left:1.1rem; margin:.25rem 0; }
+  .mensajes { list-style:none; padding:0; margin:0 0 1rem; }
+  .mensajes li { padding:.6rem .8rem; border-radius:8px; border:1px solid var(--borde); background:var(--panel); }
+  .mensajes .error { border-color:var(--error); }
+  .mensajes .success { border-color:var(--ok); }
+  table { width:100%; border-collapse:collapse; }
+  th, td { text-align:left; padding:.5rem .4rem; border-bottom:1px solid var(--borde); vertical-align:top; }
+  th { font-size:.85rem; color:var(--suave); font-weight:600; }
+  .tabla { overflow-x:auto; }
+  .grilla { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(17rem, 1fr)); }
+</style>
+{% block cabeza %}{% endblock %}
+</head>
+<body>
+<header>
+  {% if request.taller %}
+    <a class="marca" href="{% url 'taller:inicio' taller=request.taller.slug %}">{{ request.taller.nombre }}</a>
+    {% if request.membresia.rol == 'dueno' or request.membresia.rol == 'oficina' %}
+      <a href="{% url 'taller:equipo' taller=request.taller.slug %}">Equipo</a>
+    {% endif %}
+  {% else %}
+    <a class="marca" href="{% url 'inicio' %}">Visor</a>
+  {% endif %}
+  {% if user.is_authenticated %}
+    <span class="suave">{{ user }}</span>
+    <form class="enlinea" method="post" action="{% url 'salir' %}">{% csrf_token %}
+      <button class="secundario" type="submit">Salir</button></form>
+  {% endif %}
+</header>
+<main>
+  {% if messages %}<ul class="mensajes">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
+  {% block contenido %}{% endblock %}
+</main>
+</body>
+</html>
