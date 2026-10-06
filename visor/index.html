@@ -5,16 +5,24 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#DCE1E4">
 <title>Armado — escanear pieza</title>
-<link rel="icon" href="favicon.ico" sizes="any">
-<link rel="icon" type="image/png" href="assets/icono-192.png">
-<link rel="apple-touch-icon" href="assets/apple-touch-icon.png">
+<link rel="icon" href="/static/visor/favicon.ico" sizes="any">
+<link rel="icon" type="image/png" href="/static/visor/icono-192.png">
+<link rel="apple-touch-icon" href="/static/visor/apple-touch-icon.png">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="Armado">
+<meta name="apple-mobile-web-app-title" content="Visor">
 <script>
+  /* Lo pone la app al servir la página: {cliente, marca: {nombre, color, logo}, pie, trabajos}. Sin esto, el visor
+     anda como siempre (data/index.json y ?c=<código>). */
+  window.VISOR = /*__VISOR__*/null;
   // app instalable (pantalla de inicio) solo para el taller: el link del cliente tiene que abrir su proyecto
-  if (!new URLSearchParams(location.search).get('c'))
+  if (!(window.VISOR && VISOR.cliente) && !new URLSearchParams(location.search).get('c'))
     document.head.insertAdjacentHTML('beforeend', '<link rel="manifest" href="manifest.webmanifest">');
+  // color del taller: pisa el acento en claro y en oscuro
+  if (window.VISOR && VISOR.marca && /^#[0-9a-f]{6}$/i.test(VISOR.marca.color || '')){
+    document.documentElement.style.setProperty('--tiza', VISOR.marca.color);
+    document.querySelector('meta[name="theme-color"]').content = VISOR.marca.color;
+  }
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -121,6 +129,11 @@ body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:no
   border:1px solid var(--linea);border-radius:6px;padding:1px 7px;white-space:nowrap;font-variant-numeric:tabular-nums;
   box-shadow:0 1px 3px rgba(27,38,48,.12)}
 #cliente .pm-sub{margin:6px 0 4px}
+.logo-marca{height:28px;max-width:120px;object-fit:contain;flex:none}
+.logo-marca[hidden],.pie-marca[hidden]{display:none}
+.pie-marca{margin:10px 0 0;text-align:center;font-size:13px;color:var(--tinta-2)}
+.pie-marca a{color:inherit}
+body.sin-trabajos #btnTrabajos,body.sin-trabajos #fAnotar,body.sin-trabajos #pmAnotar{display:none!important}
 .compartir{margin:4px 0 12px;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;background:var(--fondo)}
 .compartir input{display:block;width:100%;margin:6px 0 8px;font:15px var(--sans);color:var(--tinta);background:var(--hoja);
   border:1px solid var(--linea);border-radius:8px;padding:7px 9px}
@@ -223,6 +236,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 <body>
 <div class="app">
   <header>
+    <img class="logo-marca solo-cliente" id="logoMarca" alt="" hidden>
     <h1 id="titulo">Armado</h1>
     <span class="h-proyecto" id="hProyecto" hidden></span>
     <button class="btn-muebles solo-taller" id="btnMuebles" aria-controls="panelMuebles">
@@ -252,6 +266,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 
   <section class="hoja" aria-live="polite">
     <div class="solo-cliente" id="cliente"></div>
+    <p class="pie-marca solo-cliente" id="pieMarca" hidden></p>
     <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada o tocá una pieza en el dibujo. Tocá de nuevo para llegar a la de atrás.</p>
     <div class="error solo-taller" id="error"></div>
     <div class="ficha solo-taller" id="ficha">
@@ -337,6 +352,17 @@ window.DATOS_EMBEBIDOS = /*__DATOS__*/null;
 const $ = id => document.getElementById(id);
 const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
 
+/* ---------- configuración de la app ---------- */
+const VISOR = window.VISOR || {};
+const MARCA = VISOR.marca || {};
+const NOMBRE = MARCA.nombre || 'Armado';
+// modo cliente: con la app, VISOR.cliente (data/cliente.json); sin ella, ?c=<código> (data/clientes/<código>.json)
+const CLIENTE = VISOR.cliente ? true : new URLSearchParams(location.search).get('c');
+if (CLIENTE) document.body.classList.add('modo-cliente');
+if (VISOR.trabajos === false) document.body.classList.add('sin-trabajos');
+// carpeta del proyecto cargado: ahí están sus texturas (data/<id>/ en la app, data/ en el visor de siempre)
+let BASE = 'data/';
+
 /* ---------- escena 3D ---------- */
 const cont = $('escena');
 const renderer = new THREE.WebGLRenderer({antialias:true, alpha:true});
@@ -409,7 +435,7 @@ function dibujarCantos(mallas){
 const POS = {frente:'al frente', 'atrás':'atrás', arriba:'arriba', abajo:'abajo', derecha:'a la derecha', izquierda:'a la izquierda'};
 function muestra(mat, canto){
   const info = infoMaterial(mat), tex = info && info.textura && !/["'()\\]/.test(info.textura)
-    ? ` url('data/${encodeURI(info.textura)}') center/cover` : '';
+    ? ` url('${BASE}${encodeURI(info.textura)}') center/cover` : '';
   return `<span class="muestra${canto ? ' canto' : ''}" style="background:${colorMaterial(mat)}${tex}" aria-hidden="true"></span>`;
 }
 function textoMaterial(p){
@@ -534,10 +560,11 @@ function cargarColores(extra){
 /* ---------- texturas ---------- */
 const cargador = new THREE.TextureLoader(), texturas = {};
 function cargarTextura(ruta, listo){
+  ruta = BASE + ruta;   // dos proyectos pueden tener una textura con el mismo nombre
   let e = texturas[ruta];
   if (!e){
     e = texturas[ruta] = {tex:null, espera:[]};
-    cargador.load('data/' + ruta, t => {
+    cargador.load(ruta, t => {
       t.wrapS = t.wrapT = THREE.RepeatWrapping;
       t.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
       e.tex = t; e.espera.forEach(f => f(t)); e.espera = [];
@@ -682,7 +709,7 @@ const grupoCotas = new THREE.Group(); grupoCotas.renderOrder = 10; scene.add(gru
 let etiquetas = [], claveCotas = '';
 // en el taller se recuerda si se dejaron prendidas; al cliente se le muestran de entrada
 let conCotas = true;
-try{ if (!new URLSearchParams(location.search).get('c')) conCotas = localStorage.getItem('armado.cotas') === '1'; }catch(e){ conCotas = false; }
+try{ if (!CLIENTE) conCotas = localStorage.getItem('armado.cotas') === '1'; }catch(e){ conCotas = false; }
 // qué acotar según lo que se está mirando: la pieza elegida, el mueble o todo el proyecto
 function actualizarCotas(){
   const pieza = seleccion && seleccion.mallas.length ? seleccion.mallas[0] : null;
@@ -731,9 +758,7 @@ function moverEtiquetas(){
   });
 }
 
-/* ---------- modo cliente: ?c=<código> abre data/clientes/<código>.json ---------- */
-const CLIENTE = new URLSearchParams(location.search).get('c');
-if (CLIENTE) document.body.classList.add('modo-cliente');
+/* ---------- modo cliente (CLIENTE, arriba): solo muebles y medidas ---------- */
 const mallasDe = mueble => paneles.filter(m => m.userData.p.mueble === mueble);
 function verCliente(mueble, mover){
   seleccion = mueble ? { mallas: [], mueble, soloMueble: true } : null;
@@ -960,7 +985,8 @@ function abrirMuebles(){
   $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
   $('pmVolver').hidden = true;
   const lista = datosMuebles();
-  const link = datos.cliente ? location.origin + location.pathname + '?c=' + encodeURIComponent(datos.cliente) : '';
+  const link = item && item.link !== undefined ? item.link || ''   // la app dice cuál es el link vigente
+    : datos.cliente ? location.origin + location.pathname + '?c=' + encodeURIComponent(datos.cliente) : '';
   $('pmContenido').innerHTML = `<div class="pm-titulo">Muebles</div>
     <div class="pm-sub">${lista.length} muebles en ${esc(datos.proyecto)}</div>
     ${link ? `<div class="compartir">
@@ -978,7 +1004,7 @@ function abrirMuebles(){
   $('pmContenido').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => verMueble(lista[+b.dataset.i].nombre));
   if (link){
     if ($('btnCompartir')) $('btnCompartir').onclick = () =>
-      navigator.share({title: `${datos.proyecto} — Nord Good`, text: `Tu proyecto ${datos.proyecto} en 3D`, url: link}).catch(() => {});
+      navigator.share({title: `${datos.proyecto} — ${NOMBRE}`, text: `Tu proyecto ${datos.proyecto} en 3D`, url: link}).catch(() => {});
     $('btnCopiar').onclick = async () => {
       const b = $('btnCopiar');
       try{ await navigator.clipboard.writeText(link); b.textContent = 'Copiado ✓'; }
@@ -1227,7 +1253,7 @@ async function api(ruta, opciones){
 const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
 let pedidoLista = 0;
 async function cargarTrabajos(){
-  if (CLIENTE || !datos) return;
+  if (CLIENTE || !datos || VISOR.trabajos === false) return;
   const pedido = ++pedidoLista;   // solo vale la respuesta del último pedido: una vieja que llega tarde no pisa un cambio
   let lista = null;
   try{ lista = await api('trabajos?proyecto=' + encodeURIComponent(datos.proyecto)); }catch(e){}
@@ -1497,7 +1523,8 @@ async function iniciar(){
   }
   if (CLIENTE){
     let d = null;
-    try{ const r = await fetch('data/clientes/' + encodeURIComponent(CLIENTE) + '.json', {cache:'no-store'}); if (r.ok) d = await r.json(); }catch(e){}
+    const url = VISOR.cliente ? 'data/cliente.json' : 'data/clientes/' + encodeURIComponent(CLIENTE) + '.json';
+    try{ const r = await fetch(url, {cache:'no-store'}); if (r.ok) d = await r.json(); }catch(e){}
     if (!d){ $('cargando').textContent = 'Este link no es válido o el proyecto ya no está disponible.'; return; }
     return cargar({proyecto: d.proyecto, datos: d});
   }
@@ -1508,18 +1535,25 @@ async function iniciar(){
     try{ lista = await (await fetch('data/index.json', {cache:'no-store'})).json(); }
     catch(e){ $('cargando').textContent = 'No se encontró data/index.json. Generalo con polyboard_a_app.py.'; return; }
   }
-  const sel = $('proyecto');
-  sel.innerHTML = lista.map(x => `<option value="${x.proyecto}">${x.proyecto}</option>`).join('');
-  const previo = recordar(); if (previo && lista.some(x => x.proyecto === previo)) sel.value = previo;
-  sel.onchange = () => cargar(lista.find(x => x.proyecto === sel.value));
-  cargar(lista.find(x => x.proyecto === sel.value));
+  if (!lista.length){ $('cargando').textContent = 'Todavía no hay proyectos convertidos.'; return; }
+  // por posición: dos proyectos pueden llamarse igual. Se recuerda el archivo (o el nombre, si no hay archivo)
+  const sel = $('proyecto'), cual = x => x.archivo || x.proyecto;
+  sel.innerHTML = lista.map((x, i) => `<option value="${i}">${esc(x.proyecto)}</option>`).join('');
+  const pedido = new URLSearchParams(location.search).get('p');
+  const previo = pedido != null ? lista.findIndex(x => String(x.id) === pedido) : lista.findIndex(x => cual(x) === recordar());
+  if (previo >= 0) sel.value = previo;
+  sel.onchange = () => cargar(lista[+sel.value]);
+  cargar(lista[+sel.value]);
 }
-async function cargar(item){
+let item = null;   // el proyecto de la lista que se está viendo
+async function cargar(elegido){
   $('cargando').hidden = false; $('cargando').textContent = 'Cargando proyecto…';
   try{
-    datos = item.datos || await (await fetch('data/' + item.archivo, {cache:'no-store'})).json();
-  }catch(e){ $('cargando').textContent = 'No se pudo cargar el proyecto ' + item.proyecto + '.'; return; }
-  if (!CLIENTE) guardar(datos.proyecto);
+    datos = elegido.datos || await (await fetch('data/' + elegido.archivo, {cache:'no-store'})).json();
+  }catch(e){ $('cargando').textContent = 'No se pudo cargar el proyecto ' + elegido.proyecto + '.'; return; }
+  item = elegido;
+  BASE = 'data/' + (item.archivo || '').replace(/[^/]*$/, '');
+  if (!CLIENTE) guardar(item.archivo || datos.proyecto);
   MATS = datos.materiales || {}; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
   $('ficha').classList.remove('visible'); $('error').classList.remove('visible'); $('vista').hidden = true; $('ayuda').hidden = false; $('panelMuebles').hidden = true;
   tamano(); construir(datos);
@@ -1527,8 +1561,12 @@ async function cargar(item){
   TR.lista = []; TR.vista = null; TR.resaltar = null; TR.marcando = null; TR.filtro = null;
   $('panelTrabajos').hidden = true; $('tbInsignia').hidden = true; cargarTrabajos();
   if (CLIENTE){
-    $('titulo').textContent = 'Nord Good'; $('hProyecto').textContent = datos.proyecto; $('hProyecto').hidden = false;
-    document.title = `${datos.proyecto} — Nord Good`;
+    $('titulo').textContent = NOMBRE; $('hProyecto').textContent = datos.proyecto; $('hProyecto').hidden = false;
+    document.title = `${datos.proyecto} — ${NOMBRE}`;
+    if (MARCA.logo){ $('logoMarca').src = MARCA.logo; $('logoMarca').alt = NOMBRE; $('logoMarca').hidden = false; }
+    if (VISOR.pie){ $('pieMarca').innerHTML = 'hecho con ' + (VISOR.pie.url
+      ? `<a href="${esc(VISOR.pie.url)}" target="_blank" rel="noopener">${esc(VISOR.pie.nombre)}</a>` : esc(VISOR.pie.nombre));
+      $('pieMarca').hidden = false; }
     $('vista').hidden = false; verCliente(null, false); encuadrar(marco(cajaDe(paneles)), true);
     return;
   }

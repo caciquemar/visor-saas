@@ -122,6 +122,11 @@ MAX_OCP_MB = env.int('MAX_OCP_MB', default=10)
 MAX_TEXTURA_MB = env.int('MAX_TEXTURA_MB', default=15)
 DATA_UPLOAD_MAX_NUMBER_FILES = 30
 
+# ---------------------------------------------------------------- marca del servicio
+# Pie del link del cliente ("hecho con …") hasta tener nombre comercial; MARCA_URL: la página de venta.
+MARCA_SERVICIO = env('MARCA_SERVICIO', default='Visor')
+MARCA_URL = env('MARCA_URL', default='')
+
 # ---------------------------------------------------------------- archivos
 # ALMACENAMIENTO=local: carpeta datos/archivos/ (desarrollo). r2: Cloudflare R2 por la API de S3.
 ALMACENAMIENTO = env('ALMACENAMIENTO', default='local')

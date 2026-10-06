@@ -1,6 +1,7 @@
 """Proyectos y materiales del taller: /<taller>/proyectos/... y /<taller>/materiales/. Como en talleres/vistas.py,
 el middleware ya filtra todo por taller: acá no se filtra a mano. Todos los miembros ven los proyectos; subir,
 cambiar de versión y la biblioteca de materiales son para el dueño y la oficina."""
+from datetime import timedelta
 from pathlib import Path
 
 from django.conf import settings
@@ -8,6 +9,7 @@ from django.contrib import messages
 from django.db import transaction
 from django.db.models import Max
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from conversor.polyboard_a_app import clave
@@ -16,8 +18,9 @@ from talleres.roles import Rol, con_rol, miembro
 
 from .archivos import solo_nombre
 from .formularios import FormMaterial, FormProyectoNuevo, FormSubida
-from .models import Material, Original, Proyecto, Version
+from .models import LinkCliente, Material, Original, Proyecto, Version
 from .tareas import encolar
+from .visor import url_de_link
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
@@ -90,11 +93,17 @@ def ver(request, taller, id):
         for f in base.faltan_texturas:
             texto = f"{f['tipo']} {f['nombre']}"
             (texturas_nuevas if (f['tipo'], clave(f['nombre'])) in con_textura else faltan).append(texto)
+    gestiona = request.membresia.rol in GESTION
+    links = list(proyecto.links.filter(anulado__isnull=True)) if gestiona else []
+    for link in links:
+        link.direccion = url_de_link(request, link)
     return render(request, 'proyectos/ver.html', {
         'proyecto': proyecto, 'versiones': versiones, 'base': base,
+        'listo': bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO),
+        'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
         'en_proceso': any(v.en_proceso for v in versiones),
-        'gestiona': request.membresia.rol in GESTION,
+        'gestiona': gestiona,
     })
 
 
@@ -173,3 +182,33 @@ def imagen_material(request, taller, id):
     if not m.textura:
         return redirect('taller:proyectos:materiales', taller=request.taller.slug)
     return abrir_de_taller(request, m.textura.name)
+
+
+VENCIMIENTOS = [(30, '30 días'), (90, '90 días'), (365, 'un año'), (0, 'no vence')]
+
+
+@require_POST
+@con_rol(*GESTION)
+def nuevo_link(request, taller, id):
+    proyecto = get_object_or_404(Proyecto, pk=id)
+    try:
+        dias = int(request.POST.get('dias', LinkCliente.DIAS))
+    except ValueError:
+        dias = -1
+    if dias not in dict(VENCIMIENTOS):
+        messages.error(request, 'Elegí cuándo vence el link.')
+        return a_proyecto(request, proyecto)
+    LinkCliente.objects.create(proyecto=proyecto, creado_por=request.user,
+                               vence=timezone.now() + timedelta(days=dias) if dias else None)
+    messages.success(request, 'Listo el link para el cliente. Copialo y mandáselo.')
+    return a_proyecto(request, proyecto)
+
+
+@require_POST
+@con_rol(*GESTION)
+def anular_link(request, taller, id, link_id):
+    link = get_object_or_404(LinkCliente, pk=link_id, proyecto_id=id, anulado__isnull=True)
+    link.anulado = timezone.now()
+    link.save(update_fields=['anulado'])
+    messages.success(request, 'Anulaste el link: quien lo tenga ya no puede ver el proyecto.')
+    return redirect('taller:proyectos:ver', taller=request.taller.slug, id=id)

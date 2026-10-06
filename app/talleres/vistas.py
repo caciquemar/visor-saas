@@ -3,13 +3,15 @@ taller: acá no se filtra a mano. El argumento `taller` de la URL no se usa (es 
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.core.exceptions import PermissionDenied
+from django.http import Http404
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from . import pin as pines
-from .formularios import FormAltaConPin, FormInvitar, FormMiembro, FormPin
+from .archivos import abrir_de_taller
+from .formularios import FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin
 from .mails import invitar as mandar_invitacion
 from .models import Invitacion, Membresia
 from .roles import Rol, con_rol, miembro
@@ -133,3 +135,27 @@ def entrar_con_pin(request, taller):
                 error = 'PIN incorrecto.'
     return render(request, 'talleres/pin.html', {'candidatos': candidatos, 'error': error, 'elegido': elegido},
                   status=200 if error is None else 400)
+
+
+@con_rol(Rol.DUENO)
+def marca(request, taller):
+    t = request.taller
+    anterior = t.logo.name if t.logo else ''
+    form = FormMarca(request.POST or None, request.FILES or None, instance=t)
+    if request.method == 'POST' and form.is_valid():
+        t = form.save(commit=False)
+        if request.POST.get('quitar_logo') and not request.FILES.get('logo'):
+            t.logo = ''
+        t.save(update_fields=['logo', 'color'])
+        if anterior and anterior != (t.logo.name if t.logo else ''):
+            t.logo.storage.delete(anterior)
+        messages.success(request, 'Guardaste la marca del taller.')
+        return redirect('taller:marca', taller=t.slug)
+    return render(request, 'talleres/marca.html', {'form': form}, status=400 if form.is_bound else 200)
+
+
+@miembro
+def logo(request, taller):
+    if not request.taller.logo:
+        raise Http404()
+    return abrir_de_taller(request, request.taller.logo.name)

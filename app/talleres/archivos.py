@@ -22,6 +22,14 @@ def ruta_de_taller(instancia, nombre):
     return f'{carpeta_de_taller(instancia.taller_id)}{instancia._meta.model_name}/{secrets.token_hex(8)}_{base}'
 
 
+def ruta_de_logo(taller, nombre):
+    """upload_to del logo del taller (Taller no tiene taller_id): talleres/<taller>/marca/<azar>_<nombre>."""
+    if taller.pk is None:
+        raise ValueError('El taller no está guardado todavía')
+    base = get_valid_filename(posixpath.basename(nombre.replace('\\', '/'))) or 'logo'
+    return f'{carpeta_de_taller(taller.pk)}marca/{secrets.token_hex(8)}_{base}'
+
+
 def ruta_valida(taller, ruta):
     """La ruta si está dentro de la carpeta del taller; None si no (o si tiene algo raro)."""
     if taller is None or not ruta or '\\' in ruta or '\x00' in ruta or ':' in ruta or ruta.startswith('/'):

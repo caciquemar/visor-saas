@@ -1,7 +1,10 @@
+import re
+
 from django import forms
 from django.contrib.auth import password_validation
+from django.core.files.uploadedfile import UploadedFile
 
-from .models import Membresia
+from .models import Membresia, Taller
 from .pin import validar_pin
 
 Rol = Membresia.Rol
@@ -90,3 +93,52 @@ class FormCuentaNueva(forms.Form):
         self.usuario.set_password(self.cleaned_data['password1'])
         self.usuario.save()
         return self.usuario
+
+
+COLOR_DEL_VISOR = '#1D5FE0'      # --tiza de visor/index.html
+
+
+class FormMarca(forms.ModelForm):
+    """Logo y color del taller para el link del cliente."""
+    MAX_LOGO_MB = 2
+
+    class Meta:
+        model = Taller
+        fields = ('logo', 'color')
+        widgets = {'logo': forms.FileInput(attrs={'accept': 'image/png,image/jpeg,image/webp'}),
+                   'color': forms.TextInput(attrs={'type': 'color'})}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if not self.instance.color:
+            self.initial['color'] = COLOR_DEL_VISOR      # si no, el selector arranca en negro
+
+    def clean_logo(self):
+        logo = self.cleaned_data.get('logo')
+        if isinstance(logo, UploadedFile):                     # el que ya estaba no se revisa de nuevo
+            if logo.size > self.MAX_LOGO_MB * 1024 * 1024:
+                raise forms.ValidationError(f'El logo pesa más de {self.MAX_LOGO_MB} MB.')
+            formato = getattr(getattr(logo, 'image', None), 'format', None)
+            if formato not in ('JPEG', 'PNG', 'WEBP'):          # nada de SVG: puede traer código
+                raise forms.ValidationError('Subí el logo en PNG, JPG o WEBP.')
+        return logo
+
+    def clean_color(self):
+        color = (self.cleaned_data.get('color') or '').strip().upper()
+        if not color:
+            return ''
+        if not re.fullmatch(r'#[0-9A-F]{6}', color):
+            raise forms.ValidationError('El color tiene que ser como #1D5FE0.')
+        if luminancia(color) > 0.4:
+            raise forms.ValidationError('Ese color es muy claro: las letras blancas de los botones no se leerían. '
+                                        'Elegí uno más oscuro.')
+        return color
+
+
+def luminancia(color):
+    """Luminancia relativa (WCAG) de #RRGGBB: 0 negro, 1 blanco. Con más de 0.4 el blanco encima no se lee bien."""
+    def canal(c):
+        c = int(c, 16) / 255
+        return c / 12.92 if c <= 0.03928 else ((c + 0.055) / 1.055) ** 2.4
+    r, g, b = (canal(color[i:i + 2]) for i in (1, 3, 5))
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b

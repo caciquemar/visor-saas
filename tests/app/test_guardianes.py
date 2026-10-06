@@ -15,9 +15,10 @@ APP = Path(__file__).resolve().parents[2] / 'app'
 # Modelos de la app que no son datos de un taller (agregar acá solo con una buena razón).
 MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario'}
 
-# Direcciones que se pueden ver sin sesión (regla 2). El link del cliente (/c/<código>) se suma en la ficha 04.
+# Direcciones que se pueden ver sin sesión (regla 2). Las del link del cliente (/c/<código>/...) solo responden con un
+# link vigente: tests/app/test_visor.py.
 PUBLICAS = {'entrar', 'olvide', 'olvide_enviado', 'clave_nueva', 'clave_lista', 'invitacion', 'taller:pin',
-            'admin:login'}
+            'admin:login', 'cliente:pagina', 'cliente:logo', 'cliente:dato'}
 
 
 def modelos_propios():

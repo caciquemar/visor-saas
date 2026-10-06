@@ -1,0 +1,39 @@
+{% extends 'base.html' %}
+{% block titulo %}Marca{% endblock %}
+{% block cabeza %}
+<style>
+  .muestra-marca { display:flex; flex-wrap:wrap; align-items:center; gap:.75rem; padding:.75rem 1rem; border-radius:10px;
+                   background:#DCE1E4; color:#1B2630; font:700 1.2rem system-ui, sans-serif; }
+  .muestra-marca img { height:28px; max-width:120px; object-fit:contain; }
+  .muestra-marca .boton-muestra { margin-left:auto; font-size:.95rem; padding:.45rem .8rem; border-radius:8px; color:#fff; }
+  input[type=color] { width:4rem; height:2.5rem; padding:.15rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>Marca</h1>
+<p class="suave">Tu logo y tu color aparecen en el link que le mandás al cliente. Abajo de todo va un pie chico con
+  la marca del servicio.</p>
+
+<div class="caja">
+  <h2 style="margin-top:0">Así lo ve el cliente</h2>
+  <div class="muestra-marca">
+    {% if request.taller.logo %}<img src="{% url 'taller:logo' taller=request.taller.slug %}" alt="">{% endif %}
+    <span>{{ request.taller.nombre }}</span>
+    <span class="boton-muestra" style="background:{{ request.taller.color|default:'#1D5FE0' }}">Ver en tu espacio (AR)</span>
+  </div>
+</div>
+
+<form method="post" enctype="multipart/form-data" class="caja" style="margin-top:1rem">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <label for="id_logo">Logo</label>
+  {{ form.logo.errors }}
+  {{ form.logo }}
+  {% if request.taller.logo %}<label style="font-weight:400"><input type="checkbox" name="quitar_logo"> Quitar el logo</label>{% endif %}
+  <span class="ayuda">PNG, JPG o WEBP de hasta 2 MB. Mejor con fondo transparente y más ancho que alto.</span>
+  <label for="id_color">Color</label>
+  {{ form.color.errors }}
+  {{ form.color }}
+  <span class="ayuda">Se usa en los botones y en lo que está elegido. Tiene que ser oscuro: los botones llevan letras blancas.</span>
+  <div class="acciones"><button type="submit">Guardar</button></div>
+</form>
+{% endblock %}

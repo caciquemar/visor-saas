@@ -25,5 +25,6 @@ urlpatterns = [
     path('cuenta/clave/lista/', auth.PasswordResetCompleteView.as_view(template_name='cuentas/clave_lista.html'),
          name='clave_lista'),
     path('cuenta/invitacion/<str:token>/', cuentas.invitacion, name='invitacion'),
+    path('c/', include('proyectos.urls_cliente')),          # link del cliente, sin login
     path('<slug:taller>/', include('talleres.urls')),
 ]

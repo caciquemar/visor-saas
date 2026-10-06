@@ -8,6 +8,9 @@
   .version ul { margin:.35rem 0; padding-left:1.1rem; }
   .aviso-texturas { border-color:var(--acento); margin-bottom:1rem; }
   details summary { cursor:pointer; color:var(--suave); }
+  .link-cliente { padding:.75rem 0; border-bottom:1px solid var(--borde); }
+  .link-cliente input { max-width:100%; margin-bottom:.35rem; }
+  .boton.secundario-enlace { background:transparent; color:var(--texto); border:1px solid var(--borde); }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -28,10 +31,50 @@
 </div>
 {% endif %}
 
-{% if gestiona %}
 <div class="acciones" style="margin:0 0 .5rem">
-  <a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>
+  {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir en el visor</a>{% endif %}
+  {% if gestiona %}<a class="boton{% if listo %} secundario-enlace{% endif %}" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>{% endif %}
 </div>
+
+{% if gestiona and listo %}
+<h2>Link para el cliente</h2>
+<div class="caja">
+  <p class="suave" style="margin-top:0">El cliente ve el proyecto en 3D, con medidas y en realidad aumentada, con tu logo y tu color.
+    No ve números de mecanizado ni datos del taller. No necesita cuenta.</p>
+  {% for l in links %}
+  <div class="link-cliente">
+    <input readonly value="{{ l.direccion }}" aria-label="Link para el cliente" onclick="this.select()">
+    <div class="suave">
+      {% if l.vencido %}<strong class="error">Venció el {{ l.vence|date:"j/n/Y" }}.</strong>
+      {% elif l.vence %}Vence el {{ l.vence|date:"j/n/Y" }}.{% else %}No vence.{% endif %}
+      {{ l.visitas }} visita{{ l.visitas|pluralize }}{% if l.ultima_visita %} (la última, {{ l.ultima_visita|date:"j/n H:i" }}){% endif %}.
+    </div>
+    <div class="acciones" style="margin-top:.5rem">
+      {% if not l.vencido %}
+      <button type="button" class="secundario" data-copiar="{{ l.direccion }}">Copiar</button>
+      <a class="boton secundario-enlace" href="{{ l.direccion }}" target="_blank" rel="noopener">Ver como cliente</a>
+      {% endif %}
+      <form class="enlinea" method="post" action="{% url 'taller:proyectos:anular_link' taller=request.taller.slug id=proyecto.pk link_id=l.pk %}"
+            onsubmit="return confirm('¿Anular este link? Quien lo tenga ya no va a poder ver el proyecto.')">{% csrf_token %}
+        <button class="secundario" type="submit">Anular</button></form>
+    </div>
+  </div>
+  {% endfor %}
+  <form method="post" action="{% url 'taller:proyectos:nuevo_link' taller=request.taller.slug id=proyecto.pk %}" class="acciones">{% csrf_token %}
+    <label for="dias" style="margin:0;align-self:center">{% if links %}Otro link que vence en{% else %}Crear un link que vence en{% endif %}</label>
+    <select id="dias" name="dias" style="width:auto">{% for d, texto in dias_link %}
+      <option value="{{ d }}"{% if d == dias_por_defecto %} selected{% endif %}>{{ texto }}</option>{% endfor %}</select>
+    <button type="submit">Crear link</button>
+  </form>
+  {% if not request.taller.logo and request.membresia.rol == 'dueno' %}<p class="suave">Todavía no cargaste tu logo: <a href="{% url 'taller:marca' taller=request.taller.slug %}">cargalo en Marca</a>.</p>{% endif %}
+</div>
+<script>
+  document.querySelectorAll('[data-copiar]').forEach(b => b.onclick = async () => {
+    try{ await navigator.clipboard.writeText(b.dataset.copiar); b.textContent = 'Copiado ✓'; }
+    catch(e){ b.textContent = 'Seleccionalo y copialo'; }
+    setTimeout(() => b.textContent = 'Copiar', 2000);
+  });
+</script>
 {% endif %}
 
 <h2>Versiones</h2>

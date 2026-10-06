@@ -39,8 +39,9 @@ muestras/         proyectos reales de Polyboard para pruebas, uno por carpeta (v
 docs/             plan, decisiones y fichas de cada sesión
 negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negocio, marca, entrevistas)
 app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario), talleres/ (Taller, Membresia,
-                  Invitacion, separación entre talleres, PIN, Equipo), proyectos/ (Proyecto, Version, Original,
-                  Material; subida, cola de conversión en proceso aparte, biblioteca de texturas), templates/
+                  Invitacion, separación entre talleres, PIN, Equipo, Marca), proyectos/ (Proyecto, Version, Original,
+                  Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
+                  visor.py: el visor y el link del cliente), templates/
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -111,6 +112,18 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`materiales_del_ocp`), `materiales.json` acepta `{"tableros": …, "cantos": …}`, el proyecto convertido trae
   `cantos` aparte de `materiales`, y la biblioteca del taller tiene tablero y canto por separado aunque se llamen igual.
   El visor actual de Nord Good queda sin estos cambios por decisión de Martín.
+- 2026-10-06: **ficha 04 hecha.** El visor se abre en `/<taller>/visor/` (con login) y lee los proyectos de la base:
+  la app atiende las mismas rutas relativas `data/…` debajo de la página (`proyectos/visor.py`), así `index.html`
+  cambió poco (configuración en `window.VISOR`, texturas relativas a la carpeta del proyecto, lista por posición y
+  `?p=<id>`, sin "Nord Good", trabajos ocultos hasta la 05, íconos genéricos en `proyectos/static/visor/`).
+  Link del cliente `/c/<código>/` (`LinkCliente`: código de 128 bits, vence a 30/90/365 días o nunca, se anula,
+  cuenta visitas sin contar al taller) creado desde la pantalla del proyecto por dueño u oficina; el middleware toma el
+  taller del link vigente y solo sirve `cliente.json`, sus GLB, texturas y el logo (nunca `proyecto.json`). Marca del
+  taller (logo PNG/JPG/WEBP y color oscuro) en `/<taller>/marca/`, solo el dueño; pie "hecho con Visor"
+  (`MARCA_SERVICIO`, `MARCA_URL`). Probado en el navegador integrado: Rack florencia igual que en
+  visor.nordgood.com.ar (70 paneles, misma ficha; cambia solo la foto del guatambú de la biblioteca de prueba), en
+  formato celular el escáner pide la cámara y el número a mano anda, el link abre sin sesión con la marca y deja de
+  andar al anularlo. Próxima: 05.
 
 ## Pendientes
 
@@ -121,11 +134,21 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Visor actual de Nord Good: **queda sin modificar por ahora** (decisión de Martín, 2026-10-06). No se le llevan los
   cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
   Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
-- Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`. El visor lee
-  `Version.archivo_proyecto` (siempre `.../resultado/proyecto.json`) de `proyecto.version_actual`; el link del cliente
-  usa `Proyecto.codigo_cliente` (`.../resultado/clientes/<código>.json` y sus `.glb`). Las texturas quedan en
-  `.../resultado/texturas/`. **Los cantos se buscan en `cantos`** (tablero y canto pueden llamarse igual);
-  `materiales` es solo para tableros.
+- Visor: **los cantos todavía se buscan en `materiales`** (`index.html`, `muestra()`/espesor del canto en la ficha y
+  color del canto en 3D). Si un canto se llama como un tablero (`c-guatambu` en Rack florencia), toma el color o la
+  textura del tablero, igual que en el visor de Nord Good. Cambiarlo a `datos.cantos` quedó para que Martín lo
+  apruebe (es un cambio a index.html que no estaba en la lista de la 04).
+- Ficha 05: el visor tiene los trabajos apagados con `VISOR.trabajos = false` (`proyectos/visor.py`); al hacer la API
+  de trabajos en `/<taller>/visor/api/…`, prenderlos ahí.
+- Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la
+  imagen en JPG, PNG o WEBP" (`FormMaterial.clean_textura` revisa el archivo que ya estaba). Mismo arreglo que
+  `FormMarca.clean_logo`: revisar solo si es un `UploadedFile`.
+- Ficha 07: con `ALMACENAMIENTO=r2`, `abrir_de_taller` redirige a una URL firmada de R2: el visor carga texturas y GLB
+  de otro origen, así que el bucket necesita CORS (GET desde el dominio de la app), o servirlos a través de Django.
+  `index.html` pide los íconos en `/static/visor/`: servir los estáticos (whitenoise o nginx).
+- Probar en un celular de verdad, por HTTPS (en el servidor de la 07): escanear una etiqueta y abrir la realidad
+  aumentada desde el link del cliente. En el navegador integrado la cámara está bloqueada y el modelo de AR no termina
+  de cargar (tampoco el de visor.nordgood.com.ar).
 - Ficha 07: en el servidor el consumidor de Huey (`run_huey`) tiene que correr como servicio; el límite de memoria
   de la conversión (`CONVERSION_MEMORIA_MB`) solo funciona en Linux. Si Cloudflare queda en plan pago, se puede
   subir `MAX_DXF_MB`. Las versiones que quedan "en cola" con el consumidor caído no se marcan solas (sí las que

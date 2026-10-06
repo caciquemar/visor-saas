@@ -4,10 +4,11 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
-from django.core.validators import validate_slug
+from django.core.validators import RegexValidator, validate_slug
 from django.db import models
 from django.utils import timezone
 
+from .archivos import ruta_de_logo
 from .separacion import DatoDeTaller
 
 # Primeras partes de la dirección que no son talleres (app.<dominio>/<esto>/...).
@@ -31,6 +32,10 @@ class Taller(models.Model):
                             help_text='Va en la dirección del taller: app.dominio/esta-direccion/. Minúsculas y guiones.')
     activo = models.BooleanField('activo', default=True)
     creado = models.DateTimeField('creado', auto_now_add=True)
+    # Marca del taller en el link del cliente (ficha 04): la elige el dueño en /<taller>/marca/.
+    logo = models.ImageField('logo', upload_to=ruta_de_logo, blank=True, max_length=300)
+    color = models.CharField('color', max_length=7, blank=True,
+                             validators=[RegexValidator(r'^#[0-9A-F]{6}$', 'El color tiene que ser como #1D5FE0.')])
 
     class Meta:
         verbose_name = 'taller'

@@ -2,6 +2,25 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · El visor se sirve con sus rutas relativas
+La app sirve `visor/index.html` en `/<taller>/visor/` y `/c/<código>/`, y atiende debajo las mismas rutas `data/…` que
+pedía en el NAS (`data/index.json` sale de la base). Lo que la app tiene que decir (modo cliente, marca, trabajos) va
+en `window.VISOR`, que la vista reemplaza en el HTML. Así el archivo cambia poco y sigue andando sin la app (sin
+configuración se comporta como antes). Descartado: plantilla de Django con todo el visor adentro (se separaría del
+original) y rutas absolutas armadas en el JavaScript.
+
+## 2026-10-06 · Link del cliente separado del código del conversor
+`LinkCliente` tiene su propio código (128 bits), vencimiento (30, 90 o 365 días, o nunca; 90 por defecto), anulación
+y visitas, y apunta al proyecto: muestra siempre la versión actual. El conversor sigue nombrando los archivos con
+`Proyecto.codigo_cliente`, que no se publica como link; anular un link y crear otro no obliga a reconvertir. Por
+`/c/` solo salen `cliente.json`, los GLB de ese proyecto, texturas y el logo; nunca `proyecto.json`. El taller que
+abre su propio link no suma visitas. Lo crean y anulan el dueño y la oficina.
+
+## 2026-10-06 · Marca del taller: logo y un color
+Logo en PNG, JPG o WEBP (SVG no: puede traer código) de hasta 2 MB, y un color que tiene que ser oscuro (luminancia
+≤ 0,4) porque los botones del visor llevan letras blancas. Lo cambia solo el dueño. El pie dice "hecho con Visor"
+hasta que haya nombre comercial (`MARCA_SERVICIO` y `MARCA_URL` en el `.env`).
+
 ## 2026-10-06 · El visor actual de Nord Good no se toca por ahora
 Los cambios del conversor del 2026-10-06 (tableros y cantos separados, error de DXF claro) quedan solo en este repo.
 El visor actual (`armado/armado`, NAS) sigue como está hasta que Martín pida llevarlos. No hace falta para que siga

@@ -58,11 +58,15 @@
   {% if request.taller %}
     <a class="marca" href="{% url 'taller:inicio' taller=request.taller.slug %}">{{ request.taller.nombre }}</a>
     {% if request.membresia %}
+      <a href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}">Visor</a>
       <a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Proyectos</a>
     {% endif %}
     {% if request.membresia.rol == 'dueno' or request.membresia.rol == 'oficina' %}
       <a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Materiales</a>
       <a href="{% url 'taller:equipo' taller=request.taller.slug %}">Equipo</a>
+    {% endif %}
+    {% if request.membresia.rol == 'dueno' %}
+      <a href="{% url 'taller:marca' taller=request.taller.slug %}">Marca</a>
     {% endif %}
   {% else %}
     <a class="marca" href="{% url 'inicio' %}">Visor</a>

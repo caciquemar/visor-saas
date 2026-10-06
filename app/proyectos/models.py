@@ -19,6 +19,10 @@ def codigo_nuevo():
     return secrets.token_urlsafe(9)
 
 
+def codigo_de_link():
+    return secrets.token_urlsafe(16)          # 128 bits: no se adivina
+
+
 class Proyecto(DatoDeTaller):
     nombre = models.CharField('nombre', max_length=150)
     # Código del link del cliente (ficha 04). Se pasa al conversor en cada versión para que el link no cambie.
@@ -139,3 +143,39 @@ class Material(DatoDeTaller):
     def save(self, *args, **kwargs):
         self.clave = clave_de_material(self.nombre)
         super().save(*args, **kwargs)
+
+
+class LinkCliente(DatoDeTaller):
+    """Link para el cliente final: /c/<código>. Muestra la versión cliente de la versión actual del proyecto (sin
+    números de mecanizado ni datos de taller). El código es otro que `Proyecto.codigo_cliente` (el que usa el
+    conversor para nombrar los archivos): anular un link y crear otro no obliga a reconvertir."""
+    DIAS = 90
+
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='links')
+    codigo = models.CharField('código', max_length=32, unique=True, default=codigo_de_link, editable=False)
+    vence = models.DateTimeField('vence', null=True, blank=True)
+    anulado = models.DateTimeField('anulado', null=True, blank=True)
+    visitas = models.PositiveIntegerField('visitas', default=0)
+    ultima_visita = models.DateTimeField('última visita', null=True, blank=True)
+    creado = models.DateTimeField('creado', auto_now_add=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+
+    class Meta:
+        verbose_name = 'link del cliente'
+        verbose_name_plural = 'links del cliente'
+        ordering = ['-creado']
+
+    def __str__(self):
+        return f'link de {self.proyecto}'
+
+    @property
+    def vigente(self):
+        return self.anulado is None and (self.vence is None or timezone.now() < self.vence)
+
+    @property
+    def vencido(self):
+        return self.anulado is None and self.vence is not None and timezone.now() >= self.vence
+
+    def url(self):
+        return f'{settings.URL_APP}/c/{self.codigo}/'
