@@ -110,7 +110,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   ezdxf. (2) Tableros y cantos no se mezclan: el conversor lee de qué tipo es cada material del .ocp
   (`materiales_del_ocp`), `materiales.json` acepta `{"tableros": …, "cantos": …}`, el proyecto convertido trae
   `cantos` aparte de `materiales`, y la biblioteca del taller tiene tablero y canto por separado aunque se llamen igual.
-  **Estos dos cambios del conversor hay que llevarlos al visor actual** (ver Pendientes).
+  El visor actual de Nord Good queda sin estos cambios por decisión de Martín.
 
 ## Pendientes
 
@@ -118,11 +118,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
   límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
   (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.
-- **Llevar al visor actual de Nord Good** (decisión de Martín; no se hace automáticamente) los cambios del conversor
-  del 2026-10-06: mensaje claro de DXF ilegible y tableros/cantos separados (`materiales_del_ocp`, `Texturas`,
-  `resolver_materiales`, `materiales` + `cantos` en la salida). El visor actual sigue andando sin cambios porque
-  `materiales` conserva los cantos que no se llaman como un tablero; para que un canto con el mismo nombre que un
-  tablero muestre lo suyo, su `index.html` tiene que leer `cantos` (igual que el visor nuevo de la 04).
+- Visor actual de Nord Good: **queda sin modificar por ahora** (decisión de Martín, 2026-10-06). No se le llevan los
+  cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
+  Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
 - Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`. El visor lee
   `Version.archivo_proyecto` (siempre `.../resultado/proyecto.json`) de `proyecto.version_actual`; el link del cliente
   usa `Proyecto.codigo_cliente` (`.../resultado/clientes/<código>.json` y sus `.glb`). Las texturas quedan en

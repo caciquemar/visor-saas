@@ -2,6 +2,11 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · El visor actual de Nord Good no se toca por ahora
+Los cambios del conversor del 2026-10-06 (tableros y cantos separados, error de DXF claro) quedan solo en este repo.
+El visor actual (`armado/armado`, NAS) sigue como está hasta que Martín pida llevarlos. No hace falta para que siga
+andando: la salida nueva es compatible con él.
+
 ## 2026-10-06 · Tableros y cantos nunca se mezclan
 Pedido de Martín: muchos tableros y cantos se llaman igual (en 6 de las 7 muestras: `c-guatambu`, `f-paraiso`,
 `f-Grey Extreme Matt`…) y tienen otra imagen o color. Antes el conversor guardaba un solo dato por nombre. Ahora:
