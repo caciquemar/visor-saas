@@ -1,5 +1,5 @@
 """Direcciones dentro de un taller: app.<dominio>/<taller>/... (ver config/urls.py)."""
-from django.urls import path
+from django.urls import include, path
 
 from . import vistas
 
@@ -12,4 +12,5 @@ urlpatterns = [
     path('equipo/alta/', vistas.alta_con_pin, name='alta_con_pin'),
     path('equipo/<int:id>/', vistas.editar_miembro, name='miembro'),
     path('pin/', vistas.entrar_con_pin, name='pin'),
+    path('', include('proyectos.urls')),
 ]

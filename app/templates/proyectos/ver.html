@@ -1,0 +1,79 @@
+{% extends 'base.html' %}
+{% block titulo %}{{ proyecto.nombre }}{% endblock %}
+{% block cabeza %}{% if en_proceso %}<meta http-equiv="refresh" content="5">{% endif %}
+<style>
+  .version { margin-top:1rem; }
+  .version.actual { border-color:var(--acento); }
+  .version h3 { margin:0 0 .35rem; font-size:1.05rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .version ul { margin:.35rem 0; padding-left:1.1rem; }
+  .aviso-texturas { border-color:var(--acento); margin-bottom:1rem; }
+  details summary { cursor:pointer; color:var(--suave); }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Proyectos</a></p>
+<h1>{{ proyecto.nombre }}</h1>
+
+{% if gestiona and base and texturas_nuevas %}
+<div class="caja aviso-texturas">
+  <strong>Subiste texturas que faltaban</strong> ({{ texturas_nuevas|join:", " }}). Volvé a convertir para verlas en el proyecto.
+  <form class="acciones" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=base.numero %}">{% csrf_token %}
+    <button type="submit">Volver a convertir</button></form>
+</div>
+{% endif %}
+{% if gestiona and faltan %}
+<div class="caja aviso-texturas">
+  <strong>Faltan texturas:</strong> {{ faltan|join:", " }}. Se ven con su color hasta que subas la imagen.
+  <div class="acciones"><a class="boton" href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Subir texturas</a></div>
+</div>
+{% endif %}
+
+{% if gestiona %}
+<div class="acciones" style="margin:0 0 .5rem">
+  <a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>
+</div>
+{% endif %}
+
+<h2>Versiones</h2>
+{% for v in versiones %}
+<div class="caja version{% if v.pk == proyecto.version_actual_id %} actual{% endif %}">
+  <h3>Versión {{ v.numero }}
+    <span class="estado {{ v.estado }}">{{ v.get_estado_display }}</span>
+    {% if v.pk == proyecto.version_actual_id %}<span class="estado listo">En uso</span>{% endif %}
+  </h3>
+  <div class="suave">Subida {{ v.creada|date:"j/n/Y H:i" }}{% if v.subida_por %} por {{ v.subida_por }}{% endif %}{% if v.terminada %} · terminó {{ v.terminada|date:"H:i" }}{% endif %}</div>
+
+  {% if v.estado == 'en_cola' %}<p>Esperando turno para convertirse…</p>{% endif %}
+  {% if v.estado == 'convirtiendo' %}<p>Convirtiendo… suele tardar uno o dos minutos. Esta página se actualiza sola.</p>{% endif %}
+  {% if v.estado == 'error' %}<p class="error"><strong>No se pudo convertir.</strong> {{ v.mensaje }}</p>{% endif %}
+  {% if v.estado == 'listo' %}
+    <p>{{ v.resumen.piezas_con_numero }} piezas · {{ v.resumen.paneles }} paneles 3D ({{ v.resumen.vinculados }} vinculados a la lista){% if v.resumen.herrajes %} · {{ v.resumen.herrajes }} herrajes{% endif %}</p>
+    {% if v.avisos %}
+    <details><summary>{{ v.avisos|length }} aviso{{ v.avisos|length|pluralize }} para revisar</summary>
+      <ul>{% for a in v.avisos %}<li>{{ a }}</li>{% endfor %}</ul></details>
+    {% endif %}
+  {% endif %}
+
+  {% if gestiona %}
+  <details><summary>Archivos subidos</summary>
+    <ul>{% for o in v.originales.all %}
+      <li><a href="{% url 'taller:proyectos:original' taller=request.taller.slug id=proyecto.pk numero=v.numero original_id=o.pk %}">{{ o.nombre }}</a>
+        <span class="suave">· {{ o.get_tipo_display }} · {{ o.tamano|filesizeformat }}</span></li>
+    {% endfor %}</ul>
+  </details>
+  <div class="acciones">
+    {% if v.estado == 'listo' and v.pk != proyecto.version_actual_id %}
+      <form class="enlinea" method="post" action="{% url 'taller:proyectos:usar_version' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">{% csrf_token %}
+        <button type="submit">Usar esta versión</button></form>
+    {% endif %}
+    {% if not v.en_proceso %}
+      <form class="enlinea" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">{% csrf_token %}
+        <button class="secundario" type="submit">Volver a convertir</button></form>
+    {% endif %}
+  </div>
+  {% endif %}
+</div>
+{% empty %}
+<p class="suave">Sin versiones.</p>
+{% endfor %}
+{% endblock %}

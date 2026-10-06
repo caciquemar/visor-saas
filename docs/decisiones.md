@@ -2,6 +2,25 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · Texturas: biblioteca del taller, una imagen por material
+En el servidor no está la carpeta Textures de Polyboard. Al convertir, los materiales del proyecto que en Polyboard
+tienen imagen se suman solos a la biblioteca del taller (`proyectos.Material`, con la ruta de Polyboard y el ancho en
+mm). Los que no tienen imagen subida se ven con su color y el proyecto avisa "Faltan texturas"; el taller sube cada
+imagen una vez y sirve para todos los proyectos. Después, el proyecto ofrece "Volver a convertir" (versión nueva con
+los mismos originales); no se reconvierte solo. La biblioteca se le pasa al conversor como su `materiales.json` y una
+carpeta Textures temporal, sin cambiar el conversor. Decidido por Martín. Descartado: subir un ZIP con la carpeta
+Textures (cientos de MB, casi todo sin usar), subir las bibliotecas .mat-boole, reconvertir automáticamente (puede
+llenar la cola sin que nadie lo pida).
+
+## 2026-10-06 · Conversión en un proceso aparte
+La tarea de la cola baja originales y texturas a una carpeta temporal y corre `python -m proyectos.proceso`, que no usa
+Django ni la base: un proyecto que se cuelga o se come la memoria no tumba la cola. Límite de tiempo
+`CONVERSION_SEGUNDOS` (600) y de memoria `CONVERSION_MEMORIA_MB` (2048, solo Linux). `ErrorConversion` llega al taller
+tal cual; tiempo, memoria y errores inesperados dan un mensaje fijo y el detalle va al log. Cada subida es una versión
+(`talleres/<t>/proyectos/<p>/versiones/<n>/originales|resultado/`); "Volver a convertir" crea otra versión que apunta
+a los mismos originales sin copiarlos. El JSON principal queda siempre como `resultado/proyecto.json` y el código del
+link del cliente es fijo por proyecto. Tamaño máximo del DXF: 95 MB, porque Cloudflare gratis corta en 100 MB.
+
 ## 2026-10-05 · Separación entre talleres: una sola capa que falla cerrada
 Todo modelo con datos de un taller hereda de `DatoDeTaller` (`app/talleres/separacion.py`). Su manager filtra por el
 taller del contexto (`ContextVar`, que pone el middleware en cada pedido a `/<taller>/…`, o `con_taller()` en tareas).

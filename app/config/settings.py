@@ -1,5 +1,6 @@
 """Configuración del visor. Todo lo que cambia entre la PC y el servidor viene del .env de la raíz
 del repo (ver .env.example). Los secretos solo van ahí, nunca en el código."""
+import sys
 from pathlib import Path
 
 import environ
@@ -8,6 +9,8 @@ RAIZ = Path(__file__).resolve().parents[2]          # raíz del repo
 BASE_DIR = RAIZ / 'app'
 DATOS = RAIZ / 'datos'                              # base local, cola y archivos en desarrollo (no va a git)
 DATOS.mkdir(exist_ok=True)
+if str(RAIZ) not in sys.path:                       # el paquete conversor/ está en la raíz, fuera de app/
+    sys.path.append(str(RAIZ))
 
 env = environ.Env()
 environ.Env.read_env(RAIZ / '.env')
@@ -37,6 +40,7 @@ INSTALLED_APPS = [
     'huey.contrib.djhuey',
     'usuarios',
     'talleres',
+    'proyectos',
 ]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -107,6 +111,16 @@ if _redis:
     HUEY.update(huey_class='huey.RedisHuey', url=_redis)
 else:
     HUEY.update(huey_class='huey.SqliteHuey', filename=str(DATOS / 'huey.db'))
+
+# ---------------------------------------------------------------- conversión de proyectos
+# Ver proyectos/tareas.py. Cada conversión corre en un proceso aparte con estos límites.
+CONVERSION_SEGUNDOS = env.int('CONVERSION_SEGUNDOS', default=600)
+CONVERSION_MEMORIA_MB = env.int('CONVERSION_MEMORIA_MB', default=2048)   # solo en Linux (en Windows no se limita)
+# El plan gratis de Cloudflare corta los pedidos de más de 100 MB: el DXF tiene que quedar por debajo.
+MAX_DXF_MB = env.int('MAX_DXF_MB', default=95)
+MAX_OCP_MB = env.int('MAX_OCP_MB', default=10)
+MAX_TEXTURA_MB = env.int('MAX_TEXTURA_MB', default=15)
+DATA_UPLOAD_MAX_NUMBER_FILES = 30
 
 # ---------------------------------------------------------------- archivos
 # ALMACENAMIENTO=local: carpeta datos/archivos/ (desarrollo). r2: Cloudflare R2 por la API de S3.

@@ -1,6 +1,9 @@
 """Regla 1: un taller no puede ver ni tocar nada de otro. Cada prueba intenta cruzar de A a B y tiene que fallar."""
+from pathlib import Path
+
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.http import Http404
 from huey.contrib.djhuey import task
 
 from talleres.archivos import abrir_de_taller, ruta_valida
@@ -245,3 +248,116 @@ def test_tarea_ve_solo_su_taller_y_no_deja_contexto(t):
     assert textos_de_notas(t.A.pk)() == ['nota de A']
     assert textos_de_notas(t.B.pk)() == ['nota de B', 'respuesta en B']
     assert taller_actual.get() is None
+
+
+# ---------------------------------------------------------------- proyectos (ficha 03)
+
+@pytest.fixture
+def con_proyectos(t, cliente_de, monkeypatch, django_capture_on_commit_callbacks):
+    """A y B con un proyecto convertido (conversor falso) y un material con textura cada uno."""
+    from proyectos import tareas
+    from proyectos.models import Material, Original, Proyecto
+    from tests.app.ayudas import CorrerFalso, archivos, subir
+
+    falso = CorrerFalso(con_imagen={'Roble': ['Egger\roble.jpg', 600.0]})
+    monkeypatch.setattr(tareas, 'correr', falso)
+    for usuario, slug, taller in ((t.dueno_a, 'taller-a', t.A), (t.dueno_b, 'taller-b', t.B)):
+        c = cliente_de(usuario)
+        with django_capture_on_commit_callbacks(execute=True):
+            assert subir(c, slug, lista=archivos(nombre=f'cocina {slug}')).status_code == 302
+        with con_taller(taller):
+            m = Material.objects.get()
+            m.textura = SimpleUploadedFile(f'roble-{slug}.png', b'imagen de ' + slug.encode())
+            m.save()
+    with con_taller(t.A):
+        t.proyecto_a, t.material_a = Proyecto.objects.get(), Material.objects.get()
+    with con_taller(t.B):
+        t.proyecto_b, t.material_b = Proyecto.objects.get(), Material.objects.get()
+        t.version_b = t.proyecto_b.versiones.get()
+        t.original_b = Original.objects.filter(tipo='dxf').get()
+    falso.llamadas.clear()
+    t.falso = falso
+    return t
+
+
+def test_proyecto_de_b_por_la_direccion_de_a(cliente_de, con_proyectos):
+    t = con_proyectos
+    c = cliente_de(t.dueno_a)
+    pb = t.proyecto_b.pk
+    for direccion in (f'/taller-a/proyectos/{pb}/', f'/taller-a/proyectos/{pb}/versiones/nueva/',
+                      f'/taller-a/proyectos/{pb}/versiones/1/originales/{t.original_b.pk}/',
+                      f'/taller-a/proyectos/{t.proyecto_a.pk}/versiones/1/originales/{t.original_b.pk}/',
+                      f'/taller-a/materiales/{t.material_b.pk}/imagen/'):
+        assert c.get(direccion).status_code == 404, direccion
+    for direccion in (f'/taller-a/proyectos/{pb}/versiones/1/usar/', f'/taller-a/proyectos/{pb}/versiones/1/reconvertir/',
+                      f'/taller-a/materiales/{t.material_b.pk}/'):
+        assert c.post(direccion).status_code == 404, direccion
+    assert c.post(f'/taller-a/proyectos/{pb}/versiones/nueva/', {'archivos': []}).status_code == 404
+    lista = c.get('/taller-a/proyectos/').content.decode()
+    assert 'cocina taller-a' in lista and 'cocina taller-b' not in lista
+    materiales = c.get('/taller-a/materiales/').content.decode()
+    assert f'/materiales/{t.material_b.pk}/' not in materiales
+    with con_taller(t.B):
+        assert t.proyecto_b.versiones.count() == 1          # nada se reconvirtió en B
+    assert not t.falso.llamadas
+
+
+def test_archivos_de_proyectos_en_la_carpeta_de_su_taller(con_proyectos):
+    t = con_proyectos
+    from django.core.files.storage import default_storage
+    assert t.original_b.archivo.name.startswith(f'talleres/{t.B.pk}/proyectos/{t.proyecto_b.pk}/versiones/1/')
+    assert t.version_b.archivo_proyecto.startswith(f'talleres/{t.B.pk}/')
+    assert t.material_b.textura.name.startswith(f'talleres/{t.B.pk}/material/')
+    assert default_storage.exists(t.version_b.archivo_proyecto)
+
+
+def test_resultado_de_b_por_ruta_desde_a(client, con_proyectos):
+    t = con_proyectos
+
+    class Pedido:
+        taller = t.A
+    for ruta in (t.version_b.archivo_proyecto, t.original_b.archivo.name, t.material_b.textura.name):
+        with pytest.raises(Http404):
+            abrir_de_taller(Pedido(), ruta)
+
+
+def test_tarea_con_version_de_otro_taller_no_hace_nada(con_proyectos):
+    from proyectos.models import Version
+    from proyectos.tareas import convertir_version
+    t = con_proyectos
+    with con_taller(t.B):
+        Version.objects.filter(pk=t.version_b.pk).update(estado='en_cola')
+    with pytest.raises(Version.DoesNotExist):
+        convertir_version.call_local(t.A.pk, t.version_b.pk)
+    with con_taller(t.B):
+        assert Version.objects.get(pk=t.version_b.pk).estado == 'en_cola'
+    assert not t.falso.llamadas
+
+
+def test_conversion_de_a_no_usa_texturas_de_b(cliente_de, con_proyectos, django_capture_on_commit_callbacks):
+    t = con_proyectos
+    c = cliente_de(t.dueno_a)
+    with django_capture_on_commit_callbacks(execute=True):
+        c.post(f'/taller-a/proyectos/{t.proyecto_a.pk}/versiones/1/reconvertir/')
+    llamada = t.falso.llamadas[0]
+    assert llamada['materiales'] == {'Roble': {'textura': f'{t.material_a.pk}.png', 'ancho': 600}}
+    assert llamada['texturas'] == [f'{t.material_a.pk}.png']        # solo la imagen de A en la carpeta Textures
+    assert Path(llamada['entrada']['dxf']).name == 'cocina taller-a.dxf'
+
+
+def test_mismo_material_en_dos_talleres_son_dos(con_proyectos):
+    t = con_proyectos
+    assert t.material_a.pk != t.material_b.pk and t.material_a.clave == t.material_b.clave
+
+
+def test_usar_version_de_otro_proyecto_no_se_puede(cliente_de, con_proyectos):
+    t = con_proyectos
+    c = cliente_de(t.dueno_a)
+    # el número 1 existe en el proyecto de A, pero la versión de B nunca se puede poner como actual de A
+    from proyectos.models import Proyecto
+    with con_taller(t.A):
+        p = Proyecto.objects.get()
+        p.version_actual_id = t.version_b.pk
+        with pytest.raises(OtroTaller):
+            p.save()
+    assert c.post(f'/taller-a/proyectos/{t.proyecto_a.pk}/versiones/9/usar/').status_code == 404

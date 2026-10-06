@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+{% block titulo %}Proyectos{% endblock %}
+{% block contenido %}
+<h1>Proyectos</h1>
+{% if gestiona %}
+<div class="acciones" style="margin:0 0 1rem">
+  <a class="boton" href="{% url 'taller:proyectos:nuevo' taller=request.taller.slug %}">Subir proyecto nuevo</a>
+</div>
+{% endif %}
+{% if proyectos %}
+<div class="caja tabla">
+  <table>
+    <thead><tr><th>Proyecto</th><th>Versión en uso</th><th>Última subida</th><th>Actualizado</th></tr></thead>
+    <tbody>
+    {% for p in proyectos %}
+      <tr>
+        <td><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=p.pk %}">{{ p.nombre }}</a></td>
+        <td>{% if p.version_actual %}v{{ p.version_actual.numero }}{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if p.ultima %}v{{ p.ultima.numero }} <span class="estado {{ p.ultima.estado }}">{{ p.ultima.get_estado_display }}</span>{% endif %}</td>
+        <td class="suave">{{ p.actualizado|date:"j/n/Y H:i" }}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% else %}
+<div class="caja"><p class="suave" style="margin:0">Todavía no hay proyectos.{% if gestiona %} Subí el primero con el botón de arriba.{% endif %}</p></div>
+{% endif %}
+{% endblock %}

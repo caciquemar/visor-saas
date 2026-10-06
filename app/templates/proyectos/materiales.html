@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+{% block titulo %}Materiales{% endblock %}
+{% block cabeza %}
+<style>
+  .material { display:grid; gap:1rem; grid-template-columns:7rem 1fr; align-items:start; margin-top:1rem; }
+  .material.falta { border-color:var(--error); }
+  .muestra { width:7rem; height:7rem; border-radius:8px; border:1px solid var(--borde); object-fit:cover;
+             display:flex; align-items:center; justify-content:center; text-align:center; font-size:.8rem; }
+  .material h3 { margin:0; font-size:1.05rem; }
+  .material form label { margin-top:.5rem; }
+  @media (max-width: 480px) { .material { grid-template-columns:1fr; } }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>Materiales</h1>
+<p class="suave">Las texturas de los tableros y cantos del taller. Se cargan una vez y sirven para todos los proyectos.
+  Los materiales aparecen solos cuando convertís un proyecto que los usa.</p>
+{% if faltan %}<p><strong>{{ faltan }} sin textura.</strong> Subí la imagen que usás en Polyboard (está en la carpeta Textures).</p>{% endif %}
+
+{% for m, form in materiales %}
+<div class="caja material{% if not m.textura %} falta{% endif %}">
+  {% if m.textura %}
+    <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m.nombre }}">
+  {% else %}
+    <div class="muestra suave" {% if m.color %}style="background:{{ m.color }}"{% endif %}>Sin textura</div>
+  {% endif %}
+  <div>
+    <h3>{{ m.nombre }}</h3>
+    {% if m.ruta_polyboard %}<span class="ayuda">En Polyboard: {{ m.ruta_polyboard }}</span>{% endif %}
+    <form method="post" enctype="multipart/form-data" action="{% url 'taller:proyectos:material' taller=request.taller.slug id=m.pk %}">{% csrf_token %}
+      <label for="{{ form.textura.id_for_label }}">{% if m.textura %}Cambiar textura{% else %}Subir textura{% endif %}</label>
+      {{ form.textura }}
+      <label for="{{ form.ancho_mm.id_for_label }}">{{ form.ancho_mm.label|capfirst }}</label>
+      {{ form.ancho_mm }}<span class="ayuda">{{ form.ancho_mm.help_text }}</span>
+      <label for="{{ form.color.id_for_label }}">Color</label>
+      {{ form.color }}<span class="ayuda">{{ form.color.help_text }}</span>
+      <div class="acciones"><button type="submit">Guardar</button></div>
+    </form>
+  </div>
+</div>
+{% empty %}
+<div class="caja"><p class="suave" style="margin:0">Todavía no hay materiales. Aparecen cuando convertís el primer proyecto.</p></div>
+{% endfor %}
+{% endblock %}

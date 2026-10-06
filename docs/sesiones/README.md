@@ -9,7 +9,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [00](00-seguridad-visor-actual.md) | Cerrar el visor actual de Nord Good | — | más adelante | postergada (2026-10-04) |
 | [01](01-esqueleto.md) | Esqueleto Django, conversor como paquete, pruebas con muestras | — | 5 | hecha (2026-10-04) |
 | [02](02-talleres-usuarios.md) | Talleres, usuarios, roles, PIN, separación entre talleres | 01 | 5–6 | hecha (2026-10-05) |
-| [03](03-subida-conversion.md) | Subir proyecto, cola de conversión, versiones, archivos | 02 | 6–8 | pendiente |
+| [03](03-subida-conversion.md) | Subir proyecto, cola de conversión, versiones, archivos | 02 | 6–8 | hecha (2026-10-06) |
 | [04](04-visor-link-cliente.md) | Visor dentro de la app y link del cliente con la marca del taller | 03 | 8–9 | pendiente |
 | [05](05-trabajos.md) | Trabajos a realizar y fotos | 04 | 9–10 | pendiente |
 | [06](06-modulos-zicar.md) | Módulos por taller y módulo Zicar (solo Nord Good) | 03 | 10–11 | pendiente |

@@ -45,6 +45,11 @@
   th { font-size:.85rem; color:var(--suave); font-weight:600; }
   .tabla { overflow-x:auto; }
   .grilla { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(17rem, 1fr)); }
+  .estado { display:inline-block; font-size:.8rem; font-weight:600; padding:.1rem .5rem; border-radius:99px;
+            border:1px solid var(--borde); white-space:nowrap; }
+  .estado.listo { border-color:var(--ok); color:var(--ok); }
+  .estado.error { border-color:var(--error); color:var(--error); }
+  .estado.en_cola, .estado.convirtiendo { color:var(--suave); }
 </style>
 {% block cabeza %}{% endblock %}
 </head>
@@ -52,7 +57,11 @@
 <header>
   {% if request.taller %}
     <a class="marca" href="{% url 'taller:inicio' taller=request.taller.slug %}">{{ request.taller.nombre }}</a>
+    {% if request.membresia %}
+      <a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Proyectos</a>
+    {% endif %}
     {% if request.membresia.rol == 'dueno' or request.membresia.rol == 'oficina' %}
+      <a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Materiales</a>
       <a href="{% url 'taller:equipo' taller=request.taller.slug %}">Equipo</a>
     {% endif %}
   {% else %}

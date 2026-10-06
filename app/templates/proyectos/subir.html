@@ -1,0 +1,94 @@
+{% extends 'base.html' %}
+{% block titulo %}{% if proyecto %}Nueva versión{% else %}Proyecto nuevo{% endif %}{% endblock %}
+{% block cabeza %}
+<style>
+  .zona { display:block; border:2px dashed var(--borde); border-radius:10px; padding:1.5rem 1rem; text-align:center;
+          cursor:pointer; margin:.5rem 0; }
+  .zona.encima { border-color:var(--acento); background:var(--fondo); }
+  .zona input { position:absolute; width:1px; height:1px; opacity:0; }
+  .elegidos { list-style:none; padding:0; margin:.5rem 0 0; text-align:left; }
+  .elegidos li { padding:.15rem 0; }
+  progress { width:100%; height:.8rem; margin-top:1rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+{% if proyecto %}
+  <p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=proyecto.pk %}">{{ proyecto.nombre }}</a></p>
+  <h1>Subir versión nueva</h1>
+  <p class="suave">La versión que se usa ahora queda guardada: si algo sale mal, podés volver a ella.</p>
+{% else %}
+  <h1>Subir proyecto nuevo</h1>
+{% endif %}
+<form id="subida" class="caja" method="post" enctype="multipart/form-data">{% csrf_token %}
+  {% if form.non_field_errors %}{{ form.non_field_errors }}{% endif %}
+  {% if form.nombre %}
+    <label for="{{ form.nombre.id_for_label }}">{{ form.nombre.label }}</label>
+    {{ form.nombre }}<span class="ayuda">{{ form.nombre.help_text }}</span>{{ form.nombre.errors }}
+  {% endif %}
+  <label for="{{ form.archivos.id_for_label }}">{{ form.archivos.label }}</label>
+  <label class="zona" id="zona">
+    {{ form.archivos }}
+    <strong>Arrastrá acá el DXF y el .ocp</strong><br>
+    <span class="suave">o tocá para elegirlos</span>
+    <ul class="elegidos" id="elegidos"></ul>
+  </label>
+  <span class="ayuda">{{ form.archivos.help_text }} Máximo {{ max_dxf }} MB el DXF.</span>
+  {{ form.archivos.errors }}
+  <progress id="progreso" max="100" value="0" hidden></progress>
+  <p class="suave" id="estado" hidden></p>
+  <div class="acciones"><button type="submit" id="enviar">Subir y convertir</button></div>
+</form>
+<script>
+(function () {
+  var form = document.getElementById('subida'), zona = document.getElementById('zona');
+  var input = zona.querySelector('input[type=file]'), lista = document.getElementById('elegidos');
+  function mostrar() {
+    lista.innerHTML = '';
+    Array.prototype.forEach.call(input.files, function (f) {
+      var li = document.createElement('li');
+      li.textContent = f.name + ' · ' + (f.size / 1048576).toFixed(1) + ' MB';
+      lista.appendChild(li);
+    });
+  }
+  input.addEventListener('change', mostrar);
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('encima'); });
+  });
+  ['dragleave', 'drop'].forEach(function (ev) {
+    zona.addEventListener(ev, function () { zona.classList.remove('encima'); });
+  });
+  zona.addEventListener('drop', function (e) {
+    e.preventDefault();
+    if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; mostrar(); }
+  });
+  // Subida con barra de progreso (sin JavaScript, el formulario se manda igual).
+  form.addEventListener('submit', function (e) {
+    if (!window.FormData || !window.XMLHttpRequest) return;
+    e.preventDefault();
+    var xhr = new XMLHttpRequest(), barra = document.getElementById('progreso'), estado = document.getElementById('estado');
+    barra.hidden = estado.hidden = false;
+    document.getElementById('enviar').disabled = true;
+    estado.textContent = 'Subiendo…';
+    xhr.upload.addEventListener('progress', function (p) {
+      if (p.lengthComputable) {
+        barra.value = Math.round(p.loaded / p.total * 100);
+        if (p.loaded === p.total) estado.textContent = 'Subido. Guardando…';
+      }
+    });
+    xhr.addEventListener('load', function () {
+      if (xhr.responseURL && xhr.responseURL.split('#')[0] !== location.href.split('#')[0]) {
+        location.href = xhr.responseURL;
+      } else {
+        document.open(); document.write(xhr.responseText); document.close();
+      }
+    });
+    xhr.addEventListener('error', function () {
+      estado.textContent = 'Se cortó la subida. Revisá la conexión y probá de nuevo.';
+      document.getElementById('enviar').disabled = false;
+    });
+    xhr.open('POST', form.action || location.href);
+    xhr.send(new FormData(form));
+  });
+})();
+</script>
+{% endblock %}

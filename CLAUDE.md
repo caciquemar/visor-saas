@@ -39,7 +39,8 @@ muestras/         proyectos reales de Polyboard para pruebas, uno por carpeta (v
 docs/             plan, decisiones y fichas de cada sesión
 negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negocio, marca, entrevistas)
 app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario), talleres/ (Taller, Membresia,
-                  Invitacion, separación entre talleres, PIN, Equipo), templates/
+                  Invitacion, separación entre talleres, PIN, Equipo), proyectos/ (Proyecto, Version, Original,
+                  Material; subida, cola de conversión en proceso aparte, biblioteca de texturas), templates/
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -53,6 +54,9 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
   el `git diff` de `muestras/*/esperado/resumen.json`.
 - Configuración solo por `.env` (ver `.env.example`). Las pruebas usan `config.settings_pruebas`, que no lee
   valores del `.env` de la PC.
+- Conversiones: con `HUEY_INMEDIATO=1` (la PC) se convierten dentro del mismo pedido (la subida tarda lo que la
+  conversión). Para ver la cola como en el servidor: `HUEY_INMEDIATO=0` y en otra consola
+  `.venv\Scripts\python app\manage.py run_huey`.
 - Sin Docker: SQLite y Huey inmediato. Con Docker: `docker compose up -d` + `DATABASE_URL`/`REDIS_URL` en `.env`.
 
 ## Reglas que no se negocian
@@ -96,6 +100,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`talleres/separacion.py` + `TallerMiddleware`) con pruebas de cruce (lectura, escritura, archivos, tareas, PIN) y
   pruebas de guardia. Se rehízo la base de la PC (`datos/dev.sqlite3`): hay que volver a crear el superusuario.
   Próxima: 03.
+- 2026-10-06: **ficha 03 hecha.** Pantalla para subir proyecto o versión nueva (arrastrar DXF + uno o varios .ocp,
+  barra de progreso, control de tipo, tamaño y contenido), versiones con "Usar esta versión" y "Volver a convertir",
+  conversión en la cola en un proceso aparte (`proyectos/proceso.py`) con límite de tiempo (y de memoria en Linux),
+  estados en cola / convirtiendo / listo / error con el mensaje del conversor, biblioteca de materiales del taller
+  (las texturas que faltan aparecen solas y se suben una vez). El conversor no se tocó. Las 7 muestras subidas como
+  desde el navegador quedan en "listo" (`pytest -m muestras tests/app/test_proyectos.py`). Próxima: 04.
 
 ## Pendientes
 
@@ -103,7 +113,19 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
   límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
   (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.
-- Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`.
+- Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`. El visor lee
+  `Version.archivo_proyecto` (siempre `.../resultado/proyecto.json`) de `proyecto.version_actual`; el link del cliente
+  usa `Proyecto.codigo_cliente` (`.../resultado/clientes/<código>.json` y sus `.glb`). Las texturas quedan en
+  `.../resultado/texturas/`.
+- Ficha 07: en el servidor el consumidor de Huey (`run_huey`) tiene que correr como servicio; el límite de memoria
+  de la conversión (`CONVERSION_MEMORIA_MB`) solo funciona en Linux. Si Cloudflare queda en plan pago, se puede
+  subir `MAX_DXF_MB`. Las versiones que quedan "en cola" con el consumidor caído no se marcan solas (sí las que
+  quedan "convirtiendo").
+- Conversor (para hablar con Martín): el error de DXF ilegible incluye el texto técnico de ezdxf entre paréntesis
+  ("Invalid group code ... at line 5"); se podría dejar solo la parte para el taller.
+- Materiales: Polyboard distingue "Blanco" (tablero) de "blanco" (canto) pero la biblioteca, como el
+  `materiales.json` del conversor, los junta (misma clave sin mayúsculas). En *Rack florencia* el ancho de la imagen
+  que viene del .ocp para "blanco" es 5 mm (parece del canto): revisarlo cuando se suba esa textura.
 - Muestras que faltan: mueble suelto (proyecto vacío en el .ocp) y proyecto dividido en varios .ocp.
 - Instalar Docker Desktop para probar con PostgreSQL + Redis antes de la ficha 07.
 - Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.
