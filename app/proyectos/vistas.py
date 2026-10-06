@@ -85,10 +85,11 @@ def ver(request, taller, id):
     base = proyecto.version_actual or next((v for v in versiones if v.estado == v.Estado.LISTO), None)
     texturas_nuevas, faltan = [], []
     if base and base.faltan_texturas:
-        con_textura = set(Material.objects.filter(clave__in=[clave(n) for n in base.faltan_texturas])
-                          .exclude(textura='').values_list('clave', flat=True))
-        texturas_nuevas = [n for n in base.faltan_texturas if clave(n) in con_textura]
-        faltan = [n for n in base.faltan_texturas if clave(n) not in con_textura]
+        con_textura = set(Material.objects.filter(clave__in=[clave(f['nombre']) for f in base.faltan_texturas])
+                          .exclude(textura='').values_list('tipo', 'clave'))
+        for f in base.faltan_texturas:
+            texto = f"{f['tipo']} {f['nombre']}"
+            (texturas_nuevas if (f['tipo'], clave(f['nombre'])) in con_textura else faltan).append(texto)
     return render(request, 'proyectos/ver.html', {
         'proyecto': proyecto, 'versiones': versiones, 'base': base,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
@@ -140,8 +141,10 @@ def original(request, taller, id, numero, original_id):
 @con_rol(*GESTION)
 def materiales(request, taller):
     lista = sorted(Material.objects.all(), key=lambda m: (bool(m.textura), m.clave))
+    grupos = [(etiqueta, [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista if m.tipo == tipo])
+              for tipo, etiqueta in (('tablero', 'Tableros'), ('canto', 'Cantos'))]
     return render(request, 'proyectos/materiales.html', {
-        'materiales': [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista],
+        'grupos': [(etiqueta, mats) for etiqueta, mats in grupos if mats],
         'faltan': sum(1 for m in lista if not m.textura),
     })
 

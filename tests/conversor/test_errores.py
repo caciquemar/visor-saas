@@ -56,8 +56,11 @@ def test_dxf_inexistente(tmp_path):
 def test_dxf_que_no_es_dxf(tmp_path):
     dxf = tmp_path / 'roto.dxf'
     dxf.write_text('hola, no soy un DXF', encoding='utf-8')
-    with pytest.raises(ErrorConversion, match='No se pudo leer roto.dxf como DXF'):
+    with pytest.raises(ErrorConversion) as error:
         convertir(dxf, OCP, tmp_path)
+    # claro para cualquiera: sin el texto técnico de ezdxf
+    assert str(error.value) == ('No se pudo abrir roto.dxf: el archivo está dañado o no es un DXF. '
+                                'Exportá de nuevo el proyecto desde Polyboard como DXF 3D.')
 
 
 def test_dxf_sin_muebles(tmp_path):

@@ -112,6 +112,12 @@ class Original(DatoDeTaller):
 
 
 class Material(DatoDeTaller):
+    """Un tablero o un canto. Van separados porque muchos se llaman igual y tienen otra imagen."""
+    class Tipo(models.TextChoices):
+        TABLERO = 'tablero', 'Tablero'
+        CANTO = 'canto', 'Canto'
+
+    tipo = models.CharField('tipo', max_length=7, choices=Tipo.choices, default=Tipo.TABLERO, editable=False)
     nombre = models.CharField('nombre', max_length=200)
     clave = models.CharField(max_length=200, editable=False)       # sin mayúsculas ni acentos, como el conversor
     ruta_polyboard = models.CharField('imagen en Polyboard', max_length=300, blank=True)
@@ -124,11 +130,11 @@ class Material(DatoDeTaller):
     class Meta:
         verbose_name = 'material'
         verbose_name_plural = 'materiales'
-        ordering = ['nombre']
-        constraints = [models.UniqueConstraint(fields=['taller', 'clave'], name='un_material_por_nombre')]
+        ordering = ['tipo', 'nombre']
+        constraints = [models.UniqueConstraint(fields=['taller', 'tipo', 'clave'], name='un_material_por_tipo_y_nombre')]
 
     def __str__(self):
-        return self.nombre
+        return f'{self.get_tipo_display().lower()} {self.nombre}'
 
     def save(self, *args, **kwargs):
         self.clave = clave_de_material(self.nombre)

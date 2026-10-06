@@ -234,19 +234,18 @@ def test_volver_a_convertir_crea_otra_version_con_los_mismos_originales(dueno_a,
 # ---------------------------------------------------------------- materiales
 
 def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a, t, monkeypatch):
-    falso = CorrerFalso(con_imagen={'Roble Kendal': ['Egger\\H1145.jpg', 2800.0]},
-                        # el aviso puede venir con otras mayúsculas (tablero 'Roble' y canto 'roble')
-                        avisos=['ROBLE kendal: no se encontró la imagen Egger\\H1145.jpg (.ocp)', 'otro aviso'])
+    falso = CorrerFalso(con_imagen={'tableros': {'Roble Kendal': ['Egger\\H1145.jpg', 2800.0]}},
+                        avisos=['tablero ROBLE kendal: no se encontró la imagen Egger\\H1145.jpg (.ocp)', 'otro aviso'])
     monkeypatch.setattr(tareas, 'correr', falso)
     subir(dueno_a, 'taller-a')
     v, p = version(t), unico_proyecto(t)
-    assert v.faltan_texturas == ['Roble Kendal']
+    assert v.faltan_texturas == [{'nombre': 'Roble Kendal', 'tipo': 'tablero'}]
     assert v.avisos == ['otro aviso']                    # el de la imagen se muestra aparte
     with en_a(t):
         m = Material.objects.get()
-    assert (m.nombre, m.ruta_polyboard, m.ancho_mm, bool(m.textura)) == ('Roble Kendal', 'Egger\\H1145.jpg', 2800,
-                                                                          False)
-    assert 'Faltan texturas' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    assert (m.tipo, m.nombre, m.ruta_polyboard, m.ancho_mm, bool(m.textura)) == (
+        'tablero', 'Roble Kendal', 'Egger\\H1145.jpg', 2800, False)
+    assert 'tablero Roble Kendal' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
     assert 'Roble Kendal' in dueno_a.get('/taller-a/materiales/').content.decode()
 
     r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'textura': png(), 'ancho_mm': '2800', 'color': ''})
@@ -260,35 +259,66 @@ def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
     llamada = falso.llamadas[1]
     archivo = f'{m.pk}.png'
-    assert llamada['materiales'] == {'Roble Kendal': {'textura': archivo, 'ancho': 2800}}
+    assert llamada['materiales'] == {'tableros': {'Roble Kendal': {'textura': archivo, 'ancho': 2800}}, 'cantos': {}}
     assert llamada['texturas'] == [archivo]
     assert version(t, 2).faltan_texturas == []
     with en_a(t):
         assert Material.objects.count() == 1
 
 
+def test_tablero_y_canto_con_el_mismo_nombre_no_se_mezclan(dueno_a, t, monkeypatch):
+    falso = CorrerFalso(con_imagen={'tableros': {'Roble Kendal': ['Egger\\H1145.jpg', 2800.0]},
+                                    'cantos': {'roble kendal': ['Cantos\\roble.jpg', None]}},
+                        avisos=['tablero Roble Kendal: no se encontró la imagen Egger\\H1145.jpg (.ocp)',
+                                'canto roble kendal: no se encontró la imagen Cantos\\roble.jpg (.ocp)'])
+    monkeypatch.setattr(tareas, 'correr', falso)
+    subir(dueno_a, 'taller-a')
+    v, p = version(t), unico_proyecto(t)
+    assert v.faltan_texturas == [{'nombre': 'Roble Kendal', 'tipo': 'tablero'},
+                                 {'nombre': 'roble kendal', 'tipo': 'canto'}]
+    assert v.avisos == []
+    with en_a(t):
+        tablero = Material.objects.get(tipo='tablero')
+        canto = Material.objects.get(tipo='canto')
+    assert (canto.ruta_polyboard, canto.ancho_mm) == ('Cantos\\roble.jpg', None)
+    pagina = dueno_a.get('/taller-a/materiales/').content.decode()
+    assert '<h2>Tableros</h2>' in pagina and '<h2>Cantos</h2>' in pagina
+
+    # se sube solo la del canto: el tablero sigue faltando y no toma la imagen del canto
+    dueno_a.post(f'/taller-a/materiales/{canto.pk}/', {'textura': png((90, 60, 30)), 'color': ''})
+    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    assert 'Subiste texturas que faltaban</strong> (canto roble kendal)' in pagina
+    assert 'Faltan texturas:</strong> tablero Roble Kendal' in pagina
+    dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
+    assert falso.llamadas[1]['materiales'] == {'tableros': {}, 'cantos': {'roble kendal': {'textura': f'{canto.pk}.png'}}}
+    assert version(t, 2).faltan_texturas == [{'nombre': 'Roble Kendal', 'tipo': 'tablero'}]
+    with en_a(t):
+        tablero.refresh_from_db()
+    assert not tablero.textura
+
+
 def test_textura_que_no_es_imagen_se_rechaza(dueno_a, t, monkeypatch):
-    monkeypatch.setattr(tareas, 'correr', CorrerFalso(con_imagen={'Roble': ['r.jpg', None]}))
+    monkeypatch.setattr(tareas, 'correr', CorrerFalso(con_imagen={'tableros': {'Roble': ['r.jpg', None]}}))
     subir(dueno_a, 'taller-a')
     with en_a(t):
         m = Material.objects.get()
     r = dueno_a.post(f'/taller-a/materiales/{m.pk}/',
                      {'textura': SimpleUploadedFile('roble.jpg', b'no es imagen'), 'color': ''}, follow=True)
-    assert 'Roble:' in r.content.decode()
+    assert 'tablero Roble:' in r.content.decode()
     with en_a(t):
         m.refresh_from_db()
     assert not m.textura
 
 
 def test_color_del_material_va_al_conversor(dueno_a, t, monkeypatch):
-    falso = CorrerFalso(con_imagen={'Grafito': ['g.jpg', None]})
+    falso = CorrerFalso(con_imagen={'cantos': {'Grafito': ['g.jpg', None]}})
     monkeypatch.setattr(tareas, 'correr', falso)
     subir(dueno_a, 'taller-a')
     with en_a(t):
         m = Material.objects.get()
     dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'color': '#4c4f52'})
     dueno_a.post(f'/taller-a/proyectos/{unico_proyecto(t).pk}/versiones/1/reconvertir/')
-    assert falso.llamadas[1]['materiales'] == {'Grafito': {'color': '#4C4F52'}}
+    assert falso.llamadas[1]['materiales'] == {'tableros': {}, 'cantos': {'Grafito': {'color': '#4C4F52'}}}
 
 
 # ---------------------------------------------------------------- muestras de verdad, subidas como el navegador
@@ -317,3 +347,19 @@ def test_muestra_subida_desde_el_navegador_queda_lista(dueno_a, t, carpeta):
     p = unico_proyecto(t)
     assert datos['cliente'] == p.codigo_cliente
     assert default_storage.exists(str(Path(v.archivo_proyecto).parent.as_posix()) + f'/clientes/{p.codigo_cliente}.json')
+
+
+def test_versiones_viejas_pasan_al_formato_con_tipo(dueno_a, t, falso):
+    """Antes de separar tableros y cantos, faltan_texturas era una lista de nombres (migración 0003)."""
+    import importlib
+
+    from django.apps import apps
+    migracion = importlib.import_module('proyectos.migrations.0003_faltan_texturas_con_tipo')
+    subir(dueno_a, 'taller-a')
+    v = version(t)
+    with en_a(t):
+        Version.objects.filter(pk=v.pk).update(faltan_texturas=['Roble'])
+    with en_a(t):        # con los modelos de verdad hace falta taller (en la migración no: usa los históricos)
+        migracion.con_tipo(apps, None)
+    assert version(t).faltan_texturas == [{'nombre': 'Roble', 'tipo': 'tablero'}]
+    assert dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/').status_code == 200

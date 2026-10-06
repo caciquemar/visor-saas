@@ -259,7 +259,7 @@ def con_proyectos(t, cliente_de, monkeypatch, django_capture_on_commit_callbacks
     from proyectos.models import Material, Original, Proyecto
     from tests.app.ayudas import CorrerFalso, archivos, subir
 
-    falso = CorrerFalso(con_imagen={'Roble': ['Egger\roble.jpg', 600.0]})
+    falso = CorrerFalso(con_imagen={'tableros': {'Roble': ['Egger\roble.jpg', 600.0]}})
     monkeypatch.setattr(tareas, 'correr', falso)
     for usuario, slug, taller in ((t.dueno_a, 'taller-a', t.A), (t.dueno_b, 'taller-b', t.B)):
         c = cliente_de(usuario)
@@ -340,7 +340,8 @@ def test_conversion_de_a_no_usa_texturas_de_b(cliente_de, con_proyectos, django_
     with django_capture_on_commit_callbacks(execute=True):
         c.post(f'/taller-a/proyectos/{t.proyecto_a.pk}/versiones/1/reconvertir/')
     llamada = t.falso.llamadas[0]
-    assert llamada['materiales'] == {'Roble': {'textura': f'{t.material_a.pk}.png', 'ancho': 600}}
+    assert llamada['materiales'] == {'tableros': {'Roble': {'textura': f'{t.material_a.pk}.png', 'ancho': 600}},
+                                     'cantos': {}}
     assert llamada['texturas'] == [f'{t.material_a.pk}.png']        # solo la imagen de A en la carpeta Textures
     assert Path(llamada['entrada']['dxf']).name == 'cocina taller-a.dxf'
 

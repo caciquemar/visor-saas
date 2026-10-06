@@ -86,7 +86,7 @@ class FormMaterial(forms.ModelForm):
         fields = ('textura', 'ancho_mm', 'color')
         widgets = {'color': forms.TextInput(attrs={'placeholder': '#A1B2C3', 'size': 8}),
                    'textura': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}
-        help_texts = {'ancho_mm': 'Cuántos milímetros del tablero cubre la imagen a lo ancho. '
+        help_texts = {'ancho_mm': 'Cuántos milímetros del material cubre la imagen a lo ancho. '
                                   'Si no lo sabés, dejalo vacío (se usa 1 metro).',
                       'color': 'Opcional: el color que se ve si no hay textura (o en lugar del de Polyboard).'}
 

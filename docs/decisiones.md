@@ -2,6 +2,21 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · Tableros y cantos nunca se mezclan
+Pedido de Martín: muchos tableros y cantos se llaman igual (en 6 de las 7 muestras: `c-guatambu`, `f-paraiso`,
+`f-Grey Extreme Matt`…) y tienen otra imagen o color. Antes el conversor guardaba un solo dato por nombre. Ahora:
+el tipo de cada material del .ocp sale de su clase en el archivo (`materiales_del_ocp`: los dos primeros materiales
+nuevos son de la clase tablero y de la clase canto; después cada uno lleva la marca de su clase, menor la de tableros;
+comprobado en las 7 muestras). `materiales.json` puede venir separado (`tableros`/`cantos`); el formato plano sigue
+valiendo para los dos. Cada tipo busca solo en sus fuentes (un canto ya no toma la imagen de la biblioteca de
+tableros). La salida trae `materiales` (tableros, y los cantos que no se llaman como un tablero, para no romper el
+visor actual) y `cantos`. La biblioteca del taller tiene `tipo`. Descartado: separar por mayúsculas/minúsculas
+(Kogan tiene tablero y canto con el nombre idéntico).
+
+## 2026-10-06 · Errores del conversor sin texto técnico
+El taller ve solo qué pasó y qué hacer ("No se pudo abrir x.dxf: el archivo está dañado o no es un DXF. Exportá de
+nuevo…"); el detalle de ezdxf va al log. Pedido de Martín.
+
 ## 2026-10-06 · Texturas: biblioteca del taller, una imagen por material
 En el servidor no está la carpeta Textures de Polyboard. Al convertir, los materiales del proyecto que en Polyboard
 tienen imagen se suman solos a la biblioteca del taller (`proyectos.Material`, con la ruta de Polyboard y el ancho en

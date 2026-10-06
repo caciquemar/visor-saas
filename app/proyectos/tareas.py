@@ -34,6 +34,7 @@ MEMORIA = ('El proyecto es demasiado grande para convertirlo. Probá exportarlo 
 GENERICO = ('No pudimos convertir el proyecto. Revisá que el DXF sea el 3D exportado de Polyboard y que la lista '
             'sea el .ocp de OptiCut del mismo proyecto. Si está todo bien, avisanos.')
 NOMBRE_PROYECTO = 'proyecto.json'     # el JSON principal queda siempre con este nombre en resultado/
+GRUPO = {Material.Tipo.TABLERO: 'tableros', Material.Tipo.CANTO: 'cantos'}    # como los separa el conversor
 
 
 def encolar(version):
@@ -90,8 +91,9 @@ def preparar(version, tmp):
         else:
             ocps.append(str(local))
 
-    # Biblioteca del taller -> materiales.json del conversor (tiene prioridad sobre lo que diga el .ocp).
-    forzados = {}
+    # Biblioteca del taller -> materiales.json del conversor (tiene prioridad sobre lo que diga el .ocp), con
+    # tableros y cantos por separado.
+    forzados = {'tableros': {}, 'cantos': {}}
     for m in Material.objects.all():
         info = {}
         if m.textura:
@@ -103,8 +105,8 @@ def preparar(version, tmp):
         if m.color:
             info['color'] = m.color
         if info:
-            forzados[m.nombre] = info
-    if forzados:
+            forzados[GRUPO[m.tipo]][m.nombre] = info
+    if forzados['tableros'] or forzados['cantos']:
         (resultado / 'materiales.json').write_text(json.dumps(forzados, ensure_ascii=False), encoding='utf-8')
 
     return dict(dxf=dxf, ocps=ocps, destino=str(resultado), texturas=[str(texturas)],
@@ -153,11 +155,15 @@ def guardar_resultado(version, resultado, res):
             archivo_proyecto = guardado
 
     faltan = anotar_materiales(res.get('con_imagen', {}))
-    # Las imágenes que faltan se muestran aparte, con el botón para subirlas: no se repiten como avisos. Se compara
-    # sin mayúsculas ni acentos, como el conversor ('Blanco' tablero y 'blanco' canto usan la misma imagen).
-    claves = {clave(n) for n in faltan}
-    avisos = [a for a in res['avisos']
-              if not (': no se encontró la imagen ' in a and clave(a.split(': no se encontró la imagen ')[0]) in claves)]
+    # Las imágenes que faltan se muestran aparte, con el botón para subirlas: no se repiten como avisos (el
+    # conversor los escribe "tablero X: no se encontró la imagen …" o "canto X: …").
+    sin_imagen = {(f['tipo'], clave(f['nombre'])) for f in faltan}
+
+    def repetido(aviso):
+        cabeza, separador, _ = aviso.partition(': no se encontró la imagen ')
+        tipo, _, nombre = cabeza.partition(' ')
+        return bool(separador) and (tipo, clave(nombre)) in sin_imagen
+    avisos = [a for a in res['avisos'] if not repetido(a)]
 
     version.estado = Version.Estado.LISTO
     version.avisos = avisos
@@ -176,23 +182,24 @@ def guardar_resultado(version, resultado, res):
 
 
 def anotar_materiales(con_imagen):
-    """Suma a la biblioteca los materiales que en Polyboard tienen imagen. Devuelve los que no tienen textura
-    subida todavía."""
+    """Suma a la biblioteca los tableros y cantos que en Polyboard tienen imagen (cada tipo por su lado).
+    Devuelve los que no tienen textura subida todavía: [{nombre, tipo}]."""
     faltan = []
-    for nombre, (ruta, ancho) in sorted(con_imagen.items(), key=lambda x: clave(x[0])):
-        m = Material.objects.filter(clave=clave(nombre)).first()
-        if m is None:
-            try:
-                with transaction.atomic():
-                    m = Material.objects.create(nombre=nombre, ruta_polyboard=ruta,
-                                                ancho_mm=round(ancho) if ancho else None)
-            except IntegrityError:            # otra conversión lo creó recién
-                m = Material.objects.get(clave=clave(nombre))
-        elif not m.ruta_polyboard:
-            m.ruta_polyboard = ruta
-            if not m.ancho_mm and ancho:
-                m.ancho_mm = round(ancho)
-            m.save(update_fields=['ruta_polyboard', 'ancho_mm', 'actualizado'])
-        if not m.textura:
-            faltan.append(nombre)             # como figura en este proyecto (el aviso del conversor usa este)
+    for tipo, grupo in GRUPO.items():
+        for nombre, (ruta, ancho) in sorted(con_imagen.get(grupo, {}).items(), key=lambda x: clave(x[0])):
+            m = Material.objects.filter(tipo=tipo, clave=clave(nombre)).first()
+            if m is None:
+                try:
+                    with transaction.atomic():
+                        m = Material.objects.create(tipo=tipo, nombre=nombre, ruta_polyboard=ruta,
+                                                    ancho_mm=round(ancho) if ancho else None)
+                except IntegrityError:            # otra conversión lo creó recién
+                    m = Material.objects.get(tipo=tipo, clave=clave(nombre))
+            elif not m.ruta_polyboard:
+                m.ruta_polyboard = ruta
+                if not m.ancho_mm and ancho:
+                    m.ancho_mm = round(ancho)
+                m.save(update_fields=['ruta_polyboard', 'ancho_mm', 'actualizado'])
+            if not m.textura:
+                faltan.append({'nombre': nombre, 'tipo': str(tipo)})   # como figura en este proyecto
     return faltan

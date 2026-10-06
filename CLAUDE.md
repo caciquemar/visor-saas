@@ -106,6 +106,11 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   estados en cola / convirtiendo / listo / error con el mensaje del conversor, biblioteca de materiales del taller
   (las texturas que faltan aparecen solas y se suben una vez). El conversor no se tocó. Las 7 muestras subidas como
   desde el navegador quedan en "listo" (`pytest -m muestras tests/app/test_proyectos.py`). Próxima: 04.
+- 2026-10-06: **ajustes a la 03 pedidos por Martín.** (1) El error de DXF ilegible ya no muestra el texto técnico de
+  ezdxf. (2) Tableros y cantos no se mezclan: el conversor lee de qué tipo es cada material del .ocp
+  (`materiales_del_ocp`), `materiales.json` acepta `{"tableros": …, "cantos": …}`, el proyecto convertido trae
+  `cantos` aparte de `materiales`, y la biblioteca del taller tiene tablero y canto por separado aunque se llamen igual.
+  **Estos dos cambios del conversor hay que llevarlos al visor actual** (ver Pendientes).
 
 ## Pendientes
 
@@ -113,19 +118,23 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
   límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
   (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.
+- **Llevar al visor actual de Nord Good** (decisión de Martín; no se hace automáticamente) los cambios del conversor
+  del 2026-10-06: mensaje claro de DXF ilegible y tableros/cantos separados (`materiales_del_ocp`, `Texturas`,
+  `resolver_materiales`, `materiales` + `cantos` en la salida). El visor actual sigue andando sin cambios porque
+  `materiales` conserva los cantos que no se llaman como un tablero; para que un canto con el mismo nombre que un
+  tablero muestre lo suyo, su `index.html` tiene que leer `cantos` (igual que el visor nuevo de la 04).
 - Ficha 04: sumar `/c/<código>` a las direcciones públicas de `tests/app/test_guardianes.py`. El visor lee
   `Version.archivo_proyecto` (siempre `.../resultado/proyecto.json`) de `proyecto.version_actual`; el link del cliente
   usa `Proyecto.codigo_cliente` (`.../resultado/clientes/<código>.json` y sus `.glb`). Las texturas quedan en
-  `.../resultado/texturas/`.
+  `.../resultado/texturas/`. **Los cantos se buscan en `cantos`** (tablero y canto pueden llamarse igual);
+  `materiales` es solo para tableros.
 - Ficha 07: en el servidor el consumidor de Huey (`run_huey`) tiene que correr como servicio; el límite de memoria
   de la conversión (`CONVERSION_MEMORIA_MB`) solo funciona en Linux. Si Cloudflare queda en plan pago, se puede
   subir `MAX_DXF_MB`. Las versiones que quedan "en cola" con el consumidor caído no se marcan solas (sí las que
   quedan "convirtiendo").
-- Conversor (para hablar con Martín): el error de DXF ilegible incluye el texto técnico de ezdxf entre paréntesis
-  ("Invalid group code ... at line 5"); se podría dejar solo la parte para el taller.
-- Materiales: Polyboard distingue "Blanco" (tablero) de "blanco" (canto) pero la biblioteca, como el
-  `materiales.json` del conversor, los junta (misma clave sin mayúsculas). En *Rack florencia* el ancho de la imagen
-  que viene del .ocp para "blanco" es 5 mm (parece del canto): revisarlo cuando se suba esa textura.
+- Tipo de material en el .ocp: la regla (primera clase = tableros, segunda = cantos, y después una marca por clase)
+  se dedujo de las 7 muestras. Si un .ocp nuevo no la cumple, sus materiales van a los dos tipos como antes y
+  `tests/conversor/test_texturas.py::test_todas_las_muestras_se_separan` lo detecta al sumarlo a `muestras/`.
 - Muestras que faltan: mueble suelto (proyecto vacío en el .ocp) y proyecto dividido en varios .ocp.
 - Instalar Docker Desktop para probar con PostgreSQL + Redis antes de la ficha 07.
 - Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.

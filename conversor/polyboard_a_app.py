@@ -104,7 +104,8 @@ def leer_dxf(path):
     try:
         doc = ezdxf.readfile(path)
     except (IOError, ezdxf.DXFError, UnicodeDecodeError, ValueError) as e:
-        raise ErrorConversion(f"No se pudo leer {nombre_archivo} como DXF ({e}). "
+        log.warning(f"{nombre_archivo}: ezdxf no lo pudo leer: {e}")     # el detalle técnico, solo al log
+        raise ErrorConversion(f"No se pudo abrir {nombre_archivo}: el archivo está dañado o no es un DXF. "
                               "Exportá de nuevo el proyecto desde Polyboard como DXF 3D.") from e
     paneles, herrajes, muros, taladros = [], [], [], []
 
@@ -317,7 +318,8 @@ def cadenas(d):
     return out
 
 def texturas_de(path, todos=False):
-    """{material: (ruta relativa, ancho en mm o None)} de un .ocp o una biblioteca .mat-boole.
+    """{material: (ruta relativa, ancho en mm o None)} de una biblioteca .mat-boole (para un .ocp, que
+    mezcla tableros y cantos, se usa materiales_del_ocp).
     La ruta de la imagen va justo después del nombre del material; después: 4 bytes de
     opciones, 4 de color y el ancho real de la imagen en mm (infinito = sin escala).
     Con todos=True también figuran, con None, los materiales sin textura (bibliotecas)."""
@@ -368,6 +370,46 @@ def colores_de(path):
             res[t] = info
     return res
 
+def materiales_del_ocp(path):
+    """Materiales de un .ocp separados por tipo, porque un tablero y un canto pueden llamarse igual:
+    {'tableros': {nombre: info}, 'cantos': {nombre: info}}, info = {'textura': (ruta, ancho o None)?,
+    'color'?, 'espesor'?}. Cada material se guarda una vez, la primera que se usa; la clase va en los
+    2 bytes que están 6 antes del nombre: 0 la primera vez que aparece la clase (primero la de
+    tableros y después la de cantos) y después un número fijo por archivo, menor el de tableros.
+    Si no se puede saber el tipo, el material va en los dos (como antes de separarlos)."""
+    vacio = {'tableros': {}, 'cantos': {}}
+    d = descomprimir(path)
+    if d is None:
+        return vacio
+    ss = cadenas(d)
+    registros = []         # (índice en ss, info, marca de clase)
+    for k, (o, t, fin) in enumerate(ss):
+        if IMAGEN.search(t) or o < 6 or d[fin + 16:fin + 20] != b'\0\0\0\0':
+            continue
+        if k and ss[k - 1][2] == o:    # pegado al texto anterior: es un dato de la pieza, no un material
+            continue
+        info = registro_tras(d, fin + 20, fin + 72)
+        if not info:
+            continue
+        if k + 1 < len(ss) and IMAGEN.search(ss[k + 1][1]):
+            fin_img = ss[k + 1][2]
+            ancho = struct.unpack_from('<d', d, fin_img + 8)[0] if fin_img + 16 <= len(d) else math.inf
+            info['textura'] = (ss[k + 1][1], ancho if math.isfinite(ancho) and ancho > 0 else None)
+        registros.append((k, info, struct.unpack_from('<H', d, o - 6)[0]))
+    nuevas = [r for r in registros if r[2] == 0]
+    marcas = sorted({r[2] for r in registros if r[2]})
+    clase = {}
+    if len(nuevas) >= 2 and len(marcas) <= 2:
+        clase = {id(nuevas[0]): 'tableros', id(nuevas[1]): 'cantos'}
+        if len(marcas) == 2:
+            clase.update({marcas[0]: 'tableros', marcas[1]: 'cantos'})
+    res = {'tableros': {}, 'cantos': {}}
+    for r in registros:
+        tipo = clase.get(id(r)) or clase.get(r[2])
+        for t in ([tipo] if tipo else ['tableros', 'cantos']):
+            res[t].setdefault(ss[r[0]][1], r[1])
+    return res
+
 def buscar_material(fuentes, nombre):
     """Primera fuente que conoce el material: nombre exacto en todas y, si no, sin mayúsculas ni acentos.
     Polyboard distingue 'Blanco' (tablero) de 'blanco' (canto)."""
@@ -403,21 +445,26 @@ class Texturas:
                 if IMAGEN.search(f.name):
                     self.por_nombre.setdefault(f.name.lower(), f)
                     self.por_nombre.setdefault(f.stem.lower(), f)
-        # fuentes en orden de prioridad: materiales.json, el .ocp del proyecto, bibliotecas de Polyboard
-        self.forzados = {}
+        # fuentes en orden de prioridad: materiales.json, el .ocp del proyecto, bibliotecas de Polyboard.
+        # Tableros y cantos por separado: pueden llamarse igual y tener otra imagen o color.
+        self.forzados = {'tableros': {}, 'cantos': {}}
         mj = self.salida / 'materiales.json'
         if mj.exists():
-            for k, v in json.loads(mj.read_text(encoding='utf-8')).items():
-                if isinstance(v, str):
-                    v = {'textura': v} if IMAGEN.search(v) else {'color': v}
-                if isinstance(v, dict):
-                    self.forzados[k] = v
-        self.ocp, self.col_ocp = {}, {}
+            todo = json.loads(mj.read_text(encoding='utf-8'))
+            # {"tableros": {...}, "cantos": {...}}, o plano {nombre: ...} que vale para los dos
+            separado = todo and set(todo) <= {'tableros', 'cantos'} and all(
+                isinstance(v, dict) and all(isinstance(x, (dict, str)) for x in v.values()) for v in todo.values())
+            for tipo in ('tableros', 'cantos'):
+                for k, v in (todo.get(tipo, {}) if separado else todo).items():
+                    if isinstance(v, str):
+                        v = {'textura': v} if IMAGEN.search(v) else {'color': v}
+                    if isinstance(v, dict):
+                        self.forzados[tipo][k] = v
+        self.ocp = {'tableros': {}, 'cantos': {}}      # {tipo: {nombre: {textura?, color?, espesor?}}}
         for o in ([ocp] if isinstance(ocp, (str, Path)) else ocp):
-            for k, v in texturas_de(o).items():
-                self.ocp.setdefault(k, v)
-            for k, v in colores_de(o).items():
-                self.col_ocp.setdefault(k, v)
+            for tipo, mats in materiales_del_ocp(o).items():
+                for k, v in mats.items():
+                    self.ocp[tipo].setdefault(k, v)
         self.tableros, self.cantos, self.col_tableros, self.col_cantos = {}, {}, {}, {}
         bib = Path(biblioteca) if biblioteca else None
         if bib and bib.is_dir():
@@ -442,15 +489,20 @@ class Texturas:
         return self.por_nombre.get(nombre) or self.por_nombre.get(nombre.rsplit('.', 1)[0])
 
     def material(self, nombre, es_canto):
-        f = self.forzados.get(nombre) or next((v for k, v in self.forzados.items() if clave(k) == clave(nombre)), {})
+        """Imagen, color y espesor de un tablero o de un canto. Solo se busca en las fuentes de su tipo: un
+        canto nunca toma la imagen de un tablero con el mismo nombre, ni al revés."""
+        tipo = 'cantos' if es_canto else 'tableros'
+        forzados = self.forzados[tipo]
+        f = forzados.get(nombre) or next((v for k, v in forzados.items() if clave(k) == clave(nombre)), {})
         info = {}
         if f.get('color'):
             info['color'] = f['color']
         if 'textura' in f:                         # "" o null en materiales.json: sin textura
             tex, origen = ((f['textura'], f.get('ancho')), 'materiales.json') if f['textura'] else (None, None)
         else:
-            bib = [(self.cantos, 'biblioteca de cantos'), (self.tableros, 'biblioteca de tableros')]
-            tex, origen = buscar_material([(self.ocp, '.ocp')] + (bib if es_canto else bib[::-1]), nombre)
+            ocp = {k: v['textura'] for k, v in self.ocp[tipo].items() if v.get('textura')}
+            bib = (self.cantos, 'biblioteca de cantos') if es_canto else (self.tableros, 'biblioteca de tableros')
+            tex, origen = buscar_material([(ocp, '.ocp'), bib], nombre)
         if tex:
             rel, ancho = tex
             archivo = self.buscar(rel)
@@ -458,10 +510,10 @@ class Texturas:
                 info.update(self.procesar(archivo, ancho, 'color' not in info))
                 info['origen'] = f"{origen}: {rel}"
             else:
-                self.avisos.append(f"{nombre}: no se encontró la imagen {rel} ({origen})")
-        # color (sin textura) y espesor (cantos) tal como están en Polyboard. En el .ocp solo el
-        # nombre exacto: sin distinguir mayúsculas se confundirían tablero ('f-Tribal') y canto ('f-tribal')
-        pb, origen = (self.col_ocp[nombre], '.ocp') if nombre in self.col_ocp else \
+                self.avisos.append(f"{tipo[:-1]} {nombre}: no se encontró la imagen {rel} ({origen})")
+        # color (sin textura) y espesor (cantos) tal como están en Polyboard. En el .ocp solo el nombre
+        # exacto: sin distinguir mayúsculas se confundirían 'f-Tribal' y 'f-tribal', que son dos tableros
+        pb, origen = (self.ocp[tipo][nombre], '.ocp') if self.ocp[tipo].get(nombre, {}).get('color') else \
             buscar_material([(self.col_cantos if es_canto else self.col_tableros, 'biblioteca')], nombre)
         if pb:
             if 'color' not in info:
@@ -501,25 +553,23 @@ class Texturas:
         return info
 
 def resolver_materiales(paneles, tex):
-    """{nombre: {color, textura, ancho, alto}} de los materiales usados (tablero y cantos)."""
-    usados = {}
-    for p in paneles:
-        if p['mat']:
-            usados.setdefault(p['mat'], False)
-        for c in p['cantos']:
-            if c['mat']:
-                usados[c['mat']] = usados.get(c['mat'], True)
-    materiales = {}
-    for nombre, es_canto in sorted(usados.items(), key=lambda x: clave(x[0])):
-        info = tex.material(nombre, es_canto)
-        estado = (f"textura {info['textura']}  ({info['origen']})" if info.get('textura')
-                  else f"sin textura, {info['origen']}" if info.get('origen') else 'sin textura')
-        log.info(f"Material {nombre!r}: {estado}" + (f"  color {info['color']}" if info.get('color') else '')
-                 + (f"  espesor {info['espesor']} mm" if info.get('espesor') else ''))
-        if info:
-            info.pop('origen', None)
-            materiales[nombre] = info
-    return materiales
+    """Tableros y cantos usados, por separado (pueden llamarse igual):
+    ({nombre: {color, textura, ancho, alto}}, {nombre: {color, textura, ancho, alto, espesor}})."""
+    usados = {False: {p['mat'] for p in paneles if p['mat']},
+              True: {c['mat'] for p in paneles for c in p['cantos'] if c['mat']}}
+    res = {False: {}, True: {}}
+    for es_canto in (False, True):
+        for nombre in sorted(usados[es_canto], key=clave):
+            info = tex.material(nombre, es_canto)
+            estado = (f"textura {info['textura']}  ({info['origen']})" if info.get('textura')
+                      else f"sin textura, {info['origen']}" if info.get('origen') else 'sin textura')
+            log.info(f"{'Canto' if es_canto else 'Tablero'} {nombre!r}: {estado}"
+                     + (f"  color {info['color']}" if info.get('color') else '')
+                     + (f"  espesor {info['espesor']} mm" if info.get('espesor') else ''))
+            if info:
+                info.pop('origen', None)
+                res[es_canto][nombre] = info
+    return res[False], res[True]
 
 # ---------------------------------------------------------------- salida
 def a_y_arriba(v):
@@ -574,11 +624,11 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
         p['mat'], p['cantos'] = materiales(p)
     if not proyecto or len(ocps) > 1:    # con varias partes, el nombre es el del DXF
         proyecto = Path(dxf).stem
-    mats = {}
+    mats, mats_cantos = {}, {}
     if texturas:
         biblioteca = biblioteca or Path(texturas[0]).parent / 'Materials'
         tex = Texturas(texturas, biblioteca, destino, ocps)
-        mats = resolver_materiales(paneles, tex)
+        mats, mats_cantos = resolver_materiales(paneles, tex)
         avisos += tex.avisos
 
     # identificador de cada pieza 3D: mueble + ruta de bloques del modelo de Polyboard (las dos puertas
@@ -605,8 +655,12 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
                   for vincular_mueble in [h['ruta'][0].split('.', 1)[-1] + (f"-{letra(h['inst'])}" if cuenta.get(h['ruta'][0], 1) > 1 else '')]],
         muros=[tris_planos(m['caras']) for m in muros],
     )
-    if mats:
-        datos['materiales'] = mats
+    # 'materiales': los tableros, y también los cantos cuyo nombre no es el de un tablero, para que un visor
+    # que todavía no lee 'cantos' siga mostrando sus colores y espesores. 'cantos': todos los cantos.
+    if mats or mats_cantos:
+        datos['materiales'] = {**{k: v for k, v in mats_cantos.items() if k not in mats}, **mats}
+    if mats_cantos:
+        datos['cantos'] = mats_cantos
     salida = Path(destino); salida.mkdir(parents=True, exist_ok=True)
     codigo = (codigo(proyecto) if callable(codigo) else codigo) or secrets.token_urlsafe(9)
     datos['cliente'] = codigo     # el taller ve el código para compartir el link
@@ -828,8 +882,9 @@ def version_cliente(datos, salida, codigo):
         herrajes=datos['herrajes'],
         muros=datos['muros'],
     )
-    if 'materiales' in datos:
-        cliente['materiales'] = datos['materiales']
+    for k in ('materiales', 'cantos'):
+        if k in datos:
+            cliente[k] = datos[k]
     (salida / 'clientes').mkdir(exist_ok=True)
     # modelos de AR (Scene Viewer necesita un archivo publicado): el proyecto completo y cada mueble
     try:

@@ -14,18 +14,21 @@
 {% block contenido %}
 <h1>Materiales</h1>
 <p class="suave">Las texturas de los tableros y cantos del taller. Se cargan una vez y sirven para todos los proyectos.
-  Los materiales aparecen solos cuando convertís un proyecto que los usa.</p>
+  Los materiales aparecen solos cuando convertís un proyecto que los usa. Tableros y cantos van por separado aunque
+  se llamen igual: cada uno con su imagen.</p>
 {% if faltan %}<p><strong>{{ faltan }} sin textura.</strong> Subí la imagen que usás en Polyboard (está en la carpeta Textures).</p>{% endif %}
 
+{% for etiqueta, materiales in grupos %}
+<h2>{{ etiqueta }}</h2>
 {% for m, form in materiales %}
 <div class="caja material{% if not m.textura %} falta{% endif %}">
   {% if m.textura %}
-    <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m.nombre }}">
+    <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m }}">
   {% else %}
     <div class="muestra suave" {% if m.color %}style="background:{{ m.color }}"{% endif %}>Sin textura</div>
   {% endif %}
   <div>
-    <h3>{{ m.nombre }}</h3>
+    <h3>{{ m.nombre }} <span class="estado">{{ m.get_tipo_display }}</span></h3>
     {% if m.ruta_polyboard %}<span class="ayuda">En Polyboard: {{ m.ruta_polyboard }}</span>{% endif %}
     <form method="post" enctype="multipart/form-data" action="{% url 'taller:proyectos:material' taller=request.taller.slug id=m.pk %}">{% csrf_token %}
       <label for="{{ form.textura.id_for_label }}">{% if m.textura %}Cambiar textura{% else %}Subir textura{% endif %}</label>
@@ -38,6 +41,7 @@
     </form>
   </div>
 </div>
+{% endfor %}
 {% empty %}
 <div class="caja"><p class="suave" style="margin:0">Todavía no hay materiales. Aparecen cuando convertís el primer proyecto.</p></div>
 {% endfor %}

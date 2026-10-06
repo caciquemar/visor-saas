@@ -6,7 +6,8 @@ en un JSON y deja el resultado en otro, así un proyecto que se cuelga o se come
 entrada.json: {dxf, ocps, destino, texturas, biblioteca, codigo, memoria_mb, salida}
 salida.json:  {proyecto, archivo, avisos, resumen, con_imagen}  o  {error: mensaje para el taller}
               o {memoria: true} si se quedó sin memoria.
-con_imagen: materiales usados que en Polyboard tienen imagen, {nombre: [ruta en Polyboard, ancho en mm o null]}.
+con_imagen: materiales usados que en Polyboard tienen imagen,
+            {'tableros': {nombre: [ruta en Polyboard, ancho en mm o null]}, 'cantos': {...}}.
 """
 import json
 import logging
@@ -25,16 +26,18 @@ def limitar_memoria(mb):
 
 
 def materiales_con_imagen(archivo, ocps):
-    from conversor.polyboard_a_app import texturas_de
+    """Tableros y cantos usados que en Polyboard tienen imagen, por separado (pueden llamarse igual)."""
+    from conversor.polyboard_a_app import materiales_del_ocp
 
     datos = json.loads(Path(archivo).read_text(encoding='utf-8'))
-    usados = {p['mat'] for p in datos['paneles'] if p['mat']}
-    usados |= {c['mat'] for p in datos['paneles'] for c in p['cantos'] if c['mat']}
-    con_imagen = {}
+    usados = {'tableros': {p['mat'] for p in datos['paneles'] if p['mat']},
+              'cantos': {c['mat'] for p in datos['paneles'] for c in p['cantos'] if c['mat']}}
+    con_imagen = {'tableros': {}, 'cantos': {}}
     for ocp in ocps:
-        for nombre, valor in texturas_de(ocp).items():
-            if nombre in usados and valor and nombre not in con_imagen:
-                con_imagen[nombre] = list(valor)
+        for tipo, mats in materiales_del_ocp(ocp).items():
+            for nombre, info in mats.items():
+                if nombre in usados[tipo] and info.get('textura') and nombre not in con_imagen[tipo]:
+                    con_imagen[tipo][nombre] = list(info['textura'])
     return con_imagen
 
 
