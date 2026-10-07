@@ -599,7 +599,7 @@ class Resultado:
     avisos: list = field(default_factory=list)
     resumen: dict = field(default_factory=dict)
 
-def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None):
+def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None, sin_canto=None):
     """Convierte un proyecto de Polyboard para el visor.
 
     dxf: DXF 3D exportado de Polyboard. ocps: uno o varios .ocp (proyecto dividido en partes).
@@ -607,6 +607,7 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
     y texturas/. texturas: carpetas Textures de Polyboard (opcional); biblioteca: carpeta Materials
     (por defecto, junto a la primera de texturas). codigo: código del link del cliente, o una función
     proyecto -> código, para conservar el link entre conversiones; si falta se inventa uno.
+    sin_canto: color #RRGGBB de los lados sin canto en los modelos de AR (si falta, SIN_CANTO).
     Si el proyecto no se puede convertir, lanza ErrorConversion con un mensaje para el taller."""
     ocps = [ocps] if isinstance(ocps, (str, Path)) else list(ocps)
     if not ocps:
@@ -664,7 +665,7 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
     salida = Path(destino); salida.mkdir(parents=True, exist_ok=True)
     codigo = (codigo(proyecto) if callable(codigo) else codigo) or secrets.token_urlsafe(9)
     datos['cliente'] = codigo     # el taller ve el código para compartir el link
-    avisos += version_cliente(datos, salida, codigo)
+    avisos += version_cliente(datos, salida, codigo, sin_canto)
     archivo = salida / f"{proyecto}.json"
     archivo.write_text(json.dumps(datos, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
 
@@ -690,6 +691,7 @@ def main(argv=None):
     ap.add_argument('--biblioteca', metavar='CARPETA',
                     help='carpeta Materials con Panel.mat-boole y Edge.mat-boole (por defecto, junto a Textures)')
     ap.add_argument('--url', help='dirección pública del visor, para armar el link del cliente')
+    ap.add_argument('--sin-canto', metavar='#RRGGBB', help=f'color de los lados sin canto en AR (por defecto {SIN_CANTO})')
     args = ap.parse_args(argv)
     logging.basicConfig(level=logging.WARNING, format='%(message)s')
     log.setLevel(logging.INFO)
@@ -700,7 +702,8 @@ def main(argv=None):
     mapa_path = salida / '.clientes.json'
     mapa = json.loads(mapa_path.read_text(encoding='utf-8')) if mapa_path.exists() else {}
     try:
-        r = convertir(args.dxf, args.ocp, salida, args.texturas, biblioteca=args.biblioteca, codigo=mapa.get)
+        r = convertir(args.dxf, args.ocp, salida, args.texturas, biblioteca=args.biblioteca, codigo=mapa.get,
+                      sin_canto=args.sin_canto)
     except ErrorConversion as e:
         print(f"ERROR: {e}", file=sys.stderr)
         return 1
@@ -730,6 +733,8 @@ COLORES_BASE = {
     'roble': '#BA8C5C', 'nogal': '#6F4D35', 'cedro': '#9C5D3E', 'haya': '#D3A77A', 'peral': '#C9966A',
     'wengue': '#4B372A', 'cerezo': '#9D5234', 'teka': '#A2693C', 'fresno': '#CFB590', 'olmo': '#AA8663',
     'pino': '#DAB97F', 'mdf': '#B58F63', 'crudo': '#B58F63', 'fibro': '#8E6B48', 'hardboard': '#8E6B48'}
+
+SIN_CANTO = '#B58F63'     # lado sin canto: color de MDF crudo (el taller lo cambia en Materiales)
 
 def color_visor(nombre, mats, usuario):
     """Color de un material como lo muestra el visor: materiales.json > color del proyecto
@@ -764,11 +769,22 @@ def _norm(a):
     l = math.sqrt(_punto(a, a)) or 1
     return [a[0] / l, a[1] / l, a[2] / l]
 
-def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True):
+def color_canto(nombre, datos, usuario):
+    """Color de un canto que no se llama como su tablero: de 'cantos' (o de 'materiales' en datos viejos)."""
+    return color_visor(nombre, datos.get('cantos', datos.get('materiales', {})), usuario)
+
+def lado_y_canto(cantos, a, b, c, n):
+    """El canto que cubre el triángulo de un lado de la pieza: mismo plano que el canto. None si no tiene."""
+    cen = [(a[i] + b[i] + c[i]) / 3 for i in range(3)]
+    return next((mat for q0, nq, mat in cantos if abs(_punto(nq, n)) > .9 and abs(_punto(_resta(cen, q0), nq)) < 1), None)
+
+def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True, sin_canto=None):
     """GLB (metros, apoyado en el piso y centrado) con las caras texturadas como en el visor (veta
-    a lo largo del lado mayor, o del menor si 'vt'), cantos del color del tablero y herrajes.
-    Una malla por material. Para Scene Viewer (Android) y AR Quick Look (iPhone)."""
+    a lo largo del lado mayor, o del menor si 'vt') y herrajes. Lados, como en el visor: sin canto, del
+    color `sin_canto` (MDF); con un canto que se llama como el tablero, igual que el tablero; con otro
+    canto, del color de ese canto. Una malla por material. Para Scene Viewer (Android) y AR Quick Look (iPhone)."""
     mats = datos.get('materiales', {})
+    sin_canto = sin_canto if sin_canto and re.fullmatch(r'#[0-9A-Fa-f]{6}', sin_canto) else SIN_CANTO
     grupos = {}   # clave de material -> {'mat': dict glTF, 'img': ruta o None, 'pos': [], 'nor': [], 'uv': []}
     def grupo(k, color, img=None, metal=0.0, rugoso=.75):
         if k not in grupos:
@@ -796,12 +812,20 @@ def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True):
         tex = info.get("textura") if con_textura else None
         aU = info.get('ancho') or 1000; aV = info.get('alto') or aU
         cara = grupo('tex:' + tex if tex else 'col:' + col, [1, 1, 1, 1] if tex else lineal(col), tex)
-        canto = grupo('canto:' + col, lineal(info.get('color') or col))
+        cantos = []
+        for k in p.get('cantos') or []:
+            v = k.get('v') or []
+            if k.get('mat') and len(v) >= 9:
+                cantos.append((v[0:3], _norm(_cruz(_resta(v[3:6], v[0:3]), _resta(v[6:9], v[0:3]))), k['mat']))
         for a, b, c, n, _ in tris:
-            if abs(_punto(n, eN)) > .9:
+            mat = None if abs(_punto(n, eN)) > .9 else lado_y_canto(cantos, a, b, c, n)
+            if abs(_punto(n, eN)) > .9 or (mat is not None and clave(mat) == clave(p['mat'])):
                 tri(cara, a, b, c, n, [(_punto(v, eL) / aU, _punto(v, eS) / aV) for v in (a, b, c)])
+            elif mat is None:
+                tri(grupo('sin canto', lineal(sin_canto)), a, b, c, n)
             else:
-                tri(canto, a, b, c, n)
+                k = color_canto(mat, datos, usuario)
+                tri(grupo('canto:' + k, lineal(k)), a, b, c, n)
     gh = grupo('herraje', lineal('#9AA3AA'), metal=.6, rugoso=.4)
     for h in herrajes:
         x0, y0, z0, x1, y1, z1 = h['b']
@@ -869,7 +893,7 @@ def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True):
     return (struct.pack('<III', 0x46546C67, 2, total) + struct.pack('<II', len(js), 0x4E4F534A) + js
             + struct.pack('<II', len(binario), 0x004E4942) + bytes(binario))
 
-def version_cliente(datos, salida, codigo):
+def version_cliente(datos, salida, codigo, sin_canto=None):
     """<salida>/clientes/<codigo>.json: solo geometría y materiales, sin números, taladros ni nombres
     de piezas, y los modelos de AR en clientes/<codigo>/. Devuelve los avisos."""
     avisos = []
@@ -900,7 +924,7 @@ def version_cliente(datos, salida, codigo):
         for i, mueble in enumerate([None] + datos['muebles']):
             pan = [p for p in datos['paneles'] if mueble is None or p['mueble'] == mueble]
             her = [h for h in datos['herrajes'] if mueble is None or h['mueble'] == mueble]
-            glb = glb_ar(datos, pan, her, salida, usuario)
+            glb = glb_ar(datos, pan, her, salida, usuario, sin_canto=sin_canto)
             if glb:
                 nombre = 'todo.glb' if mueble is None else f'mueble-{i}.glb'
                 (carpeta_ar / nombre).write_bytes(glb)

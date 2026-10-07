@@ -4,6 +4,8 @@ from django import forms
 from django.conf import settings
 
 from .archivos import solo_nombre
+from talleres.models import Taller
+
 from .models import Material
 
 MB = 1024 * 1024
@@ -106,3 +108,16 @@ class FormMaterial(forms.ModelForm):
         if color and not re.fullmatch(r'#[0-9A-Fa-f]{6}', color):
             raise forms.ValidationError('El color tiene que ser como #A1B2C3.')
         return color.upper()
+
+
+class FormSinCanto(forms.ModelForm):
+    class Meta:
+        model = Taller
+        fields = ('color_sin_canto',)
+        widgets = {'color_sin_canto': forms.TextInput(attrs={'type': 'color'})}
+
+    def clean_color_sin_canto(self):
+        color = (self.cleaned_data.get('color_sin_canto') or '').strip().upper()
+        if not re.fullmatch(r'#[0-9A-F]{6}', color):
+            raise forms.ValidationError('El color tiene que ser como #B58F63.')
+        return color

@@ -124,6 +124,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   visor.nordgood.com.ar (70 paneles, misma ficha; cambia solo la foto del guatambú de la biblioteca de prueba), en
   formato celular el escáner pide la cámara y el número a mano anda, el link abre sin sesión con la marca y deja de
   andar al anularlo. Próxima: 05.
+- 2026-10-06: **lados de las piezas (pedido de Martín).** Lado sin canto: color MDF que el taller elige en Materiales
+  (`Taller.color_sin_canto`, `#B58F63` por defecto). Canto que se llama como su tablero (sin mayúsculas ni acentos):
+  igual que el tablero, con su textura. Otro canto: su color, buscado en `cantos`. Vale en el visor 3D, la ficha de la
+  pieza y los GLB de realidad aumentada del conversor (`glb_ar(..., sin_canto=)`, `convertir(sin_canto=)`,
+  `--sin-canto`); por eso cambiaron las huellas de los GLB en `muestras/*/esperado/resumen.json` (el resto es igual).
+  Si el taller cambia el color, la AR lo toma al "Volver a convertir".
 
 ## Pendientes
 
@@ -134,10 +140,10 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Visor actual de Nord Good: **queda sin modificar por ahora** (decisión de Martín, 2026-10-06). No se le llevan los
   cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
   Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
-- Visor: **los cantos todavía se buscan en `materiales`** (`index.html`, `muestra()`/espesor del canto en la ficha y
-  color del canto en 3D). Si un canto se llama como un tablero (`c-guatambu` en Rack florencia), toma el color o la
-  textura del tablero, igual que en el visor de Nord Good. Cambiarlo a `datos.cantos` quedó para que Martín lo
-  apruebe (es un cambio a index.html que no estaba en la lista de la 04).
+- Conversor y visor actual de Nord Good: la regla de los lados (sin canto MDF, canto igual al tablero) cambió
+  `glb_ar` en este repo; el visor del NAS no la tiene. Llevarla solo si Martín lo pide.
+- Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
+  (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
 - Ficha 05: el visor tiene los trabajos apagados con `VISOR.trabajos = false` (`proyectos/visor.py`); al hacer la API
   de trabajos en `/<taller>/visor/api/…`, prenderlos ahí.
 - Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la

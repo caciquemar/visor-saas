@@ -51,7 +51,7 @@ def main(ruta_entrada):
     from conversor import ErrorConversion, convertir
     try:
         r = convertir(e['dxf'], e['ocps'], e['destino'], e['texturas'], biblioteca=e['biblioteca'],
-                      codigo=e['codigo'])
+                      codigo=e['codigo'], sin_canto=e.get('sin_canto'))
         res = dict(proyecto=r.proyecto, archivo=r.archivo.name, avisos=r.avisos, resumen=r.resumen,
                    con_imagen=materiales_con_imagen(r.archivo, e['ocps']))
     except ErrorConversion as error:

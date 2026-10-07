@@ -112,6 +112,7 @@ def preparar(version, tmp):
     return dict(dxf=dxf, ocps=ocps, destino=str(resultado), texturas=[str(texturas)],
                 biblioteca=str(tmp / 'Materials'),       # vacía: en el servidor no están las de Polyboard
                 codigo=version.proyecto.codigo_cliente, memoria_mb=settings.CONVERSION_MEMORIA_MB,
+                sin_canto=version.taller.color_sin_canto,
                 salida=str(tmp / 'salida.json'))
 
 

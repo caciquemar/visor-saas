@@ -2,6 +2,13 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · Cómo se pintan los lados de las piezas
+Definición de Martín. Lado sin canto: un color de MDF que elige cada taller (Materiales; `#B58F63` por defecto).
+Canto que se llama como el tablero de la pieza: se ve igual que el tablero, con su textura. Los nombres se comparan sin
+mayúsculas ni acentos porque Polyboard suele tener `Blanco` (tablero) y `blanco` (canto), `f-Tribal` y `f-tribal`. Otro
+canto: su color, de `cantos`. Igual en el visor y en los GLB de AR. Antes los lados sin canto y los cantos con nombre
+de tablero tomaban el color del tablero o el color de señalización de Polyboard.
+
 ## 2026-10-06 · El visor se sirve con sus rutas relativas
 La app sirve `visor/index.html` en `/<taller>/visor/` y `/c/<código>/`, y atiende debajo las mismas rutas `data/…` que
 pedía en el NAS (`data/index.json` sale de la base). Lo que la app tiene que decir (modo cliente, marca, trabajos) va

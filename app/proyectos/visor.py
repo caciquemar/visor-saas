@@ -88,7 +88,8 @@ def url_de_link(request, link):
 
 @miembro
 def visor(request, taller):
-    return pagina({'trabajos': False, 'marca': {'nombre': request.taller.nombre}})
+    return pagina({'trabajos': False, 'sinCanto': request.taller.color_sin_canto,
+                   'marca': {'nombre': request.taller.nombre}})
 
 
 @miembro
@@ -166,7 +167,7 @@ def cliente(request, codigo):
         LinkCliente.objects.filter(pk=link.pk).update(visitas=F('visitas') + 1, ultima_visita=timezone.now())
     taller = request.taller
     return pagina({
-        'cliente': True, 'trabajos': False,
+        'cliente': True, 'trabajos': False, 'sinCanto': taller.color_sin_canto,
         'marca': {'nombre': taller.nombre, 'color': taller.color or None, 'logo': 'logo' if taller.logo else None},
         'pie': {'nombre': settings.MARCA_SERVICIO, 'url': settings.MARCA_URL or None},
     })

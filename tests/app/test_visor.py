@@ -16,6 +16,7 @@ from PIL import Image
 
 from proyectos.models import LinkCliente, Proyecto, Version
 from proyectos.visor import INDEX
+from proyectos import tareas
 from talleres.formularios import luminancia
 from talleres.separacion import OtroTaller, con_taller
 
@@ -82,7 +83,7 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     original = INDEX.read_text(encoding='utf-8')
     html = r.content.decode()
     config = config_de(r)
-    assert config == {'trabajos': False, 'marca': {'nombre': 'Taller A'}}
+    assert config == {'trabajos': False, 'sinCanto': '#B58F63', 'marca': {'nombre': 'Taller A'}}
     # nada más cambia: así el visor no se separa de visor/index.html
     assert html.replace(json.dumps(config, ensure_ascii=False), '/*__VISOR__*/null') == original
     assert 'Nord Good' not in html
@@ -347,3 +348,30 @@ def test_link_no_da_el_logo_de_otro_taller(client, t, pb):
 def test_luminancia():
     assert luminancia('#000000') == 0 and luminancia('#FFFFFF') == pytest.approx(1)
     assert luminancia('#1D5FE0') < .4 < luminancia('#FFFF66')
+
+
+# ---------------------------------------------------------------- lados sin canto
+
+def test_color_de_lados_sin_canto(client, cliente_de, t, pa, monkeypatch, django_capture_on_commit_callbacks):
+    from tests.app.ayudas import CorrerFalso, subir
+    c = cliente_de(t.oficina_a)
+    assert c.post('/taller-a/materiales/sin-canto/', {'color_sin_canto': '#d2b48c'}).status_code == 302
+    t.A.refresh_from_db()
+    assert t.A.color_sin_canto == '#D2B48C'
+    assert config_de(c.get('/taller-a/visor/'))['sinCanto'] == '#D2B48C'
+    link = link_de(t.A, pa)
+    assert config_de(client.get(f'/c/{link.codigo}/'))['sinCanto'] == '#D2B48C'
+    # y llega a la conversión, para los modelos de realidad aumentada
+    falso = CorrerFalso()
+    monkeypatch.setattr(tareas, 'correr', falso)
+    with django_capture_on_commit_callbacks(execute=True):
+        subir(c, 'taller-a')
+    assert falso.llamadas[0]['entrada']['sin_canto'] == '#D2B48C'
+
+
+def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
+    cliente_de(t.dueno_a).post('/taller-a/materiales/sin-canto/', {'color_sin_canto': 'marron'})
+    t.A.refresh_from_db()
+    assert t.A.color_sin_canto == '#B58F63'
+    assert cliente_de(t.armador_a).post('/taller-a/materiales/sin-canto/',
+                                        {'color_sin_canto': '#000000'}).status_code == 403

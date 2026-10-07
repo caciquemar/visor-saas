@@ -17,7 +17,7 @@ from talleres.archivos import abrir_de_taller
 from talleres.roles import Rol, con_rol, miembro
 
 from .archivos import solo_nombre
-from .formularios import FormMaterial, FormProyectoNuevo, FormSubida
+from .formularios import FormMaterial, FormProyectoNuevo, FormSinCanto, FormSubida
 from .models import LinkCliente, Material, Original, Proyecto, Version
 from .tareas import encolar
 from .visor import url_de_link
@@ -155,7 +155,21 @@ def materiales(request, taller):
     return render(request, 'proyectos/materiales.html', {
         'grupos': [(etiqueta, mats) for etiqueta, mats in grupos if mats],
         'faltan': sum(1 for m in lista if not m.textura),
+        'form_sin_canto': FormSinCanto(instance=request.taller),
     })
+
+
+@require_POST
+@con_rol(*GESTION)
+def sin_canto(request, taller):
+    form = FormSinCanto(request.POST, instance=request.taller)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Guardaste el color de los lados sin canto. En el visor ya se ve; para la realidad '
+                                  'aumentada del link del cliente, tocá "Volver a convertir" en cada proyecto.')
+    else:
+        messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
+    return redirect('taller:proyectos:materiales', taller=request.taller.slug)
 
 
 @require_POST

@@ -362,6 +362,8 @@ if (CLIENTE) document.body.classList.add('modo-cliente');
 if (VISOR.trabajos === false) document.body.classList.add('sin-trabajos');
 // carpeta del proyecto cargado: ahí están sus texturas (data/<id>/ en la app, data/ en el visor de siempre)
 let BASE = 'data/';
+// lados de las piezas sin canto: MDF crudo, o el color que eligió el taller
+const SIN_CANTO = /^#[0-9a-f]{6}$/i.test(VISOR.sinCanto || '') ? VISOR.sinCanto : '#B58F63';
 
 /* ---------- escena 3D ---------- */
 const cont = $('escena');
@@ -433,11 +435,13 @@ function dibujarCantos(mallas){
   });
 }
 const POS = {frente:'al frente', 'atrás':'atrás', arriba:'arriba', abajo:'abajo', derecha:'a la derecha', izquierda:'a la izquierda'};
-function muestra(mat, canto){
-  const info = infoMaterial(mat), tex = info && info.textura && !/["'()\\]/.test(info.textura)
+function muestra(mat, canto, info = infoMaterial(mat), color = colorMaterial(mat)){
+  const tex = info && info.textura && !/["'()\\]/.test(info.textura)
     ? ` url('${BASE}${encodeURI(info.textura)}') center/cover` : '';
-  return `<span class="muestra${canto ? ' canto' : ''}" style="background:${colorMaterial(mat)}${tex}" aria-hidden="true"></span>`;
+  return `<span class="muestra${canto ? ' canto' : ''}" style="background:${color}${tex}" aria-hidden="true"></span>`;
 }
+const muestraCanto = (mat, tablero) => comoTablero(mat, tablero) ? muestra(tablero, true)
+  : muestra(mat, true, infoCanto(mat), colorDeCanto(mat));
 function textoMaterial(p){
   const esp = Math.round(p.med[2]*10)/10;
   let t = `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>`;
@@ -448,8 +452,8 @@ function textoMaterial(p){
   const lineas = Object.entries(porMat).map(([mat, cs]) => {
     const lista = cs.length === 4 ? 'en los 4 lados'
       : cs.map(c => `${c.lado} ${Math.round(c.largo)} ${POS[c.pos] || c.pos}`).join(', ');
-    const esp = (infoMaterial(mat) || {}).espesor;   // del .ocp o de la biblioteca de cantos
-    return `${muestra(mat, true)}Canto <b>${mat}${esp ? ` ${String(esp).replace('.', ',')} mm` : ''}</b>: ${lista}`;
+    const esp = (infoCanto(mat) || {}).espesor;   // del .ocp o de la biblioteca de cantos
+    return `${muestraCanto(mat, p.mat)}Canto <b>${mat}${esp ? ` ${String(esp).replace('.', ',')} mm` : ''}</b>: ${lista}`;
   });
   return t + '<br>' + lineas.join('<br>');
 }
@@ -533,6 +537,15 @@ function buscarNombre(dic, nombre){
   return k ? dic[k] : null;
 }
 const infoMaterial = nombre => buscarNombre(MATS, nombre);
+// cantos: en 'cantos' (tablero y canto pueden llamarse igual); en proyectos viejos, mezclados en 'materiales'
+let CANTOS = null;
+const infoCanto = nombre => buscarNombre(CANTOS || MATS, nombre);
+// un canto que se llama como su tablero (sin mayúsculas ni acentos) se ve igual que el tablero, con su textura
+const comoTablero = (canto, tablero) => !!canto && sinAcento(canto) === sinAcento(tablero);
+function colorDeCanto(nombre){
+  const info = infoCanto(nombre);
+  return info && /^#[0-9a-f]{6}$/i.test(info.color) ? info.color : colorMaterial(nombre);
+}
 function colorMaterial(nombre){
   const n = sinAcento(nombre);
   if (cacheColor[nombre]) return cacheColor[nombre];
@@ -607,22 +620,26 @@ function mallaPanel(p){
   const eL = lados[p.vt ? 0 : 1].clone().normalize(), eN = big.n.clone(), eS = new THREE.Vector3().crossVectors(eN, eL).normalize();
   const info = infoMaterial(p.mat), tex = info && info.textura;
   const aU = tex && info.ancho || 1000, aV = tex && info.alto || aU;
-  // cantos: color por cara delgada según el canto que la cubre
+  // lados: sin canto, color MDF; con un canto que se llama como el tablero, igual que el tablero (van con las
+  // caras, con su textura); con otro canto, el color de ese canto
   const cantos = (p.cantos || []).map(c => {
     const q = [0,1,2,3].map(i => new THREE.Vector3(c.v[i*3], c.v[i*3+1], c.v[i*3+2]));
     const n = new THREE.Vector3().crossVectors(q[1].clone().sub(q[0]), q[2].clone().sub(q[0])).normalize();
-    return {q0: q[0], n, color: new THREE.Color(colorMaterial(c.mat || p.mat))};
+    return {q0: q[0], n, mat: c.mat};
   });
-  const colTablero = new THREE.Color(colorMaterial(p.mat));
-  const caras = tris.filter(x => Math.abs(x.n.dot(eN)) > .9), finas = tris.filter(x => Math.abs(x.n.dot(eN)) <= .9);
+  const colTablero = new THREE.Color(colorMaterial(p.mat)), colSinCanto = new THREE.Color(SIN_CANTO), colores = {};
+  const caras = [], finas = [];   // caras: con el material del tablero; finas: lados con color propio
+  tris.forEach(x => {
+    if (Math.abs(x.n.dot(eN)) > .9){ caras.push(x); return; }
+    const cen = x.a.clone().add(x.b).add(x.c).multiplyScalar(1/3);
+    const c = cantos.find(k => Math.abs(k.n.dot(x.n)) > .9 && Math.abs(cen.clone().sub(k.q0).dot(k.n)) < 1);
+    const mat = c && c.mat;
+    if (comoTablero(mat, p.mat)) caras.push(x);
+    else finas.push(Object.assign(x, {color: !mat ? colSinCanto : colores[mat] = colores[mat] || new THREE.Color(colorDeCanto(mat))}));
+  });
   const pos = [], uv = [], col = [];
-  [...caras, ...finas].forEach((x, i) => {
-    let color = colTablero;
-    if (i >= caras.length){
-      const cen = x.a.clone().add(x.b).add(x.c).multiplyScalar(1/3);
-      const c = cantos.find(k => Math.abs(k.n.dot(x.n)) > .9 && Math.abs(cen.clone().sub(k.q0).dot(k.n)) < 1);
-      if (c) color = c.color;
-    }
+  [...caras, ...finas].forEach(x => {
+    const color = x.color || colTablero;
     [x.a, x.b, x.c].forEach(v => {
       pos.push(v.x, v.y, v.z); uv.push(v.dot(eL) / aU, v.dot(eS) / aV); col.push(color.r, color.g, color.b);
     });
@@ -818,10 +835,12 @@ function modeloAR(mueble){
     // caras y cantos por separado (con una malla de dos materiales el exportador superpone los cantos)
     agregar(mapa ? 'tex:' + mapa.uuid : 'col:' + colorMaterial(p.mat), () => new THREE.MeshStandardMaterial({
       ...base, map: mapa, color: mapa ? 0xFFFFFF : colorAR(colorMaterial(p.mat))}), tramo(m.geometry, gCaras, false));
-    // cantos: para el cliente, el color real del tablero (los de Polyboard son de señalización)
-    if (gCantos && gCantos.count) agregar('canto:' + colorMaterial(p.mat), () => new THREE.MeshStandardMaterial({...base,
-      color: colorAR(mapa && infoMaterial(p.mat) ? infoMaterial(p.mat).color || '#BBBBBB' : colorMaterial(p.mat))}),
-      tramo(m.geometry, gCantos, false));
+    // lados (sin canto o con otro canto): cada uno con su color, como en el visor (glTF los quiere lineales)
+    if (gCantos && gCantos.count){
+      const geo = tramo(m.geometry, gCantos, true), c = geo.getAttribute('color'), t = new THREE.Color();
+      for (let i = 0; i < c.count; i++){ t.setRGB(c.getX(i), c.getY(i), c.getZ(i)).convertSRGBToLinear(); c.setXYZ(i, t.r, t.g, t.b); }
+      agregar('lados', () => new THREE.MeshStandardMaterial({...base, vertexColors: true}), geo);
+    }
   });
   herrajes.filter(h => !mueble || h.userData.mueble === mueble).forEach(h => {
     const geo = h.geometry.toNonIndexed(); geo.translate(h.position.x, h.position.y, h.position.z);
@@ -1554,7 +1573,7 @@ async function cargar(elegido){
   item = elegido;
   BASE = 'data/' + (item.archivo || '').replace(/[^/]*$/, '');
   if (!CLIENTE) guardar(item.archivo || datos.proyecto);
-  MATS = datos.materiales || {}; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
+  MATS = datos.materiales || {}; CANTOS = datos.cantos || null; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
   $('ficha').classList.remove('visible'); $('error').classList.remove('visible'); $('vista').hidden = true; $('ayuda').hidden = false; $('panelMuebles').hidden = true;
   tamano(); construir(datos);
   $('cargando').hidden = true;

@@ -37,17 +37,17 @@
   "Sin panel 3D para 3 (torre3, mec. -)"
  ],
  "glb": {
-  "mueble-1.glb": "3fde36b8e4b8967014031eb022dfcbee78ca346bf3c08fae58adb90a09a1ea40",
-  "mueble-10.glb": "8f04e008cdee5af760007899a611067742787ba735b16eb0594ba1f2632e9236",
-  "mueble-11.glb": "42f7da9e399ef78e7b68c372ee7f597f1765d71d74d6f1e274639db916a59a3b",
-  "mueble-2.glb": "680d4e9d71a98e0fbff3dfd7df37c0d9039a35a80790bc20a4418c7d2b19511c",
-  "mueble-3.glb": "680d4e9d71a98e0fbff3dfd7df37c0d9039a35a80790bc20a4418c7d2b19511c",
-  "mueble-4.glb": "5976c1897c6bce79fd8f1253e0fa0b939719c1555334ad1052b36d6142743ee7",
-  "mueble-5.glb": "84ce28cc87705e819aaa6f00d015423596165b44adae71b2a9713aca5b0efaac",
-  "mueble-6.glb": "d3cbdbd6c6eb92af364da20c99e22c3e0e7c7b4c34adfe7f934d1c8f695490e0",
-  "mueble-7.glb": "427bab4c298de8eb860da3ad54dff13315a4d5421c5f22e464305dc9d8f8b400",
-  "mueble-8.glb": "a2f2c63c2c0ab69b0cdf7b83c0d9cc994e2d5dda9009d100b9d03389c033ffb2",
-  "mueble-9.glb": "24dd9a0a59bff016872f9c5cb3a5517677e4be4ac46fb281fa28515d87dfcadc",
-  "todo.glb": "fb469fdb5f4b18e78d37b42b2d6d11051fedc5b6ecf6a7fcb76b321b5f3b5888"
+  "mueble-1.glb": "0a2c13c13f8b524b5b9b906aa8a2a3b1d111c2a8e4fcabd17dc2a94c4dd9ffbd",
+  "mueble-10.glb": "9c574c2d87e59c030ec621f73aeb33072cbb05c422a2189d0526fa66e5e79351",
+  "mueble-11.glb": "372b3c02bb58fc6cb5d478c1930a2e3fb3177274985853a4b818be946d706b36",
+  "mueble-2.glb": "c83dc5c0b75144fe684cac13ddda3f9a0c4de78b6cf62bb6cbd0d1b8de9278ed",
+  "mueble-3.glb": "c83dc5c0b75144fe684cac13ddda3f9a0c4de78b6cf62bb6cbd0d1b8de9278ed",
+  "mueble-4.glb": "7caac6ed7742a111a4b5f51762efc391b56041698c32d15342b695322b486ac6",
+  "mueble-5.glb": "282b9c39c451a2fc674e33d9129d66ab12549af6e40ee23d2b726db20e37feaa",
+  "mueble-6.glb": "8ed3618e00436d4e93365626c80b406e1ab99b50184aeafcd07680edf1ecf28e",
+  "mueble-7.glb": "0867b489f5004c1ddf253069b402bb68939162102340487b04c2205a913f99db",
+  "mueble-8.glb": "96a598af53fd349e38aa4c7ac1d4118d6273ced9bcb9747c6153a6b6c946a8fc",
+  "mueble-9.glb": "7dcac70789e66dfa7661a073908b9a25efeec8e3c2309c9ba9cf57bc5df3ed6a",
+  "todo.glb": "5e6c8409561a5f3eb2dd6fba81630a09b6cc7f369afa7b52e5531a4ea65559db"
  }
 }

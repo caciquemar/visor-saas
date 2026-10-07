@@ -8,6 +8,8 @@ from django.core.validators import RegexValidator, validate_slug
 from django.db import models
 from django.utils import timezone
 
+from conversor.polyboard_a_app import SIN_CANTO
+
 from .archivos import ruta_de_logo
 from .separacion import DatoDeTaller
 
@@ -36,6 +38,10 @@ class Taller(models.Model):
     logo = models.ImageField('logo', upload_to=ruta_de_logo, blank=True, max_length=300)
     color = models.CharField('color', max_length=7, blank=True,
                              validators=[RegexValidator(r'^#[0-9A-F]{6}$', 'El color tiene que ser como #1D5FE0.')])
+    # Lados de las piezas sin canto, en el visor y en la realidad aumentada (se elige en Materiales).
+    color_sin_canto = models.CharField('color de los lados sin canto', max_length=7, default=SIN_CANTO,
+                                       validators=[RegexValidator(r'^#[0-9A-F]{6}$',
+                                                                  'El color tiene que ser como #B58F63.')])
 
     class Meta:
         verbose_name = 'taller'

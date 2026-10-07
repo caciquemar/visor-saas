@@ -9,6 +9,7 @@
   .material h3 { margin:0; font-size:1.05rem; }
   .material form label { margin-top:.5rem; }
   @media (max-width: 480px) { .material { grid-template-columns:1fr; } }
+  input[type=color] { width:4rem; height:2.5rem; padding:.15rem; }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -16,6 +17,16 @@
 <p class="suave">Las texturas de los tableros y cantos del taller. Se cargan una vez y sirven para todos los proyectos.
   Los materiales aparecen solos cuando convertís un proyecto que los usa. Tableros y cantos van por separado aunque
   se llamen igual: cada uno con su imagen.</p>
+<form class="caja" method="post" action="{% url 'taller:proyectos:sin_canto' taller=request.taller.slug %}">{% csrf_token %}
+  <label for="{{ form_sin_canto.color_sin_canto.id_for_label }}" style="margin-top:0">Lados sin canto</label>
+  <div class="acciones" style="margin-top:.25rem;align-items:center">
+    {{ form_sin_canto.color_sin_canto }}
+    <button type="submit">Guardar</button>
+  </div>
+  <span class="ayuda">El color del borde de las piezas que no llevan canto (el aglomerado o MDF a la vista). Si un canto
+    se llama como su tablero, el borde se ve igual que el tablero.</span>
+</form>
+
 {% if faltan %}<p><strong>{{ faltan }} sin textura.</strong> Subí la imagen que usás en Polyboard (está en la carpeta Textures).</p>{% endif %}
 
 {% for etiqueta, materiales in grupos %}
