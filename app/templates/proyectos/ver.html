@@ -96,10 +96,11 @@
       <ul>{% for a in v.avisos %}<li>{{ a }}</li>{% endfor %}</ul></details>
     {% endif %}
   {% endif %}
+  {% for html in v.extras %}{{ html }}{% endfor %}
 
   {% if gestiona %}
   <details><summary>Archivos subidos</summary>
-    <ul>{% for o in v.originales.all %}
+    <ul>{% for o in v.subidos %}
       <li><a href="{% url 'taller:proyectos:original' taller=request.taller.slug id=proyecto.pk numero=v.numero original_id=o.pk %}">{{ o.nombre }}</a>
         <span class="suave">· {{ o.get_tipo_display }} · {{ o.tamano|filesizeformat }}</span></li>
     {% endfor %}</ul>

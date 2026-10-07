@@ -1,5 +1,5 @@
 """Direcciones de proyectos y materiales dentro de un taller (se incluyen en talleres/urls.py)."""
-from django.urls import path
+from django.urls import include, path
 
 from . import visor, vistas
 
@@ -26,4 +26,5 @@ urlpatterns = [
     path('visor/data/index.json', visor.indice, name='visor_indice'),
     path('visor/data/materiales.json', visor.miembro_sin_colores, name='visor_materiales'),
     path('visor/data/<int:id>/<path:ruta>', visor.dato, name='visor_dato'),
+    path('', include('modulos.urls')),        # módulos por taller: 404 si no están prendidos
 ]

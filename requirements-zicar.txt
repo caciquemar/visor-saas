@@ -1,0 +1,10 @@
+# Módulo Zicar (solo Nord Good): el traductor Polyboard -> Zicar vive en su propio repo privado.
+# No va en pyproject.toml: quien no tenga acceso a ese repo instala todo lo demás igual.
+#
+# Servidor (ficha 07): con un token de GitHub de solo lectura para ese repo, solo al instalar:
+#   pip install -r requirements-zicar.txt
+#   (git toma el token de GIT_ASKPASS o de una credencial guardada; nunca va escrito en este archivo)
+# PC de Martín (lo hace iniciar.ps1): pip install -e ..\polyboard\Polyboard_to_zicar
+#
+# Para llevar un cambio de Zicar al servidor: subir `version` en su pyproject.toml, crear la etiqueta y cambiarla acá.
+pb2zicar @ git+https://github.com/caciquemar/Polyboard_to_zicar@v1.0.0

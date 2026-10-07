@@ -1,0 +1,108 @@
+<label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+<div class="zona" id="zona-zicar" tabindex="0">
+  {{ campo }}
+  <input type="file" id="carpeta-zicar" webkitdirectory multiple hidden>
+  <strong>Arrastrá acá la carpeta del postprocesador</strong><br>
+  <span class="suave"><a href="#" id="elegir-carpeta-zicar">elegir la carpeta</a> o <a href="#" id="elegir-zip-zicar">elegir un ZIP</a></span>
+  <p class="suave" id="estado-zicar" style="margin:.5rem 0 0"></p>
+</div>
+<span class="ayuda">{{ campo.help_text }} Máximo {{ max_mb }} MB.</span>
+{{ campo.errors }}
+<script>
+(function () {
+  // La carpeta se manda como un ZIP sin comprimir, armado acá con sus DXF (el servidor siempre recibe un ZIP).
+  var zona = document.getElementById('zona-zicar'), estado = document.getElementById('estado-zicar');
+  var campo = document.getElementById('{{ campo.id_for_label }}'), carpeta = document.getElementById('carpeta-zicar');
+  campo.style.position = 'absolute'; campo.style.width = campo.style.height = '1px'; campo.style.opacity = 0;
+  var MAX = 2000;
+
+  var TABLA = (function () {
+    var t = new Uint32Array(256);
+    for (var n = 0; n < 256; n++) { var c = n; for (var k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; }
+    return t;
+  })();
+  function crc32(d) { var c = 0xFFFFFFFF; for (var i = 0; i < d.length; i++) c = TABLA[(c ^ d[i]) & 0xFF] ^ (c >>> 8); return (c ^ 0xFFFFFFFF) >>> 0; }
+
+  async function armarZip(entradas) {        // [{ruta, archivo}]
+    var enc = new TextEncoder(), partes = [], central = [], desde = 0, tamCentral = 0;
+    for (var i = 0; i < entradas.length; i++) {
+      var datos = new Uint8Array(await entradas[i].archivo.arrayBuffer()), nombre = enc.encode(entradas[i].ruta);
+      var crc = crc32(datos), h = new DataView(new ArrayBuffer(30)), c = new DataView(new ArrayBuffer(46));
+      h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true);   // nombres en UTF-8
+      h.setUint16(12, 0x21, true); h.setUint32(14, crc, true); h.setUint32(18, datos.length, true);
+      h.setUint32(22, datos.length, true); h.setUint16(26, nombre.length, true);
+      c.setUint32(0, 0x02014b50, true); c.setUint16(4, 20, true); c.setUint16(6, 20, true); c.setUint16(8, 0x0800, true);
+      c.setUint16(14, 0x21, true); c.setUint32(16, crc, true); c.setUint32(20, datos.length, true);
+      c.setUint32(24, datos.length, true); c.setUint16(28, nombre.length, true); c.setUint32(42, desde, true);
+      partes.push(h.buffer, nombre, datos); central.push(c.buffer, nombre);
+      desde += 30 + nombre.length + datos.length; tamCentral += 46 + nombre.length;
+    }
+    var fin = new DataView(new ArrayBuffer(22));
+    fin.setUint32(0, 0x06054b50, true); fin.setUint16(8, entradas.length, true); fin.setUint16(10, entradas.length, true);
+    fin.setUint32(12, tamCentral, true); fin.setUint32(16, desde, true);
+    return new Blob(partes.concat(central, [fin.buffer]), {type: 'application/zip'});
+  }
+
+  function poner(archivo, texto) {
+    var dt = new DataTransfer(); dt.items.add(archivo); campo.files = dt.files;
+    estado.textContent = texto;
+  }
+  async function desdeCarpeta(entradas) {
+    entradas = entradas.filter(function (e) { return /\.dxf$/i.test(e.ruta); });
+    if (!entradas.length) { estado.textContent = 'No hay DXF en esa carpeta: tiene que ser la del postprocesador.'; return; }
+    if (entradas.length > MAX) { estado.textContent = 'La carpeta tiene demasiados archivos.'; return; }
+    estado.textContent = 'Preparando la carpeta…';
+    var raiz = entradas[0].ruta.split('/')[0];
+    var zip = await armarZip(entradas);
+    poner(new File([zip], raiz + '.zip', {type: 'application/zip'}),
+          'Carpeta ' + raiz + ' · ' + entradas.length + ' DXF · ' + (zip.size / 1048576).toFixed(1) + ' MB');
+  }
+  function leerCarpeta(entrada, ruta) {      // FileSystemEntry de lo arrastrado -> [{ruta, archivo}]
+    return new Promise(function (listo) {
+      if (entrada.isFile) {
+        entrada.file(function (f) { listo([{ruta: ruta + entrada.name, archivo: f}]); }, function () { listo([]); });
+        return;
+      }
+      var lector = entrada.createReader(), todos = [];
+      (function seguir() {
+        lector.readEntries(async function (hijos) {
+          if (!hijos.length) {
+            var res = [];
+            for (var i = 0; i < todos.length; i++) res = res.concat(await leerCarpeta(todos[i], ruta + entrada.name + '/'));
+            listo(res); return;
+          }
+          todos = todos.concat(Array.prototype.slice.call(hijos)); seguir();
+        }, function () { listo([]); });
+      })();
+    });
+  }
+
+  document.getElementById('elegir-carpeta-zicar').onclick = function (e) { e.preventDefault(); carpeta.click(); };
+  document.getElementById('elegir-zip-zicar').onclick = function (e) { e.preventDefault(); campo.click(); };
+  campo.addEventListener('change', function () {
+    if (campo.files.length) estado.textContent = campo.files[0].name + ' · ' + (campo.files[0].size / 1048576).toFixed(1) + ' MB';
+  });
+  carpeta.addEventListener('change', function () {
+    desdeCarpeta(Array.prototype.map.call(carpeta.files, function (f) { return {ruta: f.webkitRelativePath || f.name, archivo: f}; }));
+  });
+  ['dragenter', 'dragover'].forEach(function (ev) {
+    zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('encima'); });
+  });
+  zona.addEventListener('dragleave', function () { zona.classList.remove('encima'); });
+  zona.addEventListener('drop', async function (e) {
+    e.preventDefault(); zona.classList.remove('encima');
+    var items = e.dataTransfer.items, entradas = [];
+    for (var i = 0; items && i < items.length; i++) {
+      var entrada = items[i].webkitGetAsEntry && items[i].webkitGetAsEntry();
+      if (entrada) entradas.push(entrada);
+    }
+    if (entradas.length === 1 && entradas[0].isFile && /\.zip$/i.test(entradas[0].name)) {
+      poner(e.dataTransfer.files[0], e.dataTransfer.files[0].name);
+      return;
+    }
+    var todas = [];
+    for (var j = 0; j < entradas.length; j++) todas = todas.concat(await leerCarpeta(entradas[j], ''));
+    desdeCarpeta(todas);
+  });
+})();
+</script>

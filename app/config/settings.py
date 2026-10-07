@@ -42,6 +42,8 @@ INSTALLED_APPS = [
     'talleres',
     'proyectos',
     'trabajos',
+    'modulos',
+    'modulos.zicar',
 ]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -121,6 +123,7 @@ CONVERSION_MEMORIA_MB = env.int('CONVERSION_MEMORIA_MB', default=2048)   # solo 
 MAX_DXF_MB = env.int('MAX_DXF_MB', default=95)
 MAX_OCP_MB = env.int('MAX_OCP_MB', default=10)
 MAX_TEXTURA_MB = env.int('MAX_TEXTURA_MB', default=15)
+MAX_ZICAR_MB = env.int('MAX_ZICAR_MB', default=50)       # carpeta del postprocesador (módulo Zicar)
 DATA_UPLOAD_MAX_NUMBER_FILES = 30
 
 # ---------------------------------------------------------------- marca del servicio

@@ -1,0 +1,2 @@
+0027.dxf : 1 (alacena abierta)
+0039.dxf : 1 (estante flotante 6+25+6)

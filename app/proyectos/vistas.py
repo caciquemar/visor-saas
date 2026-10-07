@@ -8,11 +8,13 @@ from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
 from django.db.models import Max
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from conversor.polyboard_a_app import clave
+from modulos import registro
 from talleres.archivos import abrir_de_taller
 from talleres.roles import Rol, con_rol, miembro
 
@@ -29,15 +31,25 @@ def a_proyecto(request, proyecto):
     return redirect('taller:proyectos:ver', taller=request.taller.slug, id=proyecto.pk)
 
 
+def formulario(clase, request):
+    """Formulario de subida con los campos que suman los módulos prendidos del taller."""
+    form = clase(request.POST or None, request.FILES or None)
+    for modulo in registro.activos():
+        modulo.campos_de_subida(form)
+    return form
+
+
 def pantalla_de_subida(request, form, proyecto):
+    extras = [modulo.html_de_subida(form) for modulo in registro.activos()]
     return render(request, 'proyectos/subir.html', {'form': form, 'proyecto': proyecto,
-                                                    'max_dxf': settings.MAX_DXF_MB},
+                                                    'max_dxf': settings.MAX_DXF_MB, 'extras': extras},
                   status=400 if form.is_bound else 200)
 
 
-def crear_version(proyecto, usuario, archivos=None, copiar_de=None):
-    """Versión nueva del proyecto, en cola. Con `archivos` (dxf, [ocps]) guarda lo subido; con `copiar_de` usa
-    los mismos originales de esa versión (volver a convertir), sin duplicar los archivos."""
+def crear_version(proyecto, usuario, archivos=None, copiar_de=None, datos=None):
+    """Versión nueva del proyecto, en cola. Con `archivos` (dxf, [ocps]) guarda lo subido (y `datos`, lo que el
+    formulario trae para los módulos); con `copiar_de` usa los mismos originales de esa versión (volver a
+    convertir), sin duplicar los archivos."""
     Proyecto.objects.select_for_update().filter(pk=proyecto.pk).first()      # numerar de a una
     numero = (proyecto.versiones.aggregate(n=Max('numero'))['n'] or 0) + 1
     version = Version.objects.create(proyecto=proyecto, numero=numero, subida_por=usuario)
@@ -50,6 +62,8 @@ def crear_version(proyecto, usuario, archivos=None, copiar_de=None):
         for tipo, archivo in [(Original.Tipo.DXF, dxf)] + [(Original.Tipo.OCP, o) for o in ocps]:
             Original.objects.create(version=version, tipo=tipo, nombre=solo_nombre(archivo.name)[:255],
                                     archivo=archivo, tamano=archivo.size)
+        for modulo in registro.activos():
+            modulo.al_guardar_version(version, datos or {})
     proyecto.save(update_fields=['actualizado'])
     encolar(version)
     return version
@@ -66,14 +80,14 @@ def lista(request, taller):
 
 @con_rol(*GESTION)
 def nuevo(request, taller):
-    form = FormProyectoNuevo(request.POST or None, request.FILES or None)
+    form = formulario(FormProyectoNuevo, request)
     if request.method == 'POST' and form.is_valid():
         dxf, ocps = form.cleaned_data['archivos']
         with transaction.atomic():
             proyecto = Proyecto.objects.create(nombre=form.cleaned_data['nombre'].strip()
                                                or Path(solo_nombre(dxf.name)).stem[:150],
                                                creado_por=request.user)
-            crear_version(proyecto, request.user, archivos=(dxf, ocps))
+            crear_version(proyecto, request.user, archivos=(dxf, ocps), datos=form.cleaned_data)
         messages.success(request, f'Subiste {proyecto}. La conversión tarda unos minutos.')
         return a_proyecto(request, proyecto)
     return pantalla_de_subida(request, form, None)
@@ -83,8 +97,11 @@ def nuevo(request, taller):
 def ver(request, taller, id):
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
     versiones = list(proyecto.versiones.select_related('subida_por').prefetch_related('originales'))
+    modulos = registro.activos()
     for v in versiones:
         v.revisar_si_se_corto()
+        v.extras = [m.html_de_version(request, proyecto, v) for m in modulos]
+        v.subidos = [o for o in v.originales.all() if not registro.oculto(o, modulos)]
     base = proyecto.version_actual or next((v for v in versiones if v.estado == v.Estado.LISTO), None)
     texturas_nuevas, faltan = [], []
     if base and base.faltan_texturas:
@@ -102,7 +119,7 @@ def ver(request, taller, id):
         'listo': bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO),
         'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
-        'en_proceso': any(v.en_proceso for v in versiones),
+        'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
         'gestiona': gestiona,
     })
 
@@ -110,10 +127,11 @@ def ver(request, taller, id):
 @con_rol(*GESTION)
 def nueva_version(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id)
-    form = FormSubida(request.POST or None, request.FILES or None)
+    form = formulario(FormSubida, request)
     if request.method == 'POST' and form.is_valid():
         with transaction.atomic():
-            version = crear_version(proyecto, request.user, archivos=form.cleaned_data['archivos'])
+            version = crear_version(proyecto, request.user, archivos=form.cleaned_data['archivos'],
+                                    datos=form.cleaned_data)
         messages.success(request, f'Subiste la versión {version.numero}. La conversión tarda unos minutos.')
         return a_proyecto(request, proyecto)
     return pantalla_de_subida(request, form, proyecto)
@@ -144,6 +162,8 @@ def reconvertir(request, taller, id, numero):
 @con_rol(*GESTION)
 def original(request, taller, id, numero, original_id):
     o = get_object_or_404(Original, pk=original_id, version__numero=numero, version__proyecto_id=id)
+    if registro.oculto(o):          # la carpeta del postprocesador, con el módulo Zicar apagado
+        raise Http404()
     return abrir_de_taller(request, o.archivo.name, descarga=True, nombre=o.nombre)
 
 

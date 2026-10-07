@@ -35,6 +35,7 @@
   </label>
   <span class="ayuda">{{ form.archivos.help_text }} Máximo {{ max_dxf }} MB el DXF.</span>
   {{ form.archivos.errors }}
+  {% for html in extras %}{{ html }}{% endfor %}
   <progress id="progreso" max="100" value="0" hidden></progress>
   <p class="suave" id="estado" hidden></p>
   <div class="acciones"><button type="submit" id="enviar">Subir y convertir</button></div>

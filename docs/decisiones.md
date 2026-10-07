@@ -2,6 +2,28 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-07 · Código de Zicar: paquete instalable desde su repo privado
+Decisión de Martín (ficha 06). `Polyboard_to_zicar` sigue en su propio repo privado y ahora tiene `pyproject.toml`
+(paquete `pb2zicar`, sin dependencias; el `.bat` y `run.py` siguen igual). Este repo no lo trae: el servidor lo
+instala con `pip install -r requirements-zicar.txt`, que fija una etiqueta (`v1.0.0`), usando un token de GitHub de
+solo lectura para ese repo que se usa solo al instalar (ficha 07). En la PC, `iniciar.ps1` lo instala desde la carpeta
+de al lado (`pip install -e`). La app usa solo `pb2zicar.cli.process_folder`, en un proceso aparte. Si el paquete no
+está, el módulo no se activa aunque esté prendido y sus pruebas se saltean.
+Descartado: carpeta clonada a mano con la ruta en `.env` (sin versión fija; hay que acordarse de actualizarla) y
+submódulo de git (cualquiera que clone este repo necesitaría acceso al otro).
+
+## 2026-10-07 · Módulos por taller: no se ve nada y todo da 404
+`modulos.Modulo` es el catálogo (lo crea una migración; uno por módulo con código) y `modulos.TallerModulo` (dato de
+taller) dice si está prendido, con configuración en JSON. Se prende en la administración, en la ficha del taller.
+`modulos/registro.py` es la única puerta: la app pide los ganchos de los módulos prendidos (campos y HTML de la
+subida, guardar lo suyo, paso extra de la conversión, HTML en cada versión) y nunca pregunta por un módulo en
+particular. Las direcciones de un módulo llevan `con_modulo`, que responde 404 antes de mirar el rol, igual que una
+dirección que no existe; lo que el navegador mande de más con el módulo apagado se ignora.
+Módulo Zicar: en la subida, la carpeta del postprocesador como ZIP o arrastrando la carpeta (decisión de Martín: la
+página arma un ZIP sin comprimir con los DXF, así el servidor siempre recibe un ZIP); en su propia tarea de la cola
+(si falla, el visor del proyecto sigue andando) genera `<carpeta>_zicar.zip` con la misma forma que la carpeta que
+deja "Convertir proyecto" en la PC; "Descargar Zicar" y subir la carpeta son de dueño y oficina (decisión de Martín).
+
 ## 2026-10-06 · Tres funcionalidades nuevas antes de los pilotos
 Elegidas por Martín: etiquetas con QR (ficha 12), avance por etapas con fin de fabricación y control de carga
 (ficha 13) y probador de colores en el link del cliente (ficha 14). Martín sumó la **etiqueta por mueble**: sirve

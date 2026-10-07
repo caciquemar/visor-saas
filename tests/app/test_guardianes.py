@@ -13,7 +13,8 @@ from talleres.separacion import ARCHIVOS_CON_SIN_FILTRO, DatoDeTaller, PorTaller
 APP = Path(__file__).resolve().parents[2] / 'app'
 
 # Modelos de la app que no son datos de un taller (agregar acá solo con una buena razón).
-MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario'}
+MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario',
+                      'modulos.Modulo'}        # catálogo de módulos del servicio: es el mismo para todos
 
 # Direcciones que se pueden ver sin sesión (regla 2). Las del link del cliente (/c/<código>/...) solo responden con un
 # link vigente: tests/app/test_visor.py.

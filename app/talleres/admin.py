@@ -4,6 +4,8 @@ from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.utils import unquote
 
+from modulos.models import TallerModulo
+
 from .mails import invitar
 from .models import Invitacion, Membresia, Taller
 from .separacion import con_taller
@@ -43,6 +45,18 @@ class InvitacionesInline(admin.TabularInline):
         return Invitacion.sin_filtro.all()
 
 
+class ModulosInline(admin.TabularInline):
+    """Módulos del taller (regla 3): se prenden acá, uno por fila. La configuración es JSON (por ahora ninguno
+    la usa)."""
+    model = TallerModulo
+    fields = ('modulo', 'prendido', 'configuracion')
+    extra = 0
+    verbose_name_plural = 'módulos'
+
+    def get_queryset(self, request):
+        return TallerModulo.sin_filtro.select_related('modulo')
+
+
 class FormTaller(forms.ModelForm):
     email_dueno = forms.EmailField(label='Mail del dueño', required=False,
                                    help_text='Le llega una invitación para entrar como dueño.')
@@ -73,7 +87,7 @@ class TallerAdmin(admin.ModelAdmin):
         return form
 
     def get_inlines(self, request, obj):
-        return [MiembrosInline, InvitacionesInline] if obj else []
+        return [ModulosInline, MiembrosInline, InvitacionesInline] if obj else []
 
     def changeform_view(self, request, object_id=None, form_url='', extra_context=None):
         taller = None

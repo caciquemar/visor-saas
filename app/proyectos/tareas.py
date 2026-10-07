@@ -20,10 +20,11 @@ from django.utils import timezone
 from huey.contrib.djhuey import db_task
 
 from conversor.polyboard_a_app import clave
+from modulos import registro
 from talleres.separacion import tarea_de_taller
 
 from .archivos import nombre_local
-from .models import Material, Version
+from .models import Material, Original, Version
 
 log = logging.getLogger('visor.conversion')
 
@@ -39,8 +40,10 @@ GRUPO = {Material.Tipo.TABLERO: 'tableros', Material.Tipo.CANTO: 'cantos'}    # 
 
 def encolar(version):
     """Manda la versión a la cola cuando se confirma la transacción en curso (si no, el consumidor podría
-    buscarla antes de que exista)."""
+    buscarla antes de que exista). Los módulos prendidos suman su paso (cada uno en su tarea)."""
     transaction.on_commit(partial(convertir_version, version.taller_id, version.pk))
+    for modulo in registro.activos():
+        modulo.al_encolar(version)
 
 
 @db_task()
@@ -79,7 +82,7 @@ def preparar(version, tmp):
     for carpeta in (originales, texturas, tmp / 'Materials', resultado):
         carpeta.mkdir()
     dxf, ocps = None, []
-    for o in version.originales.all():
+    for o in version.originales.filter(tipo__in=[Original.Tipo.DXF, Original.Tipo.OCP]):
         local = originales / nombre_local(o.nombre)
         n = 1
         while local.exists():                 # dos .ocp con el mismo nombre: no pisar

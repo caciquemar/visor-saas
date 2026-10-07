@@ -14,6 +14,9 @@ Write-Host 'Instalando dependencias...'
 & $py -m pip install --quiet --upgrade pip
 & $py -m pip install --quiet -e '.[dev]'
 if ($LASTEXITCODE -ne 0) { throw 'No se pudieron instalar las dependencias' }
+# Módulo Zicar (solo Nord Good): el traductor está en su propio repo, al lado de este
+$zicar = Join-Path $PSScriptRoot '..\polyboard\Polyboard_to_zicar'
+if (Test-Path (Join-Path $zicar 'pyproject.toml')) { & $py -m pip install --quiet -e $zicar }
 
 if (-not (Test-Path .env)) {
     $clave = & $py -c 'import secrets; print(secrets.token_urlsafe(50))'

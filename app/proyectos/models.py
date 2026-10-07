@@ -99,6 +99,7 @@ class Original(DatoDeTaller):
     class Tipo(models.TextChoices):
         DXF = 'dxf', 'DXF 3D'
         OCP = 'ocp', 'Lista de OptiCut'
+        POSTPROCESADOR = 'zip', 'Carpeta del postprocesador'      # módulo Zicar
 
     version = models.ForeignKey(Version, on_delete=models.CASCADE, related_name='originales')
     tipo = models.CharField('tipo', max_length=3, choices=Tipo.choices)

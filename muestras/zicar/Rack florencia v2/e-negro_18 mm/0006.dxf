@@ -1,0 +1,626 @@
+  0
+SECTION
+  2
+HEADER
+  9
+$ACADVER
+  1
+AC1015
+  9
+$HANDSEED
+  5
+      29
+  0
+ENDSEC
+  0
+SECTION
+  2
+TABLES
+  0
+TABLE
+  2
+VPORT
+  5
+1
+100
+AcDbSymbolTable
+ 70
+     1
+  0
+VPORT
+  5
+2
+100
+AcDbSymbolTableRecord
+100
+AcDbViewportTableRecord
+  2
+*Active
+ 70
+     0
+ 12
+232
+ 22
+205.5
+ 40
+452.1
+ 41
+1.12895377129
+  0
+ENDTAB
+  0
+TABLE
+  2
+LTYPE
+  5
+3
+100
+AcDbSymbolTable
+ 70
+     2
+  0
+LTYPE
+  5
+4
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
+ByBlock
+ 70
+     0
+  0
+LTYPE
+  5
+5
+100
+AcDbSymbolTableRecord
+100
+AcDbLinetypeTableRecord
+  2
+ByLayer
+ 70
+     0
+  0
+ENDTAB
+  0
+TABLE
+  2
+LAYER
+  5
+6
+100
+AcDbSymbolTable
+ 70
+     1
+  0
+LAYER
+  5
+7
+100
+AcDbSymbolTableRecord
+100
+AcDbLayerTableRecord
+  2
+0
+ 70
+     0
+390
+
+  0
+ENDTAB
+  0
+TABLE
+  2
+STYLE
+  5
+8
+100
+AcDbSymbolTable
+ 70
+     1
+  0
+STYLE
+  5
+9
+100
+AcDbSymbolTableRecord
+100
+AcDbTextStyleTableRecord
+  2
+Standard
+ 70
+     0
+ 41
+1.0
+  3
+txt
+  0
+ENDTAB
+  0
+TABLE
+  2
+VIEW
+  5
+A
+100
+AcDbSymbolTable
+ 70
+     0
+  0
+ENDTAB
+  0
+TABLE
+  2
+UCS
+  5
+B
+100
+AcDbSymbolTable
+ 70
+     0
+  0
+ENDTAB
+  0
+TABLE
+  2
+APPID
+  5
+C
+100
+AcDbSymbolTable
+ 70
+     1
+  0
+APPID
+  5
+D
+100
+AcDbSymbolTableRecord
+100
+AcDbRegAppTableRecord
+  2
+ACAD
+ 70
+     0
+  0
+ENDTAB
+  0
+TABLE
+  2
+DIMSTYLE
+  5
+E
+100
+AcDbSymbolTable
+ 70
+     0
+100
+AcDbDimStyleTable
+  0
+ENDTAB
+  0
+TABLE
+  2
+BLOCK_RECORD
+  5
+F
+100
+AcDbSymbolTable
+ 70
+2
+  0
+BLOCK_RECORD
+  5
+10
+100
+AcDbSymbolTableRecord
+100
+AcDbBlockTableRecord
+  2
+*Model_Space
+  0
+BLOCK_RECORD
+  5
+11
+100
+AcDbSymbolTableRecord
+100
+AcDbBlockTableRecord
+  2
+*Paper_Space
+  0
+ENDTAB
+  0
+ENDSEC
+  0
+SECTION
+  2
+BLOCKS
+  0
+BLOCK
+  5
+12
+100
+AcDbEntity
+100
+AcDbBlockBegin
+  2
+*Model_Space
+  0
+ENDBLK
+  5
+13
+100
+AcDbEntity
+100
+AcDbBlockEnd
+  0
+BLOCK
+  5
+14
+100
+AcDbEntity
+100
+AcDbBlockBegin
+  2
+*Paper_Space
+  0
+ENDBLK
+  5
+15
+100
+AcDbEntity
+100
+AcDbBlockEnd
+  0
+ENDSEC
+  0
+SECTION
+  2
+ENTITIES
+  0
+POLYLINE
+  5
+16
+100
+AcDbEntity
+  8
+PANEL
+100
+AcDb2dPolyline
+ 66
+     1
+ 10
+0
+ 20
+0
+ 30
+0
+ 39
+-18
+ 70
+1
+  0
+VERTEX
+  5
+17
+100
+AcDbEntity
+  8
+PANEL
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+0
+ 20
+0
+ 30
+0
+  0
+VERTEX
+  5
+18
+100
+AcDbEntity
+  8
+PANEL
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+464
+ 20
+0
+ 30
+0
+  0
+VERTEX
+  5
+19
+100
+AcDbEntity
+  8
+PANEL
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+464
+ 20
+411
+ 30
+0
+  0
+VERTEX
+  5
+1A
+100
+AcDbEntity
+  8
+PANEL
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+0
+ 20
+411
+ 30
+0
+  0
+SEQEND
+  5
+1B
+100
+AcDbEntity
+  8
+PANEL
+  0
+POLYLINE
+  5
+1C
+100
+AcDbEntity
+  8
+CONTORNO
+100
+AcDb2dPolyline
+ 66
+     1
+ 10
+0
+ 20
+0
+ 30
+0
+ 39
+-18
+ 70
+1
+  0
+VERTEX
+  5
+1D
+100
+AcDbEntity
+  8
+CONTORNO
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+464
+ 20
+411
+ 30
+0
+  0
+VERTEX
+  5
+1E
+100
+AcDbEntity
+  8
+CONTORNO
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+464
+ 20
+0
+ 30
+0
+  0
+VERTEX
+  5
+1F
+100
+AcDbEntity
+  8
+CONTORNO
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+0
+ 20
+0
+ 30
+0
+  0
+VERTEX
+  5
+20
+100
+AcDbEntity
+  8
+CONTORNO
+100
+AcDbVertex
+100
+AcDb2dVertex
+ 10
+0
+ 20
+411
+ 30
+0
+  0
+SEQEND
+  5
+21
+100
+AcDbEntity
+  8
+CONTORNO
+  0
+CIRCLE
+  5
+22
+100
+AcDbEntity
+  8
+HDRILL
+100
+AcDbCircle
+ 39
+-35
+ 10
+50
+ 20
+-9
+ 30
+464
+ 40
+2.5
+210
+1
+220
+0
+230
+0
+  0
+CIRCLE
+  5
+23
+100
+AcDbEntity
+  8
+HDRILL
+100
+AcDbCircle
+ 39
+-35
+ 10
+361
+ 20
+-9
+ 30
+464
+ 40
+2.5
+210
+1
+220
+0
+230
+0
+  0
+CIRCLE
+  5
+24
+100
+AcDbEntity
+  8
+HDRILL
+100
+AcDbCircle
+ 39
+-35
+ 10
+-50
+ 20
+-9
+ 30
+0
+ 40
+2.5
+210
+-1
+220
+0
+230
+0
+  0
+CIRCLE
+  5
+25
+100
+AcDbEntity
+  8
+HDRILL
+100
+AcDbCircle
+ 39
+-35
+ 10
+-361
+ 20
+-9
+ 30
+0
+ 40
+2.5
+210
+-1
+220
+0
+230
+0
+  0
+ENDSEC
+  0
+SECTION
+  2
+OBJECTS
+  0
+DICTIONARY
+  5
+26
+100
+AcDbDictionary
+  3
+ACAD_GROUP
+350
+27
+  3
+ACAD_MLINESTYLE
+350
+28
+  0
+DICTIONARY
+  5
+27
+100
+AcDbDictionary
+  0
+DICTIONARY
+  5
+28
+100
+AcDbDictionary
+  0
+ENDSEC
+  0
+EOF

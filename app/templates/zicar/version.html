@@ -1,0 +1,13 @@
+<div class="zicar" style="margin:.5rem 0">
+  <strong>Zicar:</strong>
+  {% if r.estado == 'en_cola' %}esperando turno…
+  {% elif r.estado == 'convirtiendo' %}convirtiendo… esta página se actualiza sola.
+  {% elif r.estado == 'error' %}<span class="error">no se pudo convertir.</span> {{ r.mensaje }}
+  {% else %}{{ r.piezas }} pieza{{ r.piezas|pluralize }} convertida{{ r.piezas|pluralize }}.
+    <a class="boton" href="{% url 'taller:proyectos:descargar_zicar' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">Descargar Zicar</a>
+    {% if r.avisos %}
+    <details><summary>{{ r.avisos|length }} pieza{{ r.avisos|length|pluralize }} para revisar a mano</summary>
+      <ul>{% for a in r.avisos %}<li>{{ a }}</li>{% endfor %}</ul></details>
+    {% endif %}
+  {% endif %}
+</div>

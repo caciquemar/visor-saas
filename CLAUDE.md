@@ -42,7 +42,8 @@ app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario
                   Invitacion, separación entre talleres, PIN, Equipo, Marca), proyectos/ (Proyecto, Version, Original,
                   Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
                   visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
-                  API de trabajos del visor; vistas.py: la pantalla Trabajos), templates/
+                  API de trabajos del visor; vistas.py: la pantalla Trabajos), modulos/ (Modulo, TallerModulo;
+                  registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), templates/
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -60,6 +61,10 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
   conversión). Para ver la cola como en el servidor: `HUEY_INMEDIATO=0` y en otra consola
   `.venv\Scripts\python app\manage.py run_huey`.
 - Sin Docker: SQLite y Huey inmediato. Con Docker: `docker compose up -d` + `DATABASE_URL`/`REDIS_URL` en `.env`.
+- Módulo Zicar: necesita el paquete `pb2zicar` (repo `Polyboard_to_zicar`, aparte). `iniciar.ps1` lo instala si la
+  carpeta está al lado (`..\polyboard\Polyboard_to_zicar`); en el servidor, `pip install -r requirements-zicar.txt`.
+  Se prende por taller en la administración (ficha del taller → Módulos). En la PC está prendido en
+  `nord-good-prueba` (dueño: el usuario de `datos/usuario_de_prueba.txt`).
 
 ## Reglas que no se negocian
 
@@ -151,9 +156,25 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   etapas con fin de fabricación y control de carga, probador de colores en el link del cliente. Orden sugerido en
   `docs/sesiones/README.md`.
 
+- 2026-10-07: **ficha 06 hecha.** Módulos por taller (`modulos/`): catálogo `Modulo` + `TallerModulo` (prendido,
+  configuración JSON), prendidos desde la ficha del taller en la administración; `registro.py` con los ganchos (campo
+  en la subida, paso extra en la conversión, HTML en cada versión) y `con_modulo` (404 si no está prendido, antes que
+  el rol). Módulo Zicar (`modulos/zicar/`): la carpeta del postprocesador se sube como ZIP o arrastrando la carpeta
+  (la página arma el ZIP), se revisa (rutas, cantidad, tamaño, que tenga DXF), se convierte con `pb2zicar` en su
+  propia tarea y proceso aparte, y queda "Descargar Zicar" (`<carpeta>_zicar.zip`) con la lista de piezas para
+  revisar a mano; solo dueño y oficina. `Polyboard_to_zicar` ahora es instalable (`pyproject.toml`, etiqueta v1.0.0).
+  Probado con dos proyectos reales de Nord Good (*Rack florencia v2*, subido como ZIP del Explorador, y *Kogan2*, con
+  el ZIP armado por el JavaScript de la página): el ZIP descargado es igual byte a byte a lo que genera hoy "Convertir
+  proyecto" (`run.py`); `taller-prueba` no ve nada de Zicar y la descarga armada a mano da 404. Próxima: 12.
+
 ## Pendientes
 
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
+- Ficha 07: instalar el módulo Zicar en el servidor (`requirements-zicar.txt`) con un token de GitHub de solo lectura
+  para `Polyboard_to_zicar` (fine-grained, solo ese repo), usado solo al instalar; prender Zicar a Nord Good. Hacer
+  `git push --tags` en `Polyboard_to_zicar` para que exista `v1.0.0` en GitHub.
+- Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
+  se puede dejar de usar (no se tocó la PC).
 - Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
   límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
   (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.

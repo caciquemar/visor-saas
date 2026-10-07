@@ -28,6 +28,10 @@ vinculados, avisos) y escribir `NOTAS.md`.
 | Rack florencia | nuevo | 68 | 70 | 14 | 11 |
 | rack tv terrero | nuevo | 69 | 110 | 0 | 3 |
 
+**Zicar:** `muestras/zicar/<proyecto>/` tiene carpetas del postprocesador de Polyboard (una subcarpeta por material
+con un DXF por pieza), para las pruebas del módulo Zicar (`tests/app/test_modulos.py`). No tienen `esperado/`: se
+comparan con lo que genera `pb2zicar` en el momento. Hoy: *Rack florencia v2* (47 DXF).
+
 Cubrir al menos:
 - [x] OptiCut viejo y OptiCut nuevo.
 - [ ] Mueble suelto (proyecto vacío en el .ocp).
