@@ -36,3 +36,5 @@ Martín las pidió ya en el visor del NAS: están hechas ahí (`polyboard`, comm
 `cotasTaladros`, `linea`). Se calculan en el visor con las piezas (sirven los proyectos ya convertidos y el link del
 cliente). Herrajes: solo sus taladros; la caja del herraje no se acota. Esta ficha pasa a ser llevar eso a
 `visor/index.html` y sumar las pruebas.
+Después (c528d11): tres botones de cotas, Generales, Internas y Mecanizado (este último solo en el taller), cada uno
+se prende aparte y el taller los recuerda; el cliente arranca con Generales prendido.
