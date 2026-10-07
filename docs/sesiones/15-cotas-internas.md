@@ -30,3 +30,9 @@ las distancias de los taladros a los bordes, y coinciden con el DXF del postproc
 ## Para abrir la sesión
 > Leé `CLAUDE.md` y `docs/sesiones/15-cotas-internas.md`. Empezá en modo plan. Mirá cómo dibuja hoy las cotas
 > `visor/index.html` (función `cotas`) y qué trae cada panel en `tal` antes de proponer dónde calcular.
+
+## Nota (2026-10-07)
+Martín las pidió ya en el visor del NAS: están hechas ahí (`polyboard`, commit 31709bc, `index.html`: `cotasLuces`,
+`cotasTaladros`, `linea`). Se calculan en el visor con las piezas (sirven los proyectos ya convertidos y el link del
+cliente). Herrajes: solo sus taladros; la caja del herraje no se acota. Esta ficha pasa a ser llevar eso a
+`visor/index.html` y sumar las pruebas.
