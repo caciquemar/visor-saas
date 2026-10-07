@@ -141,7 +141,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
   Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
 - Conversor y visor actual de Nord Good: la regla de los lados (sin canto MDF, canto igual al tablero) cambió
-  `glb_ar` en este repo; el visor del NAS no la tiene. Llevarla solo si Martín lo pide.
+  `glb_ar` en este repo; el visor del NAS no la tiene. Va con el resto de los cambios al NAS, que quedan para el final (decisión de Martín, 2026-10-06).
 - Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
   (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
 - Ficha 05: el visor tiene los trabajos apagados con `VISOR.trabajos = false` (`proyectos/visor.py`); al hacer la API
