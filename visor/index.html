@@ -12,7 +12,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-title" content="Visor">
 <script>
-  /* Lo pone la app al servir la página: {cliente, marca: {nombre, color, logo}, pie, trabajos}. Sin esto, el visor
+  /* Lo pone la app al servir la página: {cliente, marca: {nombre, color, logo}, pie, trabajos, fotos, yo, equipo, csrf}. Sin esto, el visor
      anda como siempre (data/index.json y ?c=<código>). */
   window.VISOR = /*__VISOR__*/null;
   // app instalable (pantalla de inicio) solo para el taller: el link del cliente tiene que abrir su proyecto
@@ -97,7 +97,7 @@ header h1,.btn-muebles{flex:none}
 .chip{font:500 14px var(--sans);color:var(--tinta);background:var(--fondo);border:1px solid var(--linea);border-radius:16px;padding:5px 10px}
 .chip[aria-pressed="true"],.chip.pieza{background:#7B3FE4;border-color:#7B3FE4;color:#fff}
 .form-trab label{display:block;font-size:14px;color:var(--tinta-2);margin:12px 0 4px}
-.form-trab textarea,.form-trab input:not([type=file]){width:100%;font:16px var(--sans);color:var(--tinta);background:var(--fondo);
+.form-trab textarea,.form-trab input:not([type=file]),.form-trab select{width:100%;font:16px var(--sans);color:var(--tinta);background:var(--fondo);
   border:1px solid var(--linea);border-radius:8px;padding:8px 10px}
 .fila2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .marcando{padding:8px 10px;border-radius:8px;border:1px dashed #7B3FE4;font-size:15px;color:var(--tinta)}
@@ -1261,21 +1261,25 @@ function leido(txt){ cerrarEscaner(); $('numManual').value = normalizar(txt).pad
 $('btnEscanear').onclick = abrirEscaner;
 $('btnCerrar').onclick = cerrarEscaner;
 
-/* ---------- trabajos a realizar (servicio servidor/api.py, en /api/) ---------- */
-const nombreYo = () => { try{ return localStorage.getItem('armado.nombre') || ''; }catch(e){ return ''; } };
+/* ---------- trabajos a realizar (con la app: trabajos/api.py en api/; sin ella: servidor/api.py) ---------- */
+// con la app, el nombre sale de la sesión (VISOR.yo); sin ella, del que se escribió en este celular
+const nombreYo = () => { if (VISOR.yo) return VISOR.yo.nombre; try{ return localStorage.getItem('armado.nombre') || ''; }catch(e){ return ''; } };
 const guardarNombre = n => { try{ localStorage.setItem('armado.nombre', n); }catch(e){} };
-async function api(ruta, opciones){
+async function api(ruta, opciones = {}){
+  const metodo = (opciones.method || 'GET').toUpperCase();
+  if (VISOR.csrf && metodo !== 'GET') opciones = {...opciones, headers: {...(opciones.headers || {}), 'X-CSRFToken': VISOR.csrf}};
   const r = await fetch('api/' + ruta, {cache: 'no-store', ...opciones});
   if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'error ' + r.status);
   return r.status === 204 ? null : r.json();
 }
+const proyectoApi = () => item && item.id != null ? item.id : datos.proyecto;
 const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
 let pedidoLista = 0;
 async function cargarTrabajos(){
   if (CLIENTE || !datos || VISOR.trabajos === false) return;
   const pedido = ++pedidoLista;   // solo vale la respuesta del último pedido: una vieja que llega tarde no pisa un cambio
   let lista = null;
-  try{ lista = await api('trabajos?proyecto=' + encodeURIComponent(datos.proyecto)); }catch(e){}
+  try{ lista = await api('trabajos?proyecto=' + encodeURIComponent(proyectoApi())); }catch(e){}
   if (pedido !== pedidoLista) return;
   TR.lista = lista || []; TR.disponible = !!lista;
   const n = TR.lista.filter(abierto).length;
@@ -1349,7 +1353,7 @@ function mostrarTrabajos(){
   if (v && v.form) return;   // el formulario se dibuja una vez (no perder lo que se está escribiendo)
   if (v && v.detalle) return mostrarDetalle(v.detalle);
   if (TR.disponible === false){
-    el.innerHTML = cabecera('Trabajos') + '<p class="nota">Los trabajos no están disponibles en este servidor (falta el servicio api del NAS).</p>';
+    el.innerHTML = cabecera('Trabajos') + '<p class="nota">No se pudieron cargar los trabajos. Revisá la conexión y probá de nuevo.</p>';
     el.querySelector('[data-cerrar]').onclick = cerrarTrabajos; return;
   }
   const f = TR.filtro;
@@ -1422,15 +1426,15 @@ function mostrarDetalle(id){
     ${t.fotos.length ? `<div class="fotos">${t.fotos.map(f => `<a class="foto" href="api/fotos/${encodeURIComponent(f)}" target="_blank" rel="noopener"><img src="api/fotos/${encodeURIComponent(f)}" alt="Foto del trabajo" loading="lazy"></a>`).join('')}</div>` : ''}
     <div class="estados" role="group" aria-label="Estado">${ESTADOS.map(e =>
       `<button data-est="${e}" aria-pressed="${t.estado === e}" style="--c:${hex(COLOR_ESTADO[e][0])}">${NOMBRE_ESTADO[e]}</button>`).join('')}</div>
-    <div class="botonera">
+    ${t.puede_editar === false ? '' : `<div class="botonera">
       <button class="btn-sec" data-editar>Editar</button>
       <button class="btn-sec btn-peligro" data-borrar>Borrar</button>
-    </div>`;
+    </div>`}`;
   el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
   el.querySelector('[data-volver]').onclick = () => { TR.vista = 'lista'; TR.resaltar = null; pintar(); mostrarTrabajos(); };
   el.querySelectorAll('[data-est]').forEach(b => b.onclick = () => cambiarEstado(t.id, b.dataset.est));
-  el.querySelector('[data-editar]').onclick = () => abrirForm(t);
-  el.querySelector('[data-borrar]').onclick = async () => {
+  if (el.querySelector('[data-editar]')) el.querySelector('[data-editar]').onclick = () => abrirForm(t);
+  if (el.querySelector('[data-borrar]')) el.querySelector('[data-borrar]').onclick = async () => {
     if (!confirm('¿Borrar este trabajo y sus fotos?')) return;
     try{ await api('trabajos/' + t.id, {method: 'DELETE'}); }catch(e){ alert('No se pudo borrar: ' + e.message); }
     TR.vista = 'lista'; TR.resaltar = null; pintar(); cargarTrabajos(); mostrarTrabajos();
@@ -1441,7 +1445,7 @@ function mostrarDetalle(id){
 
 /* formulario: nuevo o editar; las piezas se marcan tocándolas en el dibujo */
 function abrirForm(base){
-  const f = {id: base.id || null, texto: base.texto || '', asignado: base.asignado || '', limite: base.limite || '',
+  const f = {id: base.id || null, texto: base.texto || '', asignado: base.asignado || '', asignadoId: base.asignado_id ?? null, limite: base.limite || '',
     piezas: new Set(base.piezas || []), muebles: new Set(base.muebles || []), fotos: [...(base.fotos || [])], quitar: [], nuevas: []};
   TR.vista = {form: f}; TR.marcando = f; TR.resaltar = null;
   $('panelTrabajos').hidden = false; $('panelMuebles').hidden = true; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
@@ -1450,14 +1454,14 @@ function abrirForm(base){
   const el = $('panelTrabajos');
   el.innerHTML = cabecera(f.id ? 'Editar trabajo' : 'Nuevo trabajo') + `<div class="form-trab">
     <label for="ftTexto">Qué hay que hacer</label><textarea id="ftTexto" rows="3" maxlength="4000">${esc(f.texto)}</textarea>
-    <div class="fila2"><div><label for="ftAsig">Para quién</label><input id="ftAsig" list="ftNombres" maxlength="80" value="${esc(f.asignado)}"></div>
+    <div class="fila2"><div><label for="ftAsig">Para quién</label>${campoAsignado(f)}</div>
       <div><label for="ftLim">Fecha límite</label><input id="ftLim" type="date" value="${esc(f.limite)}"></div></div>
     <datalist id="ftNombres">${nombres.map(n => `<option value="${esc(n)}">`).join('')}</datalist>
     <label>Piezas</label><div class="marcando">Tocá piezas en el dibujo para marcarlas o desmarcarlas.</div>
     <div class="chips" id="ftPiezas"></div>
     <label>Muebles</label><div class="chips">${muebles.map(n => `<button class="chip" data-mueble="${esc(n)}" aria-pressed="${f.muebles.has(n)}">${esc(n)}</button>`).join('')}</div>
     <label>Fotos</label><div class="fotos" id="ftFotos"></div>
-    <label class="btn-sec" for="ftArchivo" style="display:inline-flex;margin:0;color:var(--tinta);font-size:16px">📷 Agregar foto</label>
+    ${VISOR.fotos === false ? '' : '<label class="btn-sec" for="ftArchivo" style="display:inline-flex;margin:0;color:var(--tinta);font-size:16px">📷 Agregar foto</label>'}
     <input id="ftArchivo" type="file" accept="image/*" multiple hidden>
     ${nombreYo() ? '' : '<label for="ftYo">Tu nombre (queda guardado en este celular)</label><input id="ftYo" maxlength="80" autocomplete="name">'}
     <p class="error" id="ftError"></p>
@@ -1475,6 +1479,15 @@ function abrirForm(base){
   const mallas = paneles.filter(m => enClaves(f.piezas, m.userData.p) || f.muebles.has(m.userData.p.mueble));
   if (mallas.length) encuadrar(cajaDe(paneles.filter(m => mallas.some(x => x.userData.p.mueble === m.userData.p.mueble))));
   if (!f.id) $('ftTexto').focus();
+}
+// con la app, "Para quién" es la gente del taller (VISOR.equipo); sin ella, texto libre con los nombres ya usados
+function campoAsignado(f){
+  if (!VISOR.equipo) return `<input id="ftAsig" list="ftNombres" maxlength="80" value="${esc(f.asignado)}">`;
+  const gente = VISOR.equipo.slice();
+  // alguien que ya no está en el taller sigue apareciendo en los trabajos que tenía
+  if (f.asignadoId != null && !gente.some(g => g.id === f.asignadoId)) gente.push({id: f.asignadoId, nombre: f.asignado});
+  return `<select id="ftAsig"><option value="">Nadie en especial</option>${gente.map(g =>
+    `<option value="${g.id}"${g.id === f.asignadoId ? ' selected' : ''}>${esc(g.nombre)}</option>`).join('')}</select>`;
 }
 function piezasForm(f){
   $('ftPiezas').innerHTML = [...f.piezas].map(k => `<button class="chip pieza" data-quitar="${esc(k)}" aria-label="Quitar ${esc(etiquetaPieza(k))}">${esc(etiquetaPieza(k))} ×</button>`).join('')
@@ -1508,12 +1521,12 @@ async function guardarForm(f){
   const texto = $('ftTexto').value.trim(), boton = document.querySelector('[data-guardar]');
   if (!texto){ $('ftError').textContent = 'Escribí qué hay que hacer.'; $('ftError').classList.add('visible'); return; }
   if ($('ftYo')){ const yo = $('ftYo').value.trim(); if (!yo){ $('ftError').textContent = 'Escribí tu nombre.'; $('ftError').classList.add('visible'); return; } guardarNombre(yo); }
-  const cuerpo = {texto, asignado: $('ftAsig').value.trim() || null, limite: $('ftLim').value || null,
+  const cuerpo = {texto, asignado: VISOR.equipo ? ($('ftAsig').value ? +$('ftAsig').value : null) : $('ftAsig').value.trim() || null, limite: $('ftLim').value || null,
     piezas: [...f.piezas], muebles: [...f.muebles]};
   boton.disabled = true; boton.textContent = 'Guardando…';
   try{
     const t = f.id ? await api('trabajos/' + f.id, jsonApi('PATCH', cuerpo))
-                   : await api('trabajos', jsonApi('POST', {...cuerpo, proyecto: datos.proyecto, autor: nombreYo()}));
+                   : await api('trabajos', jsonApi('POST', {...cuerpo, proyecto: proyectoApi(), autor: nombreYo()}));
     f.id = t.id;   // si falla una foto, reintentar edita este trabajo en vez de crear otro
     while (f.quitar.length){ await api(`trabajos/${t.id}/fotos/${encodeURIComponent(f.quitar[0])}`, {method: 'DELETE'}); f.quitar.shift(); }
     while (f.nuevas.length){

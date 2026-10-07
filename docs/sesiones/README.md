@@ -11,7 +11,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [02](02-talleres-usuarios.md) | Talleres, usuarios, roles, PIN, separación entre talleres | 01 | 5–6 | hecha (2026-10-05) |
 | [03](03-subida-conversion.md) | Subir proyecto, cola de conversión, versiones, archivos | 02 | 6–8 | hecha (2026-10-06) |
 | [04](04-visor-link-cliente.md) | Visor dentro de la app y link del cliente con la marca del taller | 03 | 8–9 | hecha (2026-10-06) |
-| [05](05-trabajos.md) | Trabajos a realizar y fotos | 04 | 9–10 | pendiente |
+| [05](05-trabajos.md) | Trabajos a realizar y fotos | 04 | 9–10 | hecha (2026-10-07) |
 | [06](06-modulos-zicar.md) | Módulos por taller y módulo Zicar (solo Nord Good) | 03 | 10–11 | pendiente |
 | [07](07-produccion.md) | Servidor en la nube, Cloudflare, copias y monitoreo | 05 | 11–12 | pendiente |
 | [08](08-planes-mercadopago.md) | Planes, límites y suscripciones de Mercado Pago | 07 | 13–14 | pendiente |

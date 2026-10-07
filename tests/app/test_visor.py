@@ -83,9 +83,16 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     original = INDEX.read_text(encoding='utf-8')
     html = r.content.decode()
     config = config_de(r)
-    assert config == {'trabajos': False, 'sinCanto': '#B58F63', 'marca': {'nombre': 'Taller A'}}
+    crudo = json.dumps(config, ensure_ascii=False)
+    csrf = config.pop('csrf')
+    assert csrf and r.cookies['csrftoken']
+    # equipo: la gente activa de A (no la de B), para "Para quién" en los trabajos
+    assert config == {'trabajos': True, 'fotos': True, 'yo': {'id': t.armador_a.pk, 'nombre': 'Arturo'},
+                      'equipo': [{'id': t.dueno_a.pk, 'nombre': 'Ana'}, {'id': t.armador_a.pk, 'nombre': 'Arturo'},
+                                 {'id': t.oficina_a.pk, 'nombre': 'Olga'}],
+                      'sinCanto': '#B58F63', 'marca': {'nombre': 'Taller A'}}
     # nada más cambia: así el visor no se separa de visor/index.html
-    assert html.replace(json.dumps(config, ensure_ascii=False), '/*__VISOR__*/null') == original
+    assert html.replace(crudo, '/*__VISOR__*/null') == original
     assert 'Nord Good' not in html
     assert r['Cache-Control'] == 'no-cache'
 

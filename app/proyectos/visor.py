@@ -6,6 +6,7 @@ página, así index.html cambia lo mínimo:
     /<taller>/visor/                      la página (con login, como todo /<taller>/)
     /<taller>/visor/data/index.json       proyectos con versión lista
     /<taller>/visor/data/<id>/<ruta>      resultado/ de la versión actual del proyecto <id>
+    /<taller>/visor/api/…                 trabajos a realizar (trabajos/api.py)
     /c/<código>/                          la página en modo cliente (sin login; el middleware pone el taller del link)
     /c/<código>/data/cliente.json         la versión cliente (sin números de mecanizado)
     /c/<código>/data/clientes/<cc>/x.glb  modelos para realidad aumentada
@@ -21,12 +22,14 @@ from functools import lru_cache
 from django.conf import settings
 from django.db.models import F, Q
 from django.http import Http404, HttpResponse, JsonResponse
+from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.templatetags.static import static
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from talleres.archivos import abrir_de_taller
+from talleres.limites import permite
 from talleres.models import Membresia
 from talleres.roles import miembro
 
@@ -88,8 +91,19 @@ def url_de_link(request, link):
 
 @miembro
 def visor(request, taller):
-    return pagina({'trabajos': False, 'sinCanto': request.taller.color_sin_canto,
-                   'marca': {'nombre': request.taller.nombre}})
+    """Con trabajos (trabajos/api.py): quién es el que mira, la gente del taller para "Para quién" y el token CSRF
+    que el visor manda al anotar o cambiar."""
+    equipo = Membresia.objects.filter(activa=True).select_related('usuario')
+    return pagina({
+        'trabajos': permite(request.taller, 'trabajos'),
+        'fotos': permite(request.taller, 'fotos_de_trabajos'),
+        'yo': {'id': request.user.pk, 'nombre': str(request.user)},
+        'equipo': sorted(({'id': m.usuario_id, 'nombre': str(m.usuario)} for m in equipo),
+                         key=lambda x: x['nombre'].lower()),
+        'csrf': get_token(request),
+        'sinCanto': request.taller.color_sin_canto,
+        'marca': {'nombre': request.taller.nombre},
+    })
 
 
 @miembro

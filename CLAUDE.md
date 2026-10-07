@@ -41,7 +41,8 @@ negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negoci
 app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario), talleres/ (Taller, Membresia,
                   Invitacion, separación entre talleres, PIN, Equipo, Marca), proyectos/ (Proyecto, Version, Original,
                   Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
-                  visor.py: el visor y el link del cliente), templates/
+                  visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
+                  API de trabajos del visor), templates/
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -130,6 +131,16 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   pieza y los GLB de realidad aumentada del conversor (`glb_ar(..., sin_canto=)`, `convertir(sin_canto=)`,
   `--sin-canto`); por eso cambiaron las huellas de los GLB en `muestras/*/esperado/resumen.json` (el resto es igual).
   Si el taller cambia el color, la AR lo toma al "Volver a convertir".
+- 2026-10-07: **ficha 05 hecha.** Trabajos a realizar dentro de la app (`trabajos/`): `Trabajo` (proyecto, texto,
+  piezas, muebles, estado pendiente → en proceso → hecho → instalado, autor, para quién, fecha límite, quién y cuándo
+  de cada paso con la misma regla que `referencia/api_actual.py`), `CambioDeEstado` (historial que solo suma) y `Foto`
+  (almacenamiento del taller, 12 MB, JPG/PNG/WEBP comprobado con Pillow). API con las mismas rutas en
+  `/<taller>/visor/api/` (`trabajos/api.py`) y las mismas respuestas, salvo: el proyecto va por id, "Para quién" es un
+  miembro activo del taller y autor/quién salen de la sesión. Cualquier miembro anota, cambia el estado y sube fotos;
+  editar, borrar y quitar fotos ajenas es del autor, el dueño o la oficina. Límites por plan preparados
+  (`talleres/limites.py`, hoy todo permitido). `index.html`: token CSRF, proyecto por id, "Para quién" como lista,
+  sin "Tu nombre", Editar/Borrar solo si `puede_editar`. Probado en el navegador integrado con `taller-prueba`
+  (dueño con mail y armador con PIN: anotar, foto, estados, permisos). Próxima: 06.
 
 ## Pendientes
 
@@ -144,8 +155,13 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   `glb_ar` en este repo; el visor del NAS no la tiene. Va con el resto de los cambios al NAS, que quedan para el final (decisión de Martín, 2026-10-06).
 - Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
   (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
-- Ficha 05: el visor tiene los trabajos apagados con `VISOR.trabajos = false` (`proyectos/visor.py`); al hacer la API
-  de trabajos en `/<taller>/visor/api/…`, prenderlos ahí.
+- Trabajos: un armador no puede sumar fotos a un trabajo que anotó otro desde el visor (la foto se agrega en el
+  formulario de Editar, que solo ve quien puede editar), aunque el servidor lo permite. Si Martín lo quiere, agregar
+  "Agregar foto" en el detalle del trabajo.
+- Ficha 08: completar `talleres/limites.py` (`trabajos`, `fotos_de_trabajos`); el plan Taller de `docs/plan.md` no
+  dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
+- Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con
+  los usuarios del taller (o dejarlos vacíos) y el proyecto va por nombre (puede haber dos iguales).
 - Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la
   imagen en JPG, PNG o WEBP" (`FormMaterial.clean_textura` revisa el archivo que ya estaba). Mismo arreglo que
   `FormMarca.clean_logo`: revisar solo si es un `UploadedFile`.

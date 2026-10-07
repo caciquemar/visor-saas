@@ -15,4 +15,5 @@ urlpatterns = [
     path('marca/', vistas.marca, name='marca'),
     path('marca/logo/', vistas.logo, name='logo'),
     path('', include('proyectos.urls')),
+    path('visor/api/', include('trabajos.urls')),
 ]

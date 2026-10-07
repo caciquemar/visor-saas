@@ -2,6 +2,23 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-07 · Trabajos: gente del taller y quién puede qué
+"Para quién" es solo un miembro activo del taller (decisión de Martín): queda vinculado al usuario y el nombre sale
+de su perfil; el que ya tenía un trabajo lo conserva aunque deje el taller. Quién anota y quién cambia cada estado
+sale de la sesión, no de lo que mande el navegador (en el NAS era un nombre guardado en el celular). Cualquier
+miembro anota, cambia el estado y sube fotos; cambiar texto, piezas, fecha o para quién, borrar y quitar fotos ajenas
+es de quien lo anotó, el dueño o la oficina (propuesto y aceptado por defecto; se cambia en `puede_editar`).
+Descartado: texto libre para alguien de afuera (por ahora).
+
+## 2026-10-07 · Trabajos: mismas rutas que el NAS, proyecto por id
+La API vive en `/<taller>/visor/api/` con las rutas y respuestas de `referencia/api_actual.py`, así `index.html`
+cambió poco: `autor`, `asignado` y `*_por` siguen siendo nombres (más `asignado_id` y `puede_editar`). El trabajo va
+con el proyecto (no con la versión) por su id, porque dos proyectos pueden llamarse igual. El visor manda el token
+CSRF de `VISOR.csrf`. Además del último quién/cuándo de cada paso (como en el NAS), `CambioDeEstado` guarda todos los
+cambios, también los que se deshacen al volver atrás. Las fotos se comprueban con Pillow (el tipo que dice el pedido
+tiene que ser el real) y se leen sin `request.body`, cuyo tope de Django es 2,5 MB. Límites por plan en
+`talleres/limites.py`: `trabajos` y `fotos_de_trabajos` por separado; la ficha 08 los activa.
+
 ## 2026-10-06 · Cómo se pintan los lados de las piezas
 Definición de Martín. Lado sin canto: un color de MDF que elige cada taller (Materiales; `#B58F63` por defecto).
 Canto que se llama como el tablero de la pieza: se ve igual que el tablero, con su textura. Los nombres se comparan sin
