@@ -2,6 +2,14 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-07 · Pilotos en el NAS, cobro en un VPS
+Decisión de Martín. Mientras los pilotos usan el servicio gratis, corre en el NAS de Terrero (TrueNAS, 8 GB de RAM,
+compartido con Nextcloud, n8n y el visor de Nord Good) detrás del túnel de Cloudflare: no hay costo de servidor
+mientras se valida. Condiciones: el mismo Docker Compose que va a usar el VPS, archivos en R2 (no gastan la subida de
+la casa), copia diaria de la base fuera del NAS, límites de memoria y una conversión a la vez. Antes de cobrar
+(ficha 08) se muda a un VPS (ficha 07b). Descartado: cobrarles a los talleres con el servicio en la casa (cortes de
+luz e internet) y contratar el VPS ya.
+
 ## 2026-10-07 · Las luces entre piezas se ven también en el link del cliente
 Decisión de Martín (ficha 15). Las cotas internas de luces entre piezas (alto, ancho y profundidad libres de cada
 hueco) se muestran en el visor del taller y en el link del cliente. Las distancias de taladros y herrajes quedan solo

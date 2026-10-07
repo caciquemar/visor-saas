@@ -63,6 +63,6 @@ otro fabricante; caídas del servicio.
 ## Hoja de ruta
 1. Esta semana: cerrar el visor actual con Cloudflare Access.
 2. Semanas 1–4: validar con 10 talleres, 3 pilotos; definir marca, logo y dominio; video demo.
-3. Semanas 5–12: versión multi-taller (fichas 01–07), etiquetas, avance y carga, probador de colores (fichas 12–14), pilotos (ficha 11).
-4. Semanas 13–15: cobro, factura, página de venta (fichas 08–10).
+3. Semanas 5–12: versión multi-taller (fichas 01–06), servicio en el NAS para pilotos (07a), etiquetas, avance y carga, probador de colores (fichas 12–14), pilotos (ficha 11).
+4. Semanas 13–15: mudanza a un VPS (07b), cobro, factura, página de venta (fichas 08–10).
 5. Semana 16 en adelante: lanzamiento y diferenciales.
