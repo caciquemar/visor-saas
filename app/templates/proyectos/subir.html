@@ -8,6 +8,7 @@
   .zona input { position:absolute; width:1px; height:1px; opacity:0; }
   .elegidos { list-style:none; padding:0; margin:.5rem 0 0; text-align:left; }
   .elegidos li { padding:.15rem 0; }
+  .elegidos .quitar { padding:.15rem .6rem; font-size:.85rem; margin-left:.5rem; }
   progress { width:100%; height:.8rem; margin-top:1rem; }
 </style>
 {% endblock %}
@@ -29,7 +30,7 @@
   <label class="zona" id="zona">
     {{ form.archivos }}
     <strong>Arrastrá acá el DXF y el .ocp</strong><br>
-    <span class="suave">o tocá para elegirlos</span>
+    <span class="suave">o tocá para elegirlos (pueden ir de a uno)</span>
     <ul class="elegidos" id="elegidos"></ul>
   </label>
   <span class="ayuda">{{ form.archivos.help_text }} Máximo {{ max_dxf }} MB el DXF.</span>
@@ -42,15 +43,47 @@
 (function () {
   var form = document.getElementById('subida'), zona = document.getElementById('zona');
   var input = zona.querySelector('input[type=file]'), lista = document.getElementById('elegidos');
+  // Los archivos se van sumando (arrastrados o elegidos de a uno): el navegador reemplaza la selección del
+  // input cada vez, así que se guardan acá y se vuelven a poner todos juntos en el input.
+  var elegidos = [];
+  var dxf = function (f) { return /\.dxf$/i.test(f.name); };
+  function sumar(nuevos) {
+    Array.prototype.forEach.call(nuevos, function (f) {
+      // el mismo nombre se reemplaza, y hay un solo DXF por proyecto: uno nuevo reemplaza al anterior
+      elegidos = elegidos.filter(function (e) { return e.name !== f.name && !(dxf(f) && dxf(e)); });
+      elegidos.push(f);
+    });
+    sincronizar();
+  }
+  function sincronizar() {
+    try {
+      var dt = new DataTransfer();
+      elegidos.forEach(function (f) { dt.items.add(f); });
+      input.files = dt.files;
+    } catch (e) {            // navegador viejo: queda lo último elegido
+      elegidos = Array.prototype.slice.call(input.files);
+    }
+    mostrar();
+  }
   function mostrar() {
     lista.innerHTML = '';
-    Array.prototype.forEach.call(input.files, function (f) {
-      var li = document.createElement('li');
-      li.textContent = f.name + ' · ' + (f.size / 1048576).toFixed(1) + ' MB';
+    elegidos.forEach(function (f, i) {
+      var li = document.createElement('li'), quitar = document.createElement('button');
+      li.textContent = f.name + ' · ' + (f.size / 1048576).toFixed(1) + ' MB ';
+      quitar.type = 'button';
+      quitar.className = 'secundario quitar';
+      quitar.textContent = 'Quitar';
+      quitar.setAttribute('aria-label', 'Quitar ' + f.name);
+      quitar.addEventListener('click', function (e) {
+        e.preventDefault(); e.stopPropagation();     // que no abra el selector de archivos
+        elegidos.splice(i, 1);
+        sincronizar();
+      });
+      li.appendChild(quitar);
       lista.appendChild(li);
     });
   }
-  input.addEventListener('change', mostrar);
+  input.addEventListener('change', function () { sumar(input.files); });
   ['dragenter', 'dragover'].forEach(function (ev) {
     zona.addEventListener(ev, function (e) { e.preventDefault(); zona.classList.add('encima'); });
   });
@@ -59,7 +92,7 @@
   });
   zona.addEventListener('drop', function (e) {
     e.preventDefault();
-    if (e.dataTransfer && e.dataTransfer.files.length) { input.files = e.dataTransfer.files; mostrar(); }
+    if (e.dataTransfer && e.dataTransfer.files.length) sumar(e.dataTransfer.files);
   });
   // Subida con barra de progreso (sin JavaScript, el formulario se manda igual).
   form.addEventListener('submit', function (e) {
