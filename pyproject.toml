@@ -12,10 +12,13 @@ dependencies = [
     "redis>=5",
     "ezdxf>=1.4",
     "pillow>=11",
+    "whitenoise>=6.8",
 ]
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-django>=4.9"]
+# en el servidor (Dockerfile): servidor web y avisos de errores
+servidor = ["gunicorn>=23", "sentry-sdk[django]>=2.20"]
 
 [tool.setuptools]
 # no es un paquete instalable: `pip install -e .[dev]` solo instala las dependencias
@@ -27,5 +30,6 @@ testpaths = ["tests"]
 DJANGO_SETTINGS_MODULE = "config.settings_pruebas"
 markers = [
     "muestras: convierte los proyectos reales de muestras/ (lento, unos 8 minutos)",
+    "postgres: necesita PostgreSQL (PRUEBAS_DATABASE_URL); sin eso se saltean. Corren en GitHub Actions",
 ]
 addopts = "-ra"

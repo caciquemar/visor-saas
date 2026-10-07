@@ -1,0 +1,91 @@
+# Visor SaaS en el servidor. El MISMO archivo para el NAS (pilotos, ficha 07a) y para el VPS (ficha 07b).
+# Paso a paso en docs/operacion.md.
+#
+# NAS (TrueNAS SCALE): Apps > Discover > ⋮ > Install via YAML, pegar este archivo entero.
+# VPS: docker compose -f compose.yml up -d (con VISOR_DATOS=/ruta en el entorno o en un .env al lado).
+#
+# Lo que cambia entre NAS y VPS:
+#   - la carpeta de datos: VISOR_DATOS (en el NAS queda la de abajo, no hace falta ponerla)
+#   - config/visor.env y config/postgres.env adentro de esa carpeta (claves, dominio, R2...)
+# Para pasar a una versión nueva: cambiar el número en la línea "image: ghcr.io/..." de abajo y guardar.
+# Volver atrás: poner el número anterior (la base no se toca; si la versión nueva migró, ver docs/operacion.md).
+#
+# Puerto 8090: el túnel de Cloudflare apunta a http://<IP del NAS>:8090. No choca con el visor de Nord Good
+# (visor-armado, 8088), que sigue igual.
+
+x-visor: &visor
+  image: ghcr.io/caciquemar/visor-saas:v0.7.0
+  restart: unless-stopped
+  env_file:
+    - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/visor.env
+  logging: &logs
+    driver: json-file
+    options: {max-size: 10m, max-file: "3"}
+
+services:
+  # Una vez en cada arranque: crea el usuario y la base de la app si no están (y termina).
+  preparar:
+    <<: *visor
+    container_name: visor-saas-preparar
+    command: ["preparar"]
+    restart: "no"
+    env_file:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/visor.env
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/postgres.env
+    depends_on:
+      postgres: {condition: service_healthy}
+    mem_limit: 128m
+
+  # La página: gunicorn con 2 procesos. Migra la base al arrancar.
+  web:
+    <<: *visor
+    container_name: visor-saas-web
+    command: ["web"]
+    ports:
+      - "8090:8000"
+    depends_on:
+      preparar: {condition: service_completed_successfully}
+      redis: {condition: service_started}
+    mem_limit: 384m
+
+  # La cola: conversiones (una a la vez), latido para /salud/ y copia diaria de la base a R2.
+  # El límite tiene que dejar lugar a la conversión más grande (CONVERSION_MEMORIA_MB en visor.env) + ~200 MB.
+  cola:
+    <<: *visor
+    container_name: visor-saas-cola
+    command: ["cola"]
+    depends_on:
+      preparar: {condition: service_completed_successfully}
+      redis: {condition: service_started}
+    mem_limit: 1800m
+    stop_grace_period: 30s
+
+  postgres:
+    image: postgres:17
+    container_name: visor-saas-postgres
+    restart: unless-stopped
+    env_file:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/postgres.env
+    command: ["postgres", "-c", "shared_buffers=96MB", "-c", "max_connections=40", "-c", "work_mem=4MB",
+              "-c", "timezone=UTC"]
+    volumes:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD", "pg_isready", "-U", "postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    logging: *logs
+    mem_limit: 384m
+
+  # Cola de Huey y caché (intentos de PIN, latido). Guarda en disco para no perder conversiones en cola si se corta.
+  redis:
+    image: redis:7-alpine
+    container_name: visor-saas-redis
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes", "--save", "", "--maxmemory", "48mb",
+              "--maxmemory-policy", "volatile-lru"]
+    volumes:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/redis:/data
+    logging: *logs
+    mem_limit: 64m

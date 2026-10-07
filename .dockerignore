@@ -1,0 +1,18 @@
+# Solo entra a la imagen lo que copia el Dockerfile. Nada de datos, secretos ni muestras de clientes.
+.git
+.github
+.venv
+.claude
+.pytest_cache
+**/__pycache__
+*.pyc
+*.egg-info
+.env
+*.env
+datos/
+muestras/
+negocio/
+referencia/
+tests/
+docs/
+despliegue/

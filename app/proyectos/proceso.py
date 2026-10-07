@@ -58,8 +58,24 @@ def main(ruta_entrada):
         res = dict(error=str(error))
     except MemoryError:
         res = dict(memoria=True)
+    res['memoria_mb'] = memoria_usada()
     salida.write_text(json.dumps(res, ensure_ascii=False), encoding='utf-8')
     return 0
+
+
+def memoria_usada():
+    """Solo en Linux: pico de memoria de este proceso en MB, {'real': VmHWM, 'reservada': VmPeak}. El tope de
+    limitar_memoria() es sobre la reservada; el límite del contenedor (mem_limit), sobre la real."""
+    try:
+        estado = Path('/proc/self/status').read_text()
+    except OSError:
+        return None
+    valores = {}
+    for linea in estado.splitlines():
+        campo, _, resto = linea.partition(':')
+        if campo in ('VmHWM', 'VmPeak'):
+            valores['real' if campo == 'VmHWM' else 'reservada'] = round(int(resto.split()[0]) / 1024)
+    return valores or None
 
 
 if __name__ == '__main__':

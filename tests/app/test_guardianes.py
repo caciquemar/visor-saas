@@ -19,7 +19,8 @@ MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario',
 # Direcciones que se pueden ver sin sesión (regla 2). Las del link del cliente (/c/<código>/...) solo responden con un
 # link vigente: tests/app/test_visor.py.
 PUBLICAS = {'entrar', 'olvide', 'olvide_enviado', 'clave_nueva', 'clave_lista', 'invitacion', 'taller:pin',
-            'admin:login', 'cliente:pagina', 'cliente:logo', 'cliente:dato'}
+            'admin:login', 'cliente:pagina', 'cliente:logo', 'cliente:dato',
+            'salud'}                 # /salud/: solo dice ok o qué falla, para UptimeRobot
 
 
 def modelos_propios():

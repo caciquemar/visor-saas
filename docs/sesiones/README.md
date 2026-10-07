@@ -13,7 +13,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [04](04-visor-link-cliente.md) | Visor dentro de la app y link del cliente con la marca del taller | 03 | 8–9 | hecha (2026-10-06) |
 | [05](05-trabajos.md) | Trabajos a realizar y fotos | 04 | 9–10 | hecha (2026-10-07) |
 | [06](06-modulos-zicar.md) | Módulos por taller y módulo Zicar (solo Nord Good) | 03 | 10–11 | hecha (2026-10-07) |
-| [07a](07a-nas-pilotos.md) | El servicio en el NAS para los pilotos: Cloudflare, R2, copias y avisos | 06 | antes de pilotos | pendiente |
+| [07a](07a-nas-pilotos.md) | El servicio en el NAS para los pilotos: Cloudflare, R2, copias y avisos | 06 | antes de pilotos | código hecho (2026-10-07), falta instalar |
 | [07b](07b-mudanza-vps.md) | Mudanza del NAS a un VPS | 07a | antes de cobrar | pendiente |
 | [08](08-planes-mercadopago.md) | Planes, límites y suscripciones de Mercado Pago | 07b | 13–14 | pendiente |
 | [09](09-factura-arca.md) | Factura electrónica ARCA automática | 08 | 14 | pendiente |

@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.contrib.auth import views as auth
 from django.urls import include, path, reverse_lazy
 
+from servicio.vistas import salud
 from talleres import cuentas
 
 admin.site.site_header = 'Visor · administración'
@@ -11,6 +12,7 @@ admin.site.site_title = 'Visor'
 urlpatterns = [
     path('', cuentas.inicio, name='inicio'),
     path('admin/', admin.site.urls),
+    path('salud/', salud, name='salud'),                     # para UptimeRobot: pública y sin datos
     path('entrar/', auth.LoginView.as_view(template_name='cuentas/entrar.html', redirect_authenticated_user=True),
          name='entrar'),
     path('salir/', cuentas.salir, name='salir'),

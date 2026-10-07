@@ -3,6 +3,7 @@ from pathlib import Path
 
 import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
+from django.db import IntegrityError, transaction
 from django.http import Http404
 from huey.contrib.djhuey import task
 
@@ -36,8 +37,8 @@ def test_sin_taller_la_consulta_falla_en_vez_de_traer_todo(t):
 
 
 def test_relaciones_inversas_filtradas(t):
+    nota_b = Nota.sin_filtro.get(pk=t.nota_b.pk)          # aunque alguien consiga el objeto de B...
     with con_taller(t.A):
-        nota_b = Nota.sin_filtro.get(pk=t.nota_b.pk)      # aunque alguien consiga el objeto de B...
         assert list(nota_b.respuestas.all()) == []        # ...sus respuestas no se ven desde A
 
 
@@ -130,7 +131,8 @@ def test_no_se_cambia_el_taller_de_un_dato(t):
 
 
 def test_no_se_pisa_una_fila_de_b_armando_el_objeto_a_mano(t):
-    with con_taller(t.A), pytest.raises(OtroTaller):
+    # En PostgreSQL la fila de B ni se ve desde A (talleres/rls.py): el UPDATE no la encuentra y el INSERT choca.
+    with con_taller(t.A), pytest.raises((OtroTaller, IntegrityError)), transaction.atomic():
         Nota(pk=t.nota_b.pk, texto='pisada').save()
     assert Nota.sin_filtro.get(pk=t.nota_b.pk).texto == 'nota de B'
 
@@ -145,14 +147,15 @@ def test_update_y_delete_masivos_no_tocan_b(t):
 
 
 def test_borrar_un_objeto_de_b_desde_a(t):
+    nota_b = Nota.sin_filtro.get(pk=t.nota_b.pk)
     with con_taller(t.A), pytest.raises(OtroTaller):
-        Nota.sin_filtro.get(pk=t.nota_b.pk).delete()
+        nota_b.delete()
     assert Nota.sin_filtro.filter(pk=t.nota_b.pk).exists()
 
 
 def test_no_se_enlaza_con_un_dato_de_b(t):
+    nota_b = Nota.sin_filtro.get(pk=t.nota_b.pk)
     with con_taller(t.A):
-        nota_b = Nota.sin_filtro.get(pk=t.nota_b.pk)
         with pytest.raises(OtroTaller):
             Nota.objects.create(texto='hija', padre=nota_b)
         with pytest.raises(OtroTaller):

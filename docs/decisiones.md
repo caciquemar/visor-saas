@@ -2,6 +2,33 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-07 · El programa llega al servidor como imagen que arma GitHub
+Decisión de Martín (ficha 07a). Con cada etiqueta `v*`, GitHub Actions corre las pruebas (SQLite y PostgreSQL) y,
+si pasan, arma la imagen y la guarda privada en `ghcr.io/caciquemar/visor-saas`. En el NAS (sin SSH) se actualiza
+cambiando el número de versión en el YAML de la app de TrueNAS; volver atrás es poner el número anterior. El token
+para instalar Zicar es un secreto de GitHub que se usa solo al armar: no queda en la imagen ni en el NAS. Descartado:
+carpeta sincronizada por Nextcloud como el visor actual (instala todo en cada arranque, deja el token en el NAS y una
+sincronización a medias rompe la app) y armar la imagen en la PC (hace falta Docker y hacerlo a mano).
+
+## 2026-10-07 · Dirección de prueba de los pilotos: subdominio de nordgood.com.ar
+Decisión de Martín (ficha 07a). Mientras no haya dominio de la marca, los pilotos entran por un subdominio de
+nordgood.com.ar (ej. `app-prueba`) en el túnel de Cloudflare que ya existe, y los mails salen de `@nordgood.com.ar`.
+Es inmediato; la contra es que los pilotos ven "nordgood". Al tener el dominio de la marca se agrega como otro
+hostname y se cambia `DOMINIO_APP`. Descartado por ahora: comprar un dominio neutro, o esperar la marca para empezar.
+
+## 2026-10-07 · Row-level security de PostgreSQL como segunda barrera entre talleres
+Toda tabla de un `DatoDeTaller` tiene la política `por_taller` forzada (vale también para el dueño de la tabla) y,
+antes de cada consulta, la app pone `visor.taller` con el taller del contexto (`talleres/rls.py`). La app entra con
+un usuario que no es superusuario (lo crea el servicio `preparar`). Sin taller en el contexto (administración, entrar,
+migraciones, copias) la base no filtra y manda la primera barrera: así no hace falta otro camino para la
+administración. Las políticas se rehacen después de cada `migrate`, así un modelo nuevo no queda afuera.
+
+## 2026-10-07 · Copias de la base: pg_dump diario a un bucket de R2 aparte
+Todos los días a las 4, la cola sube un `pg_dump` a `visor-saas-copias` (30 diarias y 12 mensuales), con una clave de
+R2 que solo ve ese bucket. Las filas van como INSERT porque PostgreSQL no deja cargar con COPY tablas con RLS forzada.
+`restaurar_copia --base` la carga en una base aparte para probarla sin tocar la de la app. Descartado: copiar la
+carpeta de PostgreSQL del NAS (queda en la misma casa y no sirve para mudarse a otra versión de PostgreSQL).
+
 ## 2026-10-07 · Pilotos en el NAS, cobro en un VPS
 Decisión de Martín. Mientras los pilotos usan el servicio gratis, corre en el NAS de Terrero (TrueNAS, 8 GB de RAM,
 compartido con Nextcloud, n8n y el visor de Nord Good) detrás del túnel de Cloudflare: no hay costo de servidor

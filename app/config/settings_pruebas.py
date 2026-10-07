@@ -6,7 +6,8 @@ os.environ.update(
     DEBUG='1',
     HUEY_INMEDIATO='1',
     ALMACENAMIENTO='local',
-    DATABASE_URL='sqlite://:memory:',
+    # Las pruebas de PostgreSQL (marca `postgres`, corren en GitHub) ponen PRUEBAS_DATABASE_URL.
+    DATABASE_URL=os.environ.get('PRUEBAS_DATABASE_URL', 'sqlite://:memory:'),
     REDIS_URL='',
     DOMINIO_APP='testserver',
     EMAIL_URL='',

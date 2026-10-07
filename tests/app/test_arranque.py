@@ -41,7 +41,7 @@ def test_configuracion_de_servidor_sin_errores():
     """manage.py check --deploy con la configuración de producción (DEBUG apagado, R2)."""
     env = {**os.environ, 'DEBUG': '0', 'SECRET_KEY': secrets.token_urlsafe(50), 'ALLOWED_HOSTS': 'visor.ejemplo', 'DOMINIO_APP': 'visor.ejemplo',
            'ALMACENAMIENTO': 'r2', 'R2_BUCKET': 'b', 'R2_ACCOUNT_ID': 'c', 'R2_ACCESS_KEY_ID': 'k',
-           'R2_SECRET_ACCESS_KEY': 's', 'DATABASE_URL': 'sqlite:///:memory:', 'HUEY_INMEDIATO': '0',
+           'R2_SECRET_ACCESS_KEY': 's', 'R2_COPIAS_BUCKET': 'copias', 'DATABASE_URL': 'sqlite:///:memory:', 'HUEY_INMEDIATO': '0',
            'DJANGO_SETTINGS_MODULE': 'config.settings'}
     p = subprocess.run([sys.executable, str(RAIZ / 'app' / 'manage.py'), 'check', '--deploy', '--fail-level', 'ERROR'],
                        env=env, capture_output=True, text=True, encoding='utf-8', errors='replace')
@@ -50,10 +50,13 @@ def test_configuracion_de_servidor_sin_errores():
 
 def test_almacenamiento_r2_apunta_a_cloudflare():
     env = {**os.environ, 'DEBUG': '1', 'ALMACENAMIENTO': 'r2', 'R2_BUCKET': 'archivos', 'R2_ACCOUNT_ID': 'cuenta',
-           'R2_ACCESS_KEY_ID': 'k', 'R2_SECRET_ACCESS_KEY': 's', 'DJANGO_SETTINGS_MODULE': 'config.settings'}
+           'R2_ACCESS_KEY_ID': 'k', 'R2_SECRET_ACCESS_KEY': 's', 'R2_COPIAS_BUCKET': 'copias',
+           'R2_COPIAS_ACCESS_KEY_ID': 'kc', 'DJANGO_SETTINGS_MODULE': 'config.settings'}
     codigo = ('import django; django.setup(); from django.core.files.storage import default_storage as d; '
-              'print(type(d._wrapped if hasattr(d, "_wrapped") else d).__name__, d.endpoint_url, d.bucket_name)')
+              'print(type(d._wrapped if hasattr(d, "_wrapped") else d).__name__, d.endpoint_url, d.bucket_name); '
+              'from django.core.files.storage import storages; c = storages["copias"]; print(c.bucket_name, c.access_key)')
     p = subprocess.run([sys.executable, '-c', codigo], cwd=RAIZ / 'app', env=env,
                        capture_output=True, text=True, encoding='utf-8', errors='replace')
     assert p.returncode == 0, p.stderr
     assert 'https://cuenta.r2.cloudflarestorage.com archivos' in p.stdout
+    assert 'copias kc' in p.stdout            # las copias van a su bucket, con su clave

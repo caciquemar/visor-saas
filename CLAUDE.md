@@ -27,7 +27,9 @@ y los trabajos pendientes quedan registrados con fotos.
 - Archivos (proyectos convertidos, texturas, GLB, fotos, ZIP) en **Cloudflare R2** vía API S3; en local, carpeta del disco.
 - Visor: `visor/index.html`, JavaScript sin framework. Se adapta lo mínimo: hoy pide `data/…` y `api/…` con rutas relativas.
 - Cobro: Mercado Pago Suscripciones (preapproval) + webhooks. Factura electrónica ARCA.
-- Producción: VPS en la nube detrás de Cloudflare. **No** el NAS de la casa.
+- Producción: VPS en la nube detrás de Cloudflare (ficha 07b, antes de cobrar). Mientras los pilotos son gratis,
+  el NAS de la casa (ficha 07a). Imagen de Docker armada por GitHub Actions, mismo compose en los dos: ver
+  `docs/operacion.md`.
 
 ## Estructura
 
@@ -43,7 +45,12 @@ app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario
                   Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
                   visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
                   API de trabajos del visor; vistas.py: la pantalla Trabajos), modulos/ (Modulo, TallerModulo;
-                  registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), templates/
+                  registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), servicio/
+                  (sin modelos: /salud/, latido de la cola, copias de la base y sus comandos), templates/
+                  talleres/rls.py: segunda barrera entre talleres en PostgreSQL (row-level security)
+Dockerfile        imagen del servidor; docker/: arranque (web, cola, preparar) y preparar_base.py
+despliegue/       compose.yml del servidor (NAS y VPS) y los .env de ejemplo
+.github/          workflows/imagen.yml: pruebas (SQLite y PostgreSQL) y, con etiqueta v*, la imagen en ghcr.io
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -61,6 +68,12 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
   conversión). Para ver la cola como en el servidor: `HUEY_INMEDIATO=0` y en otra consola
   `.venv\Scripts\python app\manage.py run_huey`.
 - Sin Docker: SQLite y Huey inmediato. Con Docker: `docker compose up -d` + `DATABASE_URL`/`REDIS_URL` en `.env`.
+- Pruebas con PostgreSQL (marca `postgres`: row-level security y copias de verdad; se saltean con SQLite): poner
+  `PRUEBAS_DATABASE_URL=postgres://visor:visor@host:puerto/visor` con un usuario **que no sea superusuario** (con
+  CREATEDB) y `pg_dump`/`psql` en el PATH. En GitHub corren solas. En la PC sin Docker se puede usar el PostgreSQL
+  portátil del paquete `pgserver` (Python 3.12 con `uv`; le faltan los husos horarios: copiar `tzdata/zoneinfo` a
+  `pginstall/share/postgresql/timezone`).
+- Servidor: `docs/operacion.md` (instalar, actualizar versión, copias, cortes de luz, mudanza al VPS).
 - Módulo Zicar: necesita el paquete `pb2zicar` (repo `Polyboard_to_zicar`, aparte). `iniciar.ps1` lo instala si la
   carpeta está al lado (`..\polyboard\Polyboard_to_zicar`); en el servidor, `pip install -r requirements-zicar.txt`.
   Se prende por taller en la administración (ficha del taller → Módulos). En la PC está prendido en
@@ -74,7 +87,8 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
    En la práctica: **todo modelo nuevo con datos de un taller hereda de `DatoDeTaller`**
    (`app/talleres/separacion.py`), los archivos usan `ruta_de_taller` / `abrir_de_taller`
    (`app/talleres/archivos.py`), las tareas de la cola usan `@tarea_de_taller`, y nunca se usa `sin_filtro` fuera de
-   los archivos permitidos. `tests/app/test_guardianes.py` falla si algo de esto se saltea. Cada ficha que agregue
+   los archivos permitidos. `tests/app/test_guardianes.py` falla si algo de esto se saltea. En PostgreSQL además la
+   base misma filtra por taller (`talleres/rls.py`, se aplica sola al migrar). Cada ficha que agregue
    modelos suma sus pruebas de cruce en `tests/app/test_separacion.py` (o al lado).
 2. **Todo pide login** salvo el link del cliente (`/c/<código>`), que muestra solo la versión sin datos de taller,
    y la página de venta.
@@ -171,18 +185,41 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   macizo. Ahora un bloque de primer nivel sin sub-bloques (sin piezas adentro) es muro, se llame como se llame.
   Cambiaron `esperado/` de Aguilar, argerich, grondona y Kogan (solo pasan objetos de la obra a `muros`). Ya está
   también en el visor del NAS (polyboard f62ff14, grondona reconvertida).
+- 2026-10-07: **ficha 07a, parte de código hecha; falta instalar en el NAS** (pasos de Martín en
+  `docs/operacion.md`). El programa llega al NAS como imagen de Docker privada que arma GitHub Actions con cada
+  etiqueta `v*`, después de pasar las pruebas con SQLite y con PostgreSQL (`.github/workflows/imagen.yml`; Zicar se
+  instala con el secreto `ZICAR_TOKEN`, que no queda en la imagen ni en el NAS). `despliegue/compose.yml`, el mismo
+  para NAS y VPS: web (gunicorn), cola (Huey, una conversión a la vez), PostgreSQL 17, Redis, y `preparar`, que crea
+  el usuario de la base sin superusuario. Puerto 8090, nombres `visor-saas-*`: no toca `visor-armado`. Dirección de
+  prueba: subdominio de nordgood.com.ar en el túnel que ya existe. En la app: whitenoise para los estáticos, caché en
+  Redis (intentos de PIN entre procesos), `ip_de` con `CF-Connecting-IP` (`DETRAS_DE_CLOUDFLARE=1`), Sentry,
+  `/salud/` para UptimeRobot (base, Redis y latido de la cola), memoria pico de cada conversión en el log, copias
+  diarias de la base a otro bucket de R2 (`servicio/copias.py`, comandos `copia_base` y `restaurar_copia`, como
+  INSERT porque COPY no anda con RLS) y **row-level security** en PostgreSQL (`talleres/rls.py`): política
+  `por_taller` forzada en toda tabla de `DatoDeTaller`, la variable `visor.taller` sale de `taller_actual`. Con RLS,
+  desde A las filas de B ni se ven: se ajustaron 4 pruebas de `test_separacion.py` que buscaban el objeto de B con
+  `sin_filtro` dentro del contexto de A. Probado en la PC con PostgreSQL 16 portátil: todas las pruebas rápidas
+  (también copia y restauración de verdad) y las 7 muestras. La imagen y el compose todavía no se probaron (no hay
+  Docker en la PC): se prueban en GitHub y al instalar.
 
 ## Pendientes
 
+- **Ficha 07a, instalación** (Martín, con `docs/operacion.md`): medir la subida de internet; tokens de GitHub;
+  `git push` de visor-saas y de las etiquetas de `Polyboard_to_zicar` (`v1.0.0`) y primera etiqueta `v0.7.0`;
+  R2 (dos buckets, CORS); dataset y carpeta compartida en TrueNAS; los dos `.env`; instalar el YAML; hostname en el
+  túnel; superusuario y taller; prender Zicar a Nord Good; Sentry, UptimeRobot y Brevo (registros DNS). Después
+  verificar lo de "Listo cuando" de la ficha, medir la memoria con *cocina grondona* y anotarla en
+  `docs/operacion.md` (ajustar `CONVERSION_MEMORIA_MB` y el `mem_limit` de `cola`), y probar una restauración.
+- Ficha 07a, a confirmar al instalar: cómo guarda TrueNAS 25.04 la clave del registro privado (pantalla *Docker
+  Registries* o `docker login` desde System → Shell), y que cloudflared mande `X-Forwarded-Proto: https` (si la página
+  entra en un bucle de redirecciones, poner `SECURE_SSL_REDIRECT=0`: Cloudflare ya fuerza HTTPS).
+- RLS: sin taller en el contexto (administración, entrar, migraciones) la base no filtra; ahí manda solo la primera
+  barrera. Es a propósito (la administración ve todo); si algún día hace falta, se puede sumar una variable aparte
+  para "sin filtro" y que sin nada no se vea nada.
+
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
-- Ficha 07: instalar el módulo Zicar en el servidor (`requirements-zicar.txt`) con un token de GitHub de solo lectura
-  para `Polyboard_to_zicar` (fine-grained, solo ese repo), usado solo al instalar; prender Zicar a Nord Good. Hacer
-  `git push --tags` en `Polyboard_to_zicar` para que exista `v1.0.0` en GitHub.
 - Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
   se puede dejar de usar (no se tocó la PC).
-- Ficha 07: row-level security de PostgreSQL como segunda barrera entre talleres; caché compartida (Redis) para el
-  límite de intentos de PIN por IP (hoy es por proceso); tomar la IP de `CF-Connecting-IP` detrás de Cloudflare
-  (`talleres/vistas.py`, `ip_de`); configurar `EMAIL_URL` (SMTP) y `DOMINIO_APP`.
 - Visor actual de Nord Good: **queda sin modificar por ahora** (decisión de Martín, 2026-10-06). No se le llevan los
   cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
   Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
@@ -199,21 +236,17 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la
   imagen en JPG, PNG o WEBP" (`FormMaterial.clean_textura` revisa el archivo que ya estaba). Mismo arreglo que
   `FormMarca.clean_logo`: revisar solo si es un `UploadedFile`.
-- Ficha 07: con `ALMACENAMIENTO=r2`, `abrir_de_taller` redirige a una URL firmada de R2: el visor carga texturas y GLB
-  de otro origen, así que el bucket necesita CORS (GET desde el dominio de la app), o servirlos a través de Django.
-  `index.html` pide los íconos en `/static/visor/`: servir los estáticos (whitenoise o nginx).
-- Probar en un celular de verdad, por HTTPS (en el servidor de la 07): escanear una etiqueta y abrir la realidad
-  aumentada desde el link del cliente. En el navegador integrado la cámara está bloqueada y el modelo de AR no termina
-  de cargar (tampoco el de visor.nordgood.com.ar).
-- Ficha 07: en el servidor el consumidor de Huey (`run_huey`) tiene que correr como servicio; el límite de memoria
-  de la conversión (`CONVERSION_MEMORIA_MB`) solo funciona en Linux. Si Cloudflare queda en plan pago, se puede
-  subir `MAX_DXF_MB`. Las versiones que quedan "en cola" con el consumidor caído no se marcan solas (sí las que
-  quedan "convirtiendo").
+- Probar en un celular de verdad, por HTTPS (en el NAS, al instalar la 07a): escanear una etiqueta y abrir la
+  realidad aumentada desde el link del cliente, y que texturas y GLB lleguen de R2 sin error de CORS. En el navegador
+  integrado la cámara está bloqueada y el modelo de AR no termina de cargar (tampoco el de visor.nordgood.com.ar).
+- Si Cloudflare queda en plan pago, se puede subir `MAX_DXF_MB`. Las versiones que quedan "en cola" con el
+  consumidor caído siguen al volver (Redis guarda la cola en disco); las "convirtiendo" se marcan como error.
 - Tipo de material en el .ocp: la regla (primera clase = tableros, segunda = cantos, y después una marca por clase)
   se dedujo de las 7 muestras. Si un .ocp nuevo no la cumple, sus materiales van a los dos tipos como antes y
   `tests/conversor/test_texturas.py::test_todas_las_muestras_se_separan` lo detecta al sumarlo a `muestras/`.
 - Muestras que faltan: mueble suelto (proyecto vacío en el .ocp) y proyecto dividido en varios .ocp.
-- Instalar Docker Desktop para probar con PostgreSQL + Redis antes de la ficha 07.
+- Docker en la PC (opcional): permitiría probar la imagen y el compose antes de subir una versión. Hoy se prueban en
+  GitHub Actions y en el NAS.
 - Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.
 - Conversor, para revisar con Martín (no se tocó en la 01; si se arregla, avisar para llevarlo al visor actual):
   en *Rack florencia* el mueble "escritorio flotante\`1cajon con ajuste izq" queda sin vincular (10 avisos "Sin

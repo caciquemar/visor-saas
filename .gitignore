@@ -13,3 +13,4 @@ node_modules/
 Thumbs.db
 *.db
 *.egg-info/
+despliegue/*.env

@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+import time
 from functools import partial
 from pathlib import Path, PurePosixPath
 
@@ -125,6 +126,7 @@ def correr(entrada, tmp):
     ruta_entrada.write_text(json.dumps(entrada, ensure_ascii=False), encoding='utf-8')
     entorno = {**os.environ, 'PYTHONIOENCODING': 'utf-8',
                'PYTHONPATH': os.pathsep.join([str(settings.RAIZ), str(settings.BASE_DIR)])}
+    inicio = time.monotonic()
     try:
         p = subprocess.run([sys.executable, '-m', 'proyectos.proceso', str(ruta_entrada)], cwd=tmp, env=entorno,
                            capture_output=True, timeout=settings.CONVERSION_SEGUNDOS)
@@ -137,6 +139,9 @@ def correr(entrada, tmp):
         log.error('El proceso de conversión terminó con código %s:\n%s', p.returncode, errores)
         return {'error': MEMORIA if 'MemoryError' in errores else GENERICO}
     res = json.loads(salida.read_text(encoding='utf-8'))
+    if res.get('memoria_mb'):          # para ajustar CONVERSION_MEMORIA_MB y el mem_limit de la cola
+        log.info('Conversión terminada en %.0f s; memoria pico: %s MB reales, %s MB reservados',
+                 time.monotonic() - inicio, res['memoria_mb'].get('real'), res['memoria_mb'].get('reservada'))
     if res.get('memoria'):
         return {'error': MEMORIA}
     return res

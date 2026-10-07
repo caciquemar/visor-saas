@@ -1,0 +1,74 @@
+# Pruebas y, con una etiqueta de versión, la imagen del servidor (ver docs/operacion.md).
+#
+#   git tag v0.7.1 && git push origin v0.7.1   ->  pruebas + ghcr.io/caciquemar/visor-saas:v0.7.1
+#   push a main                                ->  solo pruebas
+#
+# Secreto del repo ZICAR_TOKEN: token fine-grained de GitHub, solo lectura de Contents de Polyboard_to_zicar.
+# Solo se usa al armar la imagen (no queda adentro ni llega al servidor).
+name: imagen
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  pruebas:
+    runs-on: ubuntu-24.04
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s --health-timeout 3s --health-retries 20
+    env:
+      PGPASSWORD: postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+      - name: Cliente de PostgreSQL 17 (pg_dump de las copias)
+        run: |
+          sudo /usr/share/postgresql-common/pgdg/apt.postgresql.org.sh -y
+          sudo apt-get install -y postgresql-client-17
+          echo /usr/lib/postgresql/17/bin >> "$GITHUB_PATH"
+      - name: Usuario común de la base, como en el servidor (sin superusuario, así aplica la row-level security)
+        run: psql -h localhost -U postgres -c "create role visor login password 'visor' nosuperuser createdb"
+      - run: pip install '.[dev]'
+      - name: Pruebas rápidas con SQLite
+        run: python -m pytest -m "not muestras" -q
+      - name: Pruebas con PostgreSQL
+        env:
+          PRUEBAS_DATABASE_URL: postgres://visor:visor@localhost:5432/visor
+        run: python -m pytest -m "not muestras" -q
+
+  imagen:
+    needs: pruebas
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          tags: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          build-args: VERSION=${{ github.ref_name }}
+          secrets: zicar=${{ secrets.ZICAR_TOKEN }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

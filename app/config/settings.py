@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'trabajos',
     'modulos',
     'modulos.zicar',
+    'servicio',
 ]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -53,6 +54,7 @@ LOGOUT_REDIRECT_URL = 'entrar'
 
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
+    'whitenoise.middleware.WhiteNoiseMiddleware',    # estáticos (íconos del visor, administración) sin nginx
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.locale.LocaleMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -84,7 +86,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 # ---------------------------------------------------------------- base de datos
 # Local: SQLite en datos/. Con Docker o en el servidor: DATABASE_URL=postgres://...
+# En PostgreSQL hay además row-level security entre talleres: ver talleres/rls.py.
 DATABASES = {'default': env.db('DATABASE_URL', default=f"sqlite:///{(DATOS / 'dev.sqlite3').as_posix()}")}
+DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=0 if DEBUG else 60)
+DATABASES['default']['CONN_HEALTH_CHECKS'] = True
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -115,6 +120,12 @@ if _redis:
 else:
     HUEY.update(huey_class='huey.SqliteHuey', filename=str(DATOS / 'huey.db'))
 
+# Caché compartida entre los procesos (intentos de PIN por IP, latido de la cola): Redis en el servidor; en la PC y
+# en las pruebas, memoria del proceso.
+CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 'LOCATION': _redis,
+                      'KEY_PREFIX': 'visor'} if _redis else
+          {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
+
 # ---------------------------------------------------------------- conversión de proyectos
 # Ver proyectos/tareas.py. Cada conversión corre en un proceso aparte con estos límites.
 CONVERSION_SEGUNDOS = env.int('CONVERSION_SEGUNDOS', default=600)
@@ -135,7 +146,9 @@ MARCA_URL = env('MARCA_URL', default='')
 # ALMACENAMIENTO=local: carpeta datos/archivos/ (desarrollo). r2: Cloudflare R2 por la API de S3.
 ALMACENAMIENTO = env('ALMACENAMIENTO', default='local')
 STATIC_URL = 'static/'
-STATIC_ROOT = DATOS / 'static'
+STATIC_ROOT = DATOS / 'static'                      # en el servidor lo llena collectstatic al armar la imagen
+STATIC_ROOT.mkdir(exist_ok=True)
+WHITENOISE_USE_FINDERS = DEBUG                      # en la PC sirve los estáticos sin collectstatic
 MEDIA_URL = '/archivos/'
 MEDIA_ROOT = DATOS / 'archivos'
 
@@ -162,8 +175,24 @@ else:
 
 STORAGES = {
     'default': _archivos,
-    'staticfiles': {'BACKEND': 'django.contrib.staticfiles.storage.StaticFilesStorage'},
+    'staticfiles': {'BACKEND': 'whitenoise.storage.CompressedStaticFilesStorage' if not DEBUG else
+                    'django.contrib.staticfiles.storage.StaticFilesStorage'},
 }
+
+# Copias diarias de la base (servicio/copias.py). Con r2 van a un bucket aparte, con su propia clave (si se pierde la
+# de los archivos, las copias siguen a salvo); sin clave propia usan la de los archivos. En local: datos/copias/.
+if ALMACENAMIENTO == 'r2':
+    COPIAS = {'BACKEND': 'storages.backends.s3.S3Storage', 'OPTIONS': {
+        **_archivos['OPTIONS'],
+        'bucket_name': env('R2_COPIAS_BUCKET'),
+        'access_key': env('R2_COPIAS_ACCESS_KEY_ID', default=env('R2_ACCESS_KEY_ID')),
+        'secret_key': env('R2_COPIAS_SECRET_ACCESS_KEY', default=env('R2_SECRET_ACCESS_KEY')),
+    }}
+else:
+    COPIAS = {'BACKEND': 'django.core.files.storage.FileSystemStorage', 'OPTIONS': {'location': DATOS / 'copias'}}
+STORAGES['copias'] = COPIAS
+COPIAS_DIARIAS = env.int('COPIAS_DIARIAS', default=30)
+COPIAS_MENSUALES = env.int('COPIAS_MENSUALES', default=12)
 
 # ---------------------------------------------------------------- mails
 # EMAIL_URL=smtp+tls://usuario:clave@servidor:587 (se define en la ficha 07/10). Sin EMAIL_URL, los mails se
@@ -184,6 +213,17 @@ if not DEBUG:
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = env.int('SECURE_HSTS_SECONDS', default=0)   # subir cuando el dominio esté fijo
     SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Detrás del túnel de Cloudflare la IP de quien entra viene en CF-Connecting-IP (ver talleres/vistas.py, ip_de).
+# Solo con 1: sin Cloudflare adelante, cualquiera podría inventar ese encabezado.
+DETRAS_DE_CLOUDFLARE = env.bool('DETRAS_DE_CLOUDFLARE', default=False)
+
+# Errores de la app y de la cola a Sentry (plan gratis). Sin SENTRY_DSN no se manda nada.
+SENTRY_DSN = env('SENTRY_DSN', default='')
+if SENTRY_DSN:
+    import sentry_sdk
+    sentry_sdk.init(dsn=SENTRY_DSN, environment=env('SENTRY_ENTORNO', default='nas'),
+                    release=env('VISOR_VERSION', default=None), send_default_pii=False, traces_sample_rate=0)
 
 LOGGING = {
     'version': 1,

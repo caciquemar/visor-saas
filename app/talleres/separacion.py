@@ -23,6 +23,7 @@ ARCHIVOS_CON_SIN_FILTRO = {
     'talleres/middleware.py',      # buscar la membresía antes de saber si el usuario es del taller
     'talleres/cuentas.py',         # elegir taller después de entrar y aceptar invitaciones
     'talleres/admin.py',           # administración del servicio (Martín), ve todos los talleres
+    'talleres/rls.py',             # segunda barrera en PostgreSQL: políticas y variable del taller (no lee datos)
 }
 
 

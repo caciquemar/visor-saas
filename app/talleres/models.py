@@ -16,7 +16,7 @@ from .separacion import DatoDeTaller
 # Primeras partes de la dirección que no son talleres (app.<dominio>/<esto>/...).
 RESERVADOS = {
     'admin', 'entrar', 'salir', 'cuenta', 'c', 'static', 'archivos', 'api', 'app', 'www', 'ayuda',
-    'precios', 'planes', 'favicon.ico', 'robots.txt',
+    'precios', 'planes', 'favicon.ico', 'robots.txt', 'salud',
 }
 
 

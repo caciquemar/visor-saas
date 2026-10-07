@@ -1,5 +1,6 @@
 """Vistas dentro de /<taller>/. El middleware ya puso request.taller y request.membresia y filtra todo por
 taller: acá no se filtra a mano. El argumento `taller` de la URL no se usa (es el mismo que request.taller)."""
+from django.conf import settings
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.core.exceptions import PermissionDenied
@@ -106,7 +107,10 @@ def editar_miembro(request, taller, id):
 
 
 def ip_de(request):
-    # En la ficha 07 (detrás de Cloudflare) cambiar por CF-Connecting-IP.
+    """IP de quien entra. Detrás del túnel de Cloudflare todo llega desde cloudflared: la de verdad viene en
+    CF-Connecting-IP (solo se le cree con DETRAS_DE_CLOUDFLARE=1)."""
+    if settings.DETRAS_DE_CLOUDFLARE and request.META.get('HTTP_CF_CONNECTING_IP'):
+        return request.META['HTTP_CF_CONNECTING_IP']
     return request.META.get('REMOTE_ADDR', '')
 
 
