@@ -2,6 +2,11 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-07 · Las luces entre piezas se ven también en el link del cliente
+Decisión de Martín (ficha 15). Las cotas internas de luces entre piezas (alto, ancho y profundidad libres de cada
+hueco) se muestran en el visor del taller y en el link del cliente. Las distancias de taladros y herrajes quedan solo
+para el taller: son datos de fabricación.
+
 ## 2026-10-07 · Código de Zicar: paquete instalable desde su repo privado
 Decisión de Martín (ficha 06). `Polyboard_to_zicar` sigue en su propio repo privado y ahora tiene `pyproject.toml`
 (paquete `pb2zicar`, sin dependencias; el `.bat` y `run.py` siguen igual). Este repo no lo trae: el servidor lo

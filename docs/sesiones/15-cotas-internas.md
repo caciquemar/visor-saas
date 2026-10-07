@@ -15,8 +15,9 @@ ya muestra el botón de cotas: cuánto mide cada hueco y dónde van los taladros
   de cada panel (centro, dirección, diámetro, profundidad, si es de canto) y `herrajes` (solo la caja y el mueble).
 - **Dónde se calcula:** decidir si las luces y las posiciones se calculan en el conversor (quedan en el JSON y se
   prueban con las muestras) o en el visor con las mallas que ya tiene. Anotarlo en `docs/decisiones.md`.
-- **Link del cliente:** no muestra taladros ni herrajes (son datos de taller). Las luces, preguntarle a Martín si las
-  quiere en el link del cliente.
+- **Link del cliente:** muestra las luces entre piezas (decisión de Martín, 2026-10-07), igual que en el visor del
+  taller: con las cotas y un mueble elegido. Si se calculan en el conversor, van también en `cliente.json`. No muestra
+  taladros ni herrajes (son datos de taller).
 
 ## Fuera de alcance
 Editar medidas. Planos para imprimir. Cotas de piezas con ingletes o formas.
