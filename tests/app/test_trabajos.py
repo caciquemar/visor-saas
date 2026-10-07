@@ -373,3 +373,116 @@ def test_el_link_del_cliente_no_da_trabajos(client, con_trabajos):
               client.post(base + 'api/trabajos', '{}', content_type='application/json'),
               client.get(f'{base}api/fotos/{t.foto_b}')):
         assert r.status_code == 404
+
+
+# ---------------------------------------------------------------- pantalla Trabajos (/<taller>/trabajos/)
+
+PANTALLA = '/taller-a/trabajos/'
+
+
+def textos(r):
+    """Los trabajos de la pantalla, en orden."""
+    assert r.status_code == 200, r.content
+    return [t.texto for t in r.context['trabajos']]
+
+
+@pytest.fixture
+def varios(ana, t, pa):
+    """En A: uno vencido para Arturo, uno pendiente para Olga, uno en proceso sin nadie, uno instalado."""
+    t.pa = pa
+    t.otro = proyecto_listo(t.A, nombre='Placard')
+    ids = {}
+    ids['vencido'] = nuevo(ana, pa, texto='vencido', asignado=t.armador_a.pk, limite='2020-01-01').json()['id']
+    ids['pendiente'] = nuevo(ana, pa, texto='pendiente', asignado=t.oficina_a.pk, limite='2099-01-01').json()['id']
+    ids['proceso'] = nuevo(ana, t.otro, texto='en proceso').json()['id']
+    ids['instalado'] = nuevo(ana, pa, texto='instalado', asignado=t.armador_a.pk).json()['id']
+    cambiar(ana, ids['proceso'], estado='en proceso')
+    cambiar(ana, ids['instalado'], estado='instalado')
+    t.ids = ids
+    return t
+
+
+def test_pantalla_lista_todo_el_taller_en_orden(ana, varios):
+    r = ana.get(PANTALLA)
+    assert textos(r) == ['vencido', 'pendiente', 'en proceso']       # vencidos primero, sin los instalados
+    html = r.content.decode()
+    assert f'/taller-a/visor/?p={varios.pa.pk}&amp;t={varios.ids["vencido"]}' in html
+    assert 'Placard' in html and 'Vencido' in html
+
+
+def test_pantalla_filtros(ana, varios):
+    t = varios
+    assert textos(ana.get(PANTALLA, {'para': t.armador_a.pk})) == ['vencido']
+    assert textos(ana.get(PANTALLA, {'para': 'nadie'})) == ['en proceso']
+    assert textos(ana.get(PANTALLA, {'proyecto': t.otro.pk})) == ['en proceso']
+    assert textos(ana.get(PANTALLA, {'estado': 'vencido'})) == ['vencido']
+    assert textos(ana.get(PANTALLA, {'estado': 'instalado'})) == ['instalado']
+    assert textos(ana.get(PANTALLA, {'instalados': '1'})) == ['vencido', 'pendiente', 'en proceso', 'instalado']
+    assert textos(ana.get(PANTALLA, {'para': 'mi'})) == []
+    assert textos(ana.get(PANTALLA, {'para': 'x', 'proyecto': '1 or 1', 'estado': 'raro'})) == \
+        ['vencido', 'pendiente', 'en proceso']                         # filtros raros: se ignoran
+
+
+def test_armador_entra_viendo_lo_suyo(varios):
+    t = varios
+    arturo = como(t.armador_a)
+    r = arturo.get(PANTALLA)
+    assert textos(r) == ['vencido'] and r.context['f']['para'] == 'mi'
+    assert textos(arturo.get(PANTALLA, {'para': ''})) == ['vencido', 'pendiente', 'en proceso']
+    assert textos(como(t.oficina_a).get(PANTALLA)) == ['vencido', 'pendiente', 'en proceso']
+
+
+def test_el_tilde_pasa_al_estado_siguiente(varios):
+    t = varios
+    arturo = como(t.armador_a)                        # cualquiera puede, aunque no lo haya anotado
+    i = t.ids['pendiente']
+    r = arturo.post(f'{PANTALLA}{i}/avanzar/', {'desde': 'pendiente', 'volver': '/taller-a/trabajos/?para=mi'})
+    assert r.status_code == 302 and r['Location'] == '/taller-a/trabajos/?para=mi'
+    with con_taller(t.A):
+        tr = Trabajo.objects.get(pk=i)
+        assert (tr.estado, tr.iniciado_por) == ('en proceso', t.armador_a)
+        assert CambioDeEstado.objects.filter(trabajo=tr, de='pendiente', a='en proceso').exists()
+    # el mismo pedido de nuevo (doble toque, o la pantalla vieja): no avanza otra vez
+    arturo.post(f'{PANTALLA}{i}/avanzar/', {'desde': 'pendiente'})
+    with con_taller(t.A):
+        assert Trabajo.objects.get(pk=i).estado == 'en proceso'
+    # instalado no avanza más
+    arturo.post(f"{PANTALLA}{t.ids['instalado']}/avanzar/", {'desde': 'instalado'})
+    with con_taller(t.A):
+        assert Trabajo.objects.get(pk=t.ids['instalado']).estado == 'instalado'
+
+
+def test_el_tilde_no_vuelve_a_otro_sitio(ana, varios):
+    i = varios.ids['pendiente']
+    for volver in ('https://otro.com/', '//otro.com/', '/taller-b/trabajos/', '/taller-a/trabajos//otro.com'):
+        r = ana.post(f'{PANTALLA}{i}/avanzar/', {'desde': 'x', 'volver': volver})
+        assert r['Location'] == '/taller-a/trabajos/', volver
+
+
+def test_el_tilde_pide_post_y_respeta_el_plan(ana, varios, monkeypatch):
+    from trabajos import vistas
+    i = varios.ids['pendiente']
+    assert ana.get(f'{PANTALLA}{i}/avanzar/').status_code == 405
+    monkeypatch.setattr(vistas, 'permite', lambda taller, f: False)
+    ana.post(f'{PANTALLA}{i}/avanzar/', {'desde': 'pendiente'})
+    with con_taller(varios.A):
+        assert Trabajo.objects.get(pk=i).estado == 'pendiente'
+    assert 'class="avanzar"' not in ana.get(PANTALLA).content.decode()
+
+
+def test_pantalla_enlazada_desde_el_inicio(ana, t):
+    html = ana.get('/taller-a/').content.decode()
+    assert html.count('href="/taller-a/trabajos/"') == 2              # menú y caja del inicio
+
+
+def test_pantalla_de_a_no_muestra_ni_avanza_lo_de_b(ana, con_trabajos):
+    t = con_trabajos
+    r = ana.get(PANTALLA, {'instalados': '1'})
+    assert 'trabajo de B' not in textos(r)
+    assert 'Placard de B' not in r.content.decode()
+    assert textos(ana.get(PANTALLA, {'proyecto': t.pb.pk})) == []
+    assert ana.post(f'{PANTALLA}{t.trabajo_b}/avanzar/', {'desde': 'pendiente'}).status_code == 404
+    with con_taller(t.B):
+        assert Trabajo.objects.get().estado == 'pendiente'
+    nombres = [str(u) for u in ana.get(PANTALLA).context['equipo']]
+    assert 'Beto' not in nombres and 'Bruno' not in nombres

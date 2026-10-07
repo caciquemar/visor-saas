@@ -60,6 +60,7 @@
     {% if request.membresia %}
       <a href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}">Visor</a>
       <a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Proyectos</a>
+      <a href="{% url 'taller:trabajos:lista' taller=request.taller.slug %}">Trabajos</a>
     {% endif %}
     {% if request.membresia.rol == 'dueno' or request.membresia.rol == 'oficina' %}
       <a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Materiales</a>

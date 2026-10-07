@@ -37,7 +37,7 @@ from talleres.limites import MENSAJES, permite
 from talleres.models import Membresia
 from talleres.roles import Rol, miembro
 
-from .models import CambioDeEstado, Foto, Trabajo
+from .models import Foto, Trabajo
 
 ESTADOS = Trabajo.Estado.values
 MAX_FOTO = 12 * 1024 * 1024
@@ -234,10 +234,7 @@ def trabajo(request, taller, id):
             if k in cambios:
                 setattr(t, k, d[k])
         if 'estado' in d:
-            ahora = timezone.now()
-            anterior = t.cambiar_estado(d['estado'], request.user, ahora)
-            if anterior is not None:
-                CambioDeEstado.objects.create(trabajo=t, de=anterior, a=t.estado, usuario=request.user, cuando=ahora)
+            t.pasar_a(d['estado'], request.user)
         t.save()
     return responder(200, uno(request, t.pk))
 

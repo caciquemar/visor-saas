@@ -42,7 +42,7 @@ app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario
                   Invitacion, separación entre talleres, PIN, Equipo, Marca), proyectos/ (Proyecto, Version, Original,
                   Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
                   visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
-                  API de trabajos del visor), templates/
+                  API de trabajos del visor; vistas.py: la pantalla Trabajos), templates/
 tests/            pytest: tests/conversor y tests/app (tests/app/taller_prueba: modelo Nota solo para pruebas)
 datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 ```
@@ -141,6 +141,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`talleres/limites.py`, hoy todo permitido). `index.html`: token CSRF, proyecto por id, "Para quién" como lista,
   sin "Tu nombre", Editar/Borrar solo si `puede_editar`. Probado en el navegador integrado con `taller-prueba`
   (dueño con mail y armador con PIN: anotar, foto, estados, permisos). Próxima: 06.
+- 2026-10-07: **agregado a la 05, pedido por Martín.** Pantalla "Trabajos" del taller (`/<taller>/trabajos/`,
+  `trabajos/vistas.py`): todos los trabajos de todos los proyectos, vencidos primero, con filtros (para quién, "para
+  mí", proyecto, estado, ver instalados; armadores e instaladores entran con "para mí"), ✓ para pasar al estado
+  siguiente y salto al visor con el trabajo abierto (`?p=<proyecto>&t=<trabajo>`). En el detalle del trabajo del
+  visor, "Agregar foto" para cualquiera del taller. Arreglo del visor: con un panel que tapa toda el área del 3D
+  (pantalla baja) la cámara quedaba en NaN y el dibujo no volvía; `tamano()` ahora espera a que el área tenga tamaño.
 - 2026-10-06: **fichas 12 a 14 nuevas** (decisión de Martín): etiquetas con QR por pieza y por mueble, avance por
   etapas con fin de fabricación y control de carga, probador de colores en el link del cliente. Orden sugerido en
   `docs/sesiones/README.md`.
@@ -158,9 +164,8 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   `glb_ar` en este repo; el visor del NAS no la tiene. Va con el resto de los cambios al NAS, que quedan para el final (decisión de Martín, 2026-10-06).
 - Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
   (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
-- Trabajos: un armador no puede sumar fotos a un trabajo que anotó otro desde el visor (la foto se agrega en el
-  formulario de Editar, que solo ve quien puede editar), aunque el servidor lo permite. Si Martín lo quiere, agregar
-  "Agregar foto" en el detalle del trabajo.
+- Visor actual de Nord Good: tiene el mismo problema de la cámara en NaN con el panel de trabajos en una pantalla
+  baja (arreglado acá en `tamano()`/`encuadrar()` de `index.html`); va con el resto de los cambios al NAS.
 - Ficha 08: completar `talleres/limites.py` (`trabajos`, `fotos_de_trabajos`); el plan Taller de `docs/plan.md` no
   dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
 - Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con

@@ -6,6 +6,7 @@ Van con el proyecto y no con la versión: las piezas se guardan con el id del co
 convertir."""
 from django.conf import settings
 from django.db import models
+from django.utils import timezone
 
 from proyectos.models import Proyecto
 from talleres.archivos import ruta_de_taller
@@ -68,6 +69,25 @@ class Trabajo(DatoDeTaller):
                 setattr(self, por, None)
                 setattr(self, en, None)
         return anterior
+
+    def pasar_a(self, estado, usuario):
+        """Cambia el estado y lo suma al historial (CambioDeEstado). No guarda el trabajo: eso lo hace quien llama.
+        Devuelve si cambió."""
+        ahora = timezone.now()
+        anterior = self.cambiar_estado(estado, usuario, ahora)
+        if anterior is None:
+            return False
+        CambioDeEstado.objects.create(trabajo=self, de=anterior, a=self.estado, usuario=usuario, cuando=ahora)
+        return True
+
+    def siguiente(self):
+        """El estado que sigue (pendiente -> en proceso -> hecho -> instalado); None si ya está instalado."""
+        i = self.Estado.values.index(self.estado)
+        return self.Estado.values[i + 1] if i + 1 < len(self.Estado.values) else None
+
+    def vencido(self, hoy=None):
+        hoy = hoy or timezone.localdate()
+        return self.estado in (self.Estado.PENDIENTE, self.Estado.EN_PROCESO) and bool(self.limite) and self.limite < hoy
 
 
 class CambioDeEstado(DatoDeTaller):

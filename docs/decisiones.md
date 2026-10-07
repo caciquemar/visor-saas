@@ -9,6 +9,14 @@ para cerrar la fabricación de cada mueble y para controlar la carga bulto por b
 entrevistas: piezas a rehacer, uso sin señal, resumen de materiales, aprobación del cliente, estado del pedido para
 el cliente, tablero de producción, avisos e integraciones.
 
+## 2026-10-07 · Pantalla con los trabajos de todos los proyectos
+Pedido de Martín, sumado a la ficha 05 (es del mismo tema y ninguna otra ficha lo cubre). `/<taller>/trabajos/` lista
+los trabajos de todo el taller, vencidos primero, con filtros por persona, proyecto y estado; armadores e instaladores
+entran viendo "para mí", dueño y oficina todo. Desde la lista se pasa al estado siguiente con ✓ (cualquiera del taller,
+como en el visor; si otro ya lo cambió, no avanza dos veces) y se abre el trabajo en el visor (`?t=`). Es una página
+de Django sin JavaScript propio (salvo aplicar filtros al cambiarlos): anda en cualquier celular. En el detalle del
+visor, "Agregar foto" para cualquiera del taller (antes las fotos solo se sumaban desde Editar).
+
 ## 2026-10-07 · Trabajos: gente del taller y quién puede qué
 "Para quién" es solo un miembro activo del taller (decisión de Martín): queda vinculado al usuario y el nombre sale
 de su perfil; el que ya tenía un trabajo lo conserva aunque deje el taller. Quién anota y quién cambia cada estado

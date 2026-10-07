@@ -1,0 +1,96 @@
+{% extends 'base.html' %}
+{% block titulo %}Trabajos{% endblock %}
+{% block cabeza %}
+<style>
+  .filtros { display:grid; gap:.5rem .75rem; grid-template-columns:repeat(auto-fit, minmax(11rem, 1fr)); align-items:end; }
+  .filtros label { margin:0 0 .25rem; font-size:.85rem; }
+  .filtros select { max-width:none; }
+  .filtros .check { display:flex; gap:.4rem; align-items:center; font-weight:400; margin:0; padding:.55rem 0; }
+  .trabajos { list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:.6rem; }
+  .trabajo { display:flex; gap:.75rem; align-items:flex-start; background:var(--panel); border:1px solid var(--borde);
+             border-left:5px solid var(--c); border-radius:10px; padding:.75rem; }
+  .trabajo .cuerpo { flex:1; min-width:0; }
+  .trabajo .texto { font-weight:600; color:inherit; text-decoration:none; display:block; overflow-wrap:anywhere; }
+  .trabajo .texto:hover { text-decoration:underline; }
+  .trabajo .meta { font-size:.85rem; color:var(--suave); margin-top:.2rem; }
+  .trabajo .meta b { color:var(--texto); font-weight:600; }
+  .avanzar { min-width:2.75rem; min-height:2.75rem; padding:0; font-size:1.2rem; border-radius:50%;
+             background:transparent; color:var(--c); border:2px solid var(--c); }
+  .avanzar:hover { background:var(--c); color:#fff; }
+  .trabajo .estado { border-color:var(--c); color:var(--c); }
+  .vence-ya { color:var(--error); font-weight:600; }
+  /* colores del visor: pendiente naranja, en proceso violeta, hecho verde, instalado gris, vencido rojo */
+  .g-vencido { --c:#D32F2F; } .g-pendiente { --c:#F57C00; } .g-en-proceso { --c:#7B3FE4; } .g-hecho { --c:#2E9D5B; }
+  .g-instalado { --c:#78909C; }
+  @media (prefers-color-scheme: dark) {
+    .g-vencido { --c:#EF6F6F; } .g-pendiente { --c:#FFA94D; } .g-en-proceso { --c:#B49AF5; } .g-hecho { --c:#5FCB8C; }
+    .g-instalado { --c:#A7B6BE; }
+  }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>Trabajos</h1>
+
+<form class="caja filtros" method="get" id="filtros">
+  <div><label for="fPara">Para quién</label>
+    <select id="fPara" name="para">
+      <option value="">Todos</option>
+      <option value="mi"{% if f.para == 'mi' %} selected{% endif %}>Para mí</option>
+      <option value="nadie"{% if f.para == 'nadie' %} selected{% endif %}>Nadie en especial</option>
+      {% for u in equipo %}<option value="{{ u.pk }}"{% if f.para == u.pk|stringformat:'d' %} selected{% endif %}>{{ u }}</option>{% endfor %}
+    </select></div>
+  <div><label for="fProyecto">Proyecto</label>
+    <select id="fProyecto" name="proyecto">
+      <option value="">Todos</option>
+      {% for p in proyectos %}<option value="{{ p.pk }}"{% if f.proyecto == p.pk|stringformat:'d' %} selected{% endif %}>{{ p.nombre }}</option>{% endfor %}
+    </select></div>
+  <div><label for="fEstado">Estado</label>
+    <select id="fEstado" name="estado">
+      <option value="">Sin instalar</option>
+      <option value="vencido"{% if f.estado == 'vencido' %} selected{% endif %}>Vencidos</option>
+      {% for valor, nombre in estados %}<option value="{{ valor }}"{% if f.estado == valor %} selected{% endif %}>{{ nombre }}</option>{% endfor %}
+    </select></div>
+  <div><label class="check"><input type="checkbox" name="instalados" value="1"{% if f.instalados %} checked{% endif %}> Ver también los instalados</label></div>
+  <noscript><button type="submit">Filtrar</button></noscript>
+</form>
+
+{% if trabajos %}
+<p class="suave" style="margin:1rem 0 0">{{ trabajos|length }} trabajo{{ trabajos|length|pluralize }}</p>
+<ul class="trabajos">
+  {% for t in trabajos %}
+  <li class="trabajo g-{{ t.grupo|slugify }}">
+    {% if t.proximo and puede_cambiar %}
+    <form method="post" action="{% url 'taller:trabajos:avanzar' taller=request.taller.slug id=t.pk %}">{% csrf_token %}
+      <input type="hidden" name="desde" value="{{ t.estado }}">
+      <input type="hidden" name="volver" value="{{ volver }}">
+      <button class="avanzar" type="submit" title="Pasar a {{ t.proximo }}" aria-label="{{ t.get_estado_display }}: pasar a {{ t.proximo }}">✓</button>
+    </form>
+    {% endif %}
+    <div class="cuerpo">
+      <a class="texto" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ t.proyecto_id }}&amp;t={{ t.pk }}">{{ t.texto|truncatechars:160 }}</a>
+      <div class="meta">
+        <span class="estado">{% if t.es_vencido %}Vencido · {% endif %}{{ t.get_estado_display }}</span>
+        <b>{{ t.proyecto.nombre }}</b>
+        {% if t.asignado %} · para {{ t.asignado }}{% endif %}
+        {% if t.limite %} · <span class="{% if t.es_vencido %}vence-ya{% endif %}">vence {{ t.limite|date:"j/n" }}</span>{% endif %}
+      </div>
+      <div class="meta">
+        Anotado{% if t.autor %} por {{ t.autor }}{% endif %} el {{ t.creado|date:"j/n" }}
+        {% if t.piezas %} · {{ t.piezas|length }} pieza{{ t.piezas|length|pluralize }}{% endif %}
+        {% if t.muebles %} · {{ t.muebles|length }} mueble{{ t.muebles|length|pluralize }}{% endif %}
+        {% if t.n_fotos %} · {{ t.n_fotos }} foto{{ t.n_fotos|pluralize }}{% endif %}
+      </div>
+    </div>
+  </li>
+  {% endfor %}
+</ul>
+{% else %}
+<div class="caja" style="margin-top:1rem"><p class="suave" style="margin:0">
+  {% if f.para or f.proyecto or f.estado %}No hay trabajos con estos filtros.{% else %}No hay trabajos sin instalar. Se anotan desde el visor, tocando una pieza o un mueble.{% endif %}
+</p></div>
+{% endif %}
+<script>
+  // los filtros se aplican al cambiarlos (sin botón)
+  document.getElementById('filtros').addEventListener('change', function () { this.submit(); });
+</script>
+{% endblock %}

@@ -10,6 +10,13 @@
     <a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}">Abrir el visor</a>
   </div>
 </div>
+<div class="caja" style="margin-bottom:1rem">
+  <h2 style="margin-top:0">Trabajos</h2>
+  <p class="suave">Lo que falta hacer o instalar en todos los proyectos. Se anotan desde el visor, en la pieza o el mueble.</p>
+  <div class="acciones">
+    <a class="boton" href="{% url 'taller:trabajos:lista' taller=request.taller.slug %}">Ver trabajos</a>
+  </div>
+</div>
 <div class="caja">
   <h2 style="margin-top:0">Proyectos</h2>
   <p class="suave">Subí los proyectos de Polyboard (DXF 3D y lista de OptiCut) y seguí cómo se convierten.</p>

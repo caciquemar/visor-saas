@@ -379,6 +379,9 @@ const sol = new THREE.DirectionalLight(0xffffff, .55); sol.position.set(1500, 30
 
 function tamano(){
   const r = cont.getBoundingClientRect();
+  // con un panel que tapa toda el área (pantalla baja), el área queda en 0: sin esto la cámara se encuadra con
+  // proporción 0, queda en NaN y el dibujo no vuelve a aparecer. Se espera a que el área tenga tamaño.
+  if (!r.width || !r.height) return;
   renderer.setSize(r.width, r.height, false);
   camera.aspect = r.width / Math.max(r.height,1); camera.updateProjectionMatrix();
 }
@@ -910,6 +913,9 @@ function encuadrar(caja, inmediato, dirVista){
     camera.position.copy(destino); controls.target.copy(c); controls.update(); return;
   }
   const p0 = camera.position.clone(), t0 = controls.target.clone(), ini = performance.now();
+  if (![...p0.toArray(), ...t0.toArray()].every(Number.isFinite)){   // cámara rota: se va directo, sin animar
+    camera.position.copy(destino); controls.target.copy(c); controls.update(); return;
+  }
   animacion = ahora => {
     const k = Math.min((ahora - ini) / 650, 1), e = 1 - Math.pow(1 - k, 3);
     camera.position.lerpVectors(p0, destino, e); controls.target.lerpVectors(t0, c, e);
@@ -1275,6 +1281,8 @@ async function api(ruta, opciones = {}){
 const proyectoApi = () => item && item.id != null ? item.id : datos.proyecto;
 const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
 let pedidoLista = 0;
+// ?t=<id> (desde la pantalla Trabajos de la app): al cargar la lista del proyecto, se abre ese trabajo una vez
+let trabajoPedido = +new URLSearchParams(location.search).get('t') || 0;
 async function cargarTrabajos(){
   if (CLIENTE || !datos || VISOR.trabajos === false) return;
   const pedido = ++pedidoLista;   // solo vale la respuesta del último pedido: una vieja que llega tarde no pisa un cambio
@@ -1285,6 +1293,10 @@ async function cargarTrabajos(){
   const n = TR.lista.filter(abierto).length;
   $('tbInsignia').hidden = !n; $('tbInsignia').textContent = n;
   if (seleccion && seleccion.mallas.length) avisoFicha();
+  if (trabajoPedido && lista){
+    const id = trabajoPedido; trabajoPedido = 0;
+    if (TR.lista.some(t => t.id === id)){ abrirTrabajos(); TR.vista = {detalle: id}; return mostrarTrabajos(); }
+  }
   if (!$('panelTrabajos').hidden && !TR.vista?.form) mostrarTrabajos();
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarTrabajos(); });
@@ -1424,6 +1436,8 @@ function mostrarDetalle(id){
     ${t.piezas.length || t.muebles.length ? `<div class="chips">${t.piezas.map(k => `<button class="chip pieza" data-pieza="${esc(k)}">${esc(etiquetaPieza(k))}</button>`).join('')}
       ${t.muebles.map(n => `<button class="chip" data-mueble="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     ${t.fotos.length ? `<div class="fotos">${t.fotos.map(f => `<a class="foto" href="api/fotos/${encodeURIComponent(f)}" target="_blank" rel="noopener"><img src="api/fotos/${encodeURIComponent(f)}" alt="Foto del trabajo" loading="lazy"></a>`).join('')}</div>` : ''}
+    ${VISOR.fotos === false ? '' : `<label class="btn-sec" for="dtFoto" data-sumar-foto style="display:inline-flex;margin:4px 0 8px;color:var(--tinta);font-size:16px">📷 Agregar foto</label>
+      <input id="dtFoto" type="file" accept="image/*" multiple hidden><p class="error" id="dtError"></p>`}
     <div class="estados" role="group" aria-label="Estado">${ESTADOS.map(e =>
       `<button data-est="${e}" aria-pressed="${t.estado === e}" style="--c:${hex(COLOR_ESTADO[e][0])}">${NOMBRE_ESTADO[e]}</button>`).join('')}</div>
     ${t.puede_editar === false ? '' : `<div class="botonera">
@@ -1433,6 +1447,7 @@ function mostrarDetalle(id){
   el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
   el.querySelector('[data-volver]').onclick = () => { TR.vista = 'lista'; TR.resaltar = null; pintar(); mostrarTrabajos(); };
   el.querySelectorAll('[data-est]').forEach(b => b.onclick = () => cambiarEstado(t.id, b.dataset.est));
+  if ($('dtFoto')) $('dtFoto').onchange = e => sumarFotos(t.id, [...e.target.files].filter(x => x.type.startsWith('image/')));
   if (el.querySelector('[data-editar]')) el.querySelector('[data-editar]').onclick = () => abrirForm(t);
   if (el.querySelector('[data-borrar]')) el.querySelector('[data-borrar]').onclick = async () => {
     if (!confirm('¿Borrar este trabajo y sus fotos?')) return;
@@ -1506,6 +1521,25 @@ function fotosForm(f){
     + urls.map((u, i) => `<div class="foto"><img src="${u}" alt=""><button class="quitar" data-nueva="${i}" aria-label="Quitar foto">×</button></div>`).join('');
   $('ftFotos').querySelectorAll('[data-vieja]').forEach(b => b.onclick = () => { f.quitar.push(...f.fotos.splice(+b.dataset.vieja, 1)); fotosForm(f); });
   $('ftFotos').querySelectorAll('[data-nueva]').forEach(b => b.onclick = () => { f.nuevas.splice(+b.dataset.nueva, 1); fotosForm(f); });
+}
+// "Agregar foto" del detalle: cualquiera del taller suma fotos a un trabajo, aunque no lo pueda editar
+async function sumarFotos(id, archivos){
+  const boton = document.querySelector('[data-sumar-foto]');
+  if (!archivos.length || !boton) return;
+  $('dtFoto').disabled = true;
+  try{
+    for (let i = 0; i < archivos.length; i++){
+      boton.textContent = `Subiendo foto (${archivos.length - i})…`;
+      const b = await reducir(archivos[i]);
+      const nuevo = await api(`trabajos/${id}/fotos`, {method: 'POST', headers: {'Content-Type': b.type || 'image/jpeg'}, body: b});
+      TR.lista = TR.lista.map(x => x.id === id ? nuevo : x);
+    }
+  }catch(e){
+    mostrarTrabajos();
+    $('dtError').textContent = 'No se pudo subir la foto: ' + e.message; $('dtError').classList.add('visible');
+    return;
+  }
+  mostrarTrabajos(); cargarTrabajos();
 }
 // fotos del celular: se achican a 1600 px en JPEG antes de subir (unos 300 KB en vez de varios MB)
 async function reducir(archivo){

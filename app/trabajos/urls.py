@@ -3,7 +3,7 @@ from django.urls import path
 
 from . import api
 
-app_name = 'trabajos'
+app_name = 'trabajos_api'
 
 urlpatterns = [
     path('trabajos', api.lista_o_nuevo, name='lista'),
