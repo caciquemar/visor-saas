@@ -130,7 +130,10 @@ def leer_dxf(path):
         tris = caras(block, m)
         if tris:
             item = dict(ruta=ruta, inst=inst, caras=tris, capas=list(caras.capas))
-            if ruta[0].split('.', 1)[-1].lower().startswith('muro'):
+            # muros, suelos y techos: bloque suelto de caras sin piezas adentro (el usuario puede
+            # renombrarlos, p. ej. "M lav"); los muebles siempre traen sus piezas como sub-bloques
+            if len(ruta) == 1 and not any(e.dxftype() == 'INSERT' for e in block) \
+                    or ruta[0].split('.', 1)[-1].lower().startswith('muro'):
                 muros.append(item)
             elif len(tris) == 6 or not {'ACCESSORY', '0'} & set(item['capas']):
                 # caja de 6 caras, o pieza con ingletes/rebajes (caras en capas de material) = panel

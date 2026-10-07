@@ -166,6 +166,11 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   Probado con dos proyectos reales de Nord Good (*Rack florencia v2*, subido como ZIP del Explorador, y *Kogan2*, con
   el ZIP armado por el JavaScript de la página): el ZIP descargado es igual byte a byte a lo que genera hoy "Convertir
   proyecto" (`run.py`); `taller-prueba` no ve nada de Zicar y la descarga armada a mano da 404. Próxima: 12.
+- 2026-10-07: **arreglo del conversor (pedido de Martín).** Muros, suelos y techos renombrados en Polyboard
+  ("M lav", "Suelo 1", "ventana"…) se tomaban como muebles o herrajes y en el visor tapaban los muebles con un bloque
+  macizo. Ahora un bloque de primer nivel sin sub-bloques (sin piezas adentro) es muro, se llame como se llame.
+  Cambiaron `esperado/` de Aguilar, argerich, grondona y Kogan (solo pasan objetos de la obra a `muros`). Ya está
+  también en el visor del NAS (polyboard f62ff14, grondona reconvertida).
 
 ## Pendientes
 
