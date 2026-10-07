@@ -14,7 +14,7 @@ el cliente, tablero de producción, avisos e integraciones.
 de su perfil; el que ya tenía un trabajo lo conserva aunque deje el taller. Quién anota y quién cambia cada estado
 sale de la sesión, no de lo que mande el navegador (en el NAS era un nombre guardado en el celular). Cualquier
 miembro anota, cambia el estado y sube fotos; cambiar texto, piezas, fecha o para quién, borrar y quitar fotos ajenas
-es de quien lo anotó, el dueño o la oficina (propuesto y aceptado por defecto; se cambia en `puede_editar`).
+es de quien lo anotó, el dueño o la oficina (confirmado por Martín el 2026-10-07; se cambia en `puede_editar`).
 Descartado: texto libre para alguien de afuera (por ahora).
 
 ## 2026-10-07 · Trabajos: mismas rutas que el NAS, proyecto por id
