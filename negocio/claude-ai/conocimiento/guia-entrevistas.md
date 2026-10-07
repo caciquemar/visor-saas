@@ -23,12 +23,17 @@ talleres que tercerizan el mecanizado.
 6. ¿Cómo le muestran el proyecto al cliente antes de fabricar? ¿Qué problemas trae?
 7. ¿Cómo siguen lo que falta (detalles, ajustes, piezas a rehacer) después de instalar?
 
+**Etiquetas, carga y colores**
+7b. ¿Las piezas les llegan con etiqueta? ¿Quién las etiqueta y con qué?
+7c. ¿Cómo saben que un mueble está terminado? ¿Cómo controlan lo que se carga en el camión? ¿Les pasó salir con algo de menos?
+7d. ¿Cómo eligen los colores con el cliente? ¿Cuántas veces cambia de idea?
+
 **Lo que pagan**
 8. ¿Qué software pagan hoy y cuánto? ¿Qué dejaron de pagar y por qué?
 
 **Recién acá: mostrar**
 9. Mostrar el video o el visor en el celular con un proyecto real de Nord Good: escanear una pieza, ficha, link del
-   cliente en realidad aumentada, trabajos.
+   cliente en realidad aumentada, trabajos, etiquetas de pieza y de mueble, control de carga, probador de colores.
 10. ¿Qué parte te sirve más? ¿Qué le falta para que lo uses mañana?
 11. Si costara USD 39 por mes, ¿lo pagarías? ¿Quién en el taller lo usaría primero?
 12. ¿Querés probarlo como piloto con un proyecto tuyo? (Si dice que sí: anotar fecha concreta.)

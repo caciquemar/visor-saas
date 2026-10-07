@@ -12,8 +12,18 @@ Servicio mensual para talleres y fábricas de muebles en melamina que diseñan e
 - Trabajos a realizar: pendiente → en proceso → hecho → instalado, con piezas, responsable, fecha y fotos.
 - Módulos por taller. El módulo Zicar (Polyboard → CNC Zicar) es interno y solo está habilitado para Nord Good.
 
-Diferenciales pendientes para el plan Pro: orden de armado paso a paso, tildar piezas armadas, herrajes en la ficha,
-cotas y veta sobre la pieza, buscar por nombre de pieza.
+Nuevas, antes de los pilotos (decididas el 2026-10-06):
+- Etiquetas con QR por pieza (para talleres sin etiqueta de mecanizado) y por mueble (bulto 1 de N), en A4 o térmica.
+- Avance por etapas (cortada, canteada, mecanizada, armada), fin de fabricación por mueble y control de carga
+  escaneando cada bulto antes de salir a obra.
+- Probador de colores en el link del cliente: cambia tableros entre opciones del taller, en 3D y en realidad aumentada.
+
+Para después de las entrevistas: piezas a rehacer (lista para OptiCut), uso sin señal en obra, resumen de materiales,
+aprobación del cliente, estado del pedido en el link, tablero de producción, avisos, integraciones (API, Dolibarr),
+instrucciones de armado para muebles en kit.
+
+Diferenciales pendientes para el plan Pro: orden de armado paso a paso, herrajes en la ficha,
+cotas y veta sobre la pieza, buscar por nombre de pieza (tildar piezas armadas queda dentro de la ficha 13).
 
 ## Cliente ideal
 Taller de 3 a 30 personas que diseña en Polyboard, corta y mecaniza (propio o tercerizado), arma en taller y en obra.
@@ -29,8 +39,8 @@ Marca propia, separada de Nord Good (los clientes son otros fabricantes). Nord G
 ## Planes (precio de lista en USD, cobrado en ARS)
 | Plan | USD/mes | Incluye |
 |---|---|---|
-| Taller | 19 | 10 proyectos activos, 3 usuarios, visor, escaneo, ficha, link del cliente |
-| Pro | 39 | Ilimitados, trabajos con fotos, realidad aumentada, logo del taller en el link |
+| Taller | 19 | 10 proyectos activos, 3 usuarios, visor, escaneo, ficha, link del cliente, etiquetas con QR |
+| Pro | 39 | Ilimitados, trabajos con fotos, avance por etapas y control de carga, realidad aumentada, probador de colores, logo del taller en el link |
 | Fábrica | 79 | Todo Pro, colores y dominio propio en el link, varias sucursales, reportes, soporte prioritario |
 
 Prueba de 30 días con Pro sin tarjeta. Anual con 2 meses de regalo. Puesta en marcha opcional USD 100.
@@ -53,6 +63,6 @@ otro fabricante; caídas del servicio.
 ## Hoja de ruta
 1. Esta semana: cerrar el visor actual con Cloudflare Access.
 2. Semanas 1–4: validar con 10 talleres, 3 pilotos; definir marca, logo y dominio; video demo.
-3. Semanas 5–12: versión multi-taller (fichas 01–07 y 11).
+3. Semanas 5–12: versión multi-taller (fichas 01–07), etiquetas, avance y carga, probador de colores (fichas 12–14), pilotos (ficha 11).
 4. Semanas 13–15: cobro, factura, página de venta (fichas 08–10).
 5. Semana 16 en adelante: lanzamiento y diferenciales.

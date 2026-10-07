@@ -141,6 +141,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`talleres/limites.py`, hoy todo permitido). `index.html`: token CSRF, proyecto por id, "Para quién" como lista,
   sin "Tu nombre", Editar/Borrar solo si `puede_editar`. Probado en el navegador integrado con `taller-prueba`
   (dueño con mail y armador con PIN: anotar, foto, estados, permisos). Próxima: 06.
+- 2026-10-06: **fichas 12 a 14 nuevas** (decisión de Martín): etiquetas con QR por pieza y por mueble, avance por
+  etapas con fin de fabricación y control de carga, probador de colores en el link del cliente. Orden sugerido en
+  `docs/sesiones/README.md`.
 
 ## Pendientes
 

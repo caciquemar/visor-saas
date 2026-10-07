@@ -2,6 +2,12 @@
 
 Una entrada por decisión, la más nueva arriba: fecha, qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · Funcionalidades antes de los pilotos
+Etiquetas con QR por pieza y por mueble (plan Taller), avance por etapas con fin de fabricación y control de carga
+(Pro) y probador de colores en el link del cliente (Pro). La etiqueta por mueble fue idea de Martín. El resto de las
+ideas (piezas a rehacer, sin señal, resumen de materiales, aprobación y estado para el cliente, tablero, avisos,
+integraciones, muebles en kit) se decide con lo que digan las entrevistas.
+
 ## 2026-10-04 · Zicar no se vende
 El conversor a CNC Zicar es interno de Nord Good. Queda como módulo del sistema habilitado solo para Nord Good.
 

@@ -18,6 +18,12 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [09](09-factura-arca.md) | Factura electrónica ARCA automática | 08 | 14 | pendiente |
 | [10](10-pagina-venta-mails.md) | Página de venta, mails y marca aplicada | 08 + marca definida | 15 | pendiente |
 | [11](11-pilotos.md) | Alta de pilotos y migración de Nord Good | 07 | 12+ | pendiente |
+| [12](12-etiquetas-qr.md) | Etiquetas con QR por pieza y por mueble (A4 y térmica) | 04 | antes de pilotos | pendiente |
+| [13](13-avance-carga.md) | Avance por etapas, fin de fabricación por mueble y control de carga | 05 + 12 | antes de pilotos | pendiente |
+| [14](14-probador-colores.md) | Probador de colores en el link del cliente | 04 | antes de pilotos | pendiente |
+
+Orden sugerido desde acá: 06 → 12 → 13 → 14 → 07 → 11 (pilotos) → 08 → 09 → 10. Las fichas 12 a 14 se sumaron el
+2026-10-06: son las tres funcionalidades nuevas que Martín eligió para tener antes de los pilotos.
 
 Reglas comunes (también en `CLAUDE.md`): una ficha por sesión, modo plan en las grandes, pruebas antes de cerrar,
 actualizar *Estado* en `CLAUDE.md` y `docs/decisiones.md`, commit en español.

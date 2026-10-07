@@ -2,6 +2,13 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-06 · Tres funcionalidades nuevas antes de los pilotos
+Elegidas por Martín: etiquetas con QR (ficha 12), avance por etapas con fin de fabricación y control de carga
+(ficha 13) y probador de colores en el link del cliente (ficha 14). Martín sumó la **etiqueta por mueble**: sirve
+para cerrar la fabricación de cada mueble y para controlar la carga bulto por bulto. Quedaron para después de las
+entrevistas: piezas a rehacer, uso sin señal, resumen de materiales, aprobación del cliente, estado del pedido para
+el cliente, tablero de producción, avisos e integraciones.
+
 ## 2026-10-07 · Trabajos: gente del taller y quién puede qué
 "Para quién" es solo un miembro activo del taller (decisión de Martín): queda vinculado al usuario y el nombre sale
 de su perfil; el que ya tenía un trabajo lo conserva aunque deje el taller. Quién anota y quién cambia cada estado
