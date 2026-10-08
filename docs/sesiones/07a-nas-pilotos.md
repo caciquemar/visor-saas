@@ -28,6 +28,8 @@ copiar la base y cambiar el destino del túnel.
   gastan la subida de internet de la casa. Configurar CORS del bucket (ver *Pendientes* en `CLAUDE.md`).
 - **Velocidad de subida:** Martín no la conoce. Medirla al principio (por ejemplo speedtest.net o fast.com desde una
   PC en la misma red del NAS) y anotarla aquí. Con los archivos en R2 alcanza con poca subida.
+  **Medida el 2026-10-07 con fast.com: 60 Mbps de subida.** Sobra para las páginas y la API; los archivos pesados
+  igual salen de R2.
 - **Copias:** base de datos todos los días a R2 (fuera de la casa), con una restauración probada.
 - **Avisos:** caída del sitio por mail (UptimeRobot o similar) y errores de la app (Sentry, plan gratis).
 - **Correo saliente** para invitaciones y "me olvidé la contraseña" (`EMAIL_URL`).
