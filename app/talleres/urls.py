@@ -10,6 +10,7 @@ urlpatterns = [
     path('equipo/', vistas.equipo, name='equipo'),
     path('equipo/invitar/', vistas.invitar, name='invitar'),
     path('equipo/alta/', vistas.alta_con_pin, name='alta_con_pin'),
+    path('equipo/invitacion/<int:id>/reenviar/', vistas.reenviar_invitacion, name='reenviar_invitacion'),
     path('equipo/<int:id>/', vistas.editar_miembro, name='miembro'),
     path('pin/', vistas.entrar_con_pin, name='pin'),
     path('marca/', vistas.marca, name='marca'),

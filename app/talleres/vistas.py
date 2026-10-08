@@ -1,6 +1,8 @@
 """Vistas dentro de /<taller>/. El middleware ya puso request.taller y request.membresia y filtra todo por
 taller: acá no se filtra a mano. El argumento `taller` de la URL no se usa (es el mismo que request.taller)."""
 from django.conf import settings
+from datetime import timedelta
+
 from django.contrib import messages
 from django.contrib.auth import get_user_model, login
 from django.core.exceptions import PermissionDenied
@@ -12,12 +14,14 @@ from django.views.decorators.http import require_POST
 
 from . import pin as pines
 from .archivos import abrir_de_taller
-from .formularios import FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin
+from .formularios import FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, roles_que_puede_dar
 from .mails import invitar as mandar_invitacion
+from .mails import reenviar as mandar_de_nuevo
 from .models import Invitacion, Membresia
 from .roles import Rol, con_rol, miembro
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
+DIAS_INVITACION_VENCIDA = 30      # en Equipo se siguen viendo (para reenviarlas) hasta 30 días después de vencer
 
 
 def a_equipo(request):
@@ -29,11 +33,22 @@ def inicio(request, taller):
     return render(request, 'talleres/inicio.html')
 
 
+def invitaciones_sin_usar():
+    """Vigentes y vencidas hace poco (para reenviarlas), la más nueva de cada mail (al reenviar, la vieja queda
+    anulada y no se muestra)."""
+    por_mail = {}
+    for inv in Invitacion.objects.filter(usada__isnull=True, vence__gt=timezone.now() - timedelta(
+            days=DIAS_INVITACION_VENCIDA)).order_by('-creada', '-pk'):
+        por_mail.setdefault(inv.email, inv)
+    return list(por_mail.values())
+
+
 @con_rol(*GESTION)
 def equipo(request, taller):
     return render(request, 'talleres/equipo.html', {
         'miembros': Membresia.objects.select_related('usuario').order_by('-activa', 'usuario__nombre'),
-        'invitaciones': Invitacion.objects.filter(usada__isnull=True, vence__gt=timezone.now()),
+        'invitaciones': invitaciones_sin_usar(),
+        'ahora': timezone.now(),
         'form_invitar': FormInvitar(membresia=request.membresia),
         'form_alta': FormAltaConPin(),
     })
@@ -48,6 +63,17 @@ def invitar(request, taller):
         messages.success(request, f'Invitación enviada a {form.cleaned_data["email"]}.')
     else:
         messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
+    return a_equipo(request)
+
+
+@require_POST
+@con_rol(*GESTION)
+def reenviar_invitacion(request, taller, id):
+    inv = get_object_or_404(Invitacion, pk=id, usada__isnull=True)
+    if inv.rol not in dict(roles_que_puede_dar(request.membresia)):
+        raise PermissionDenied
+    mandar_de_nuevo(request.taller, inv, request.user)
+    messages.success(request, f'Invitación reenviada a {inv.email}.')
     return a_equipo(request)
 
 

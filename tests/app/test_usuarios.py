@@ -158,3 +158,66 @@ def test_olvide_la_contrasena(client, t):
 def test_pagina_entrar_en_castellano(client, db):
     r = client.get('/entrar/')
     assert r.status_code == 200 and 'Contraseña' in r.text and 'PIN' in r.text
+
+
+# ---------------------------------------------------------------- reenviar invitaciones
+
+def test_reenviar_desde_equipo_anula_el_link_viejo(client, t):
+    client.force_login(t.dueno_a)
+    client.post('/taller-a/equipo/invitar/', {'email': 'nuevo@a.com', 'rol': 'oficina'})
+    viejo = link_del_mail(mail.outbox[0])
+    with con_taller(t.A):
+        inv = Invitacion.objects.get()
+    r = client.post(f'/taller-a/equipo/invitacion/{inv.pk}/reenviar/')
+    assert r.status_code == 302 and len(mail.outbox) == 2 and mail.outbox[1].to == ['nuevo@a.com']
+    nuevo = link_del_mail(mail.outbox[1])
+    assert nuevo != viejo
+    r = client.get('/taller-a/equipo/')
+    assert r.text.count('nuevo@a.com ·') == 1 and 'Reenviar' in r.text    # en la lista, solo la nueva
+    client.logout()
+    assert client.get(viejo).status_code == 404
+    assert client.get(nuevo).status_code == 200
+
+
+def test_reenviar_una_vencida(client, t):
+    with con_taller(t.A):
+        inv = invitar(t.A, 'tarde@a.com', 'instalador')
+        Invitacion.objects.filter(pk=inv.pk).update(vence=timezone.now() - timedelta(days=2))
+    client.force_login(t.dueno_a)
+    assert 'venció' in client.get('/taller-a/equipo/').text
+    client.post(f'/taller-a/equipo/invitacion/{inv.pk}/reenviar/')
+    client.logout()
+    assert client.get(link_del_mail(mail.outbox[-1])).status_code == 200
+
+
+def test_oficina_no_reenvia_invitacion_de_dueno_ni_de_otro_taller(client, t):
+    with con_taller(t.A):
+        de_dueno = invitar(t.A, 'socio@a.com', 'dueno')
+    with con_taller(t.B):
+        de_b = invitar(t.B, 'alguien@b.com', 'oficina')
+    mail.outbox.clear()
+    client.force_login(t.oficina_a)
+    assert client.post(f'/taller-a/equipo/invitacion/{de_dueno.pk}/reenviar/').status_code == 403
+    assert client.post(f'/taller-a/equipo/invitacion/{de_b.pk}/reenviar/').status_code == 404
+    assert client.get(f'/taller-a/equipo/invitacion/{de_dueno.pk}/reenviar/').status_code == 405
+    assert mail.outbox == []
+
+
+def test_reenviar_desde_la_administracion(admin_client, db):
+    admin_client.post('/admin/talleres/taller/add/', {
+        'nombre': 'Muebles Sur', 'slug': 'muebles-sur', 'activo': 'on', 'email_dueno': 'duena@sur.com'})
+    taller = Taller.objects.get(slug='muebles-sur')
+    with con_taller(taller):
+        inv = Invitacion.objects.get()
+    ficha = f'/admin/talleres/taller/{taller.pk}/change/'
+    boton = f'/admin/talleres/taller/{taller.pk}/reenviar-invitacion/{inv.pk}/'
+    assert boton in admin_client.get(ficha).text
+    assert admin_client.get(boton).status_code == 403                 # solo con el botón (POST)
+    r = admin_client.post(boton)
+    assert r.status_code == 302 and r['Location'] == ficha
+    assert len(mail.outbox) == 2 and mail.outbox[1].to == ['duena@sur.com']
+    with con_taller(taller):
+        assert Invitacion.objects.count() == 2 and not Invitacion.objects.get(pk=inv.pk).vigente
+        nueva = Invitacion.objects.exclude(pk=inv.pk).get()
+    texto = admin_client.get(ficha).text
+    assert f'/reenviar-invitacion/{nueva.pk}/' in texto and boton not in texto

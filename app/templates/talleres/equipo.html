@@ -21,7 +21,13 @@
 
 {% if invitaciones %}
 <h2>Invitaciones pendientes</h2>
-<ul>{% for i in invitaciones %}<li>{{ i.email }} · {{ i.get_rol_display }} · vence {{ i.vence|date:"j/n" }}</li>{% endfor %}</ul>
+<ul>{% for i in invitaciones %}
+  <li>{{ i.email }} · {{ i.get_rol_display }} ·
+    {% if i.vence > ahora %}vence {{ i.vence|date:"j/n" }}{% else %}<span class="error">venció el {{ i.vence|date:"j/n" }}</span>{% endif %}
+    {% if request.membresia.rol == 'dueno' or i.rol != 'dueno' %}
+    <form method="post" action="{% url 'taller:reenviar_invitacion' taller=request.taller.slug id=i.pk %}" style="display:inline">{% csrf_token %}
+      <button type="submit" class="secundario">Reenviar</button></form>{% endif %}
+  </li>{% endfor %}</ul>
 {% endif %}
 
 <div class="grilla" style="margin-top:2rem">

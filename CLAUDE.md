@@ -201,6 +201,11 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   `sin_filtro` dentro del contexto de A. Probado en la PC con PostgreSQL 16 portátil: todas las pruebas rápidas
   (también copia y restauración de verdad) y las 7 muestras. La imagen y el compose todavía no se probaron (no hay
   Docker en la PC): se prueban en GitHub y al instalar.
+- 2026-10-08: **instalado en el NAS** (`v0.7.0`, https://taller.nordgood.com.ar, `/salud/` ok). Pedido de Martín:
+  **reenviar invitaciones**, en Equipo (vigentes y vencidas hasta 30 días, solo la última de cada mail; oficina no
+  reenvía las de dueño) y en la ficha del taller de la administración. Como el link solo existe en el mail, reenviar
+  anula la vieja y manda una nueva (`talleres/mails.py`, `reenviar`). Mails por Gmail (contraseña de aplicación),
+  elección de Martín en vez de Brevo.
 
 ## Pendientes
 

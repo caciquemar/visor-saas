@@ -3,10 +3,14 @@ Los dueños de los talleres no entran acá: usan Equipo dentro de su taller."""
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.utils import unquote
+from django.core.exceptions import PermissionDenied
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import path, reverse
+from django.utils.html import format_html
 
 from modulos.models import TallerModulo
 
-from .mails import invitar
+from .mails import invitar, reenviar
 from .models import Invitacion, Membresia, Taller
 from .separacion import con_taller
 
@@ -30,7 +34,7 @@ class MiembrosInline(admin.TabularInline):
 
 class InvitacionesInline(admin.TabularInline):
     model = Invitacion
-    fields = readonly_fields = ('email', 'rol', 'creada', 'vence', 'usada')
+    fields = readonly_fields = ('email', 'rol', 'creada', 'vence', 'usada', 'reenviar')
     extra = 0
     can_delete = False
     verbose_name_plural = 'invitaciones'
@@ -43,6 +47,20 @@ class InvitacionesInline(admin.TabularInline):
 
     def get_queryset(self, request):
         return Invitacion.sin_filtro.all()
+
+    @admin.display(description='')
+    def reenviar(self, obj):
+        """Botón solo en la última invitación sin usar de cada mail (al reenviar, la anterior queda anulada). Manda
+        el formulario del taller a otra dirección (formaction): ver TallerAdmin.reenviar_invitacion."""
+        if obj.pk is None or obj.usada is not None:
+            return ''
+        ultima = (Invitacion.sin_filtro.filter(taller_id=obj.taller_id, email=obj.email)
+                  .order_by('-creada', '-pk').values_list('pk', flat=True).first())
+        if ultima != obj.pk:
+            return ''
+        url = reverse('admin:talleres_taller_reenviar', args=[obj.taller_id, obj.pk])
+        return format_html('<button type="submit" formaction="{}" formnovalidate class="button">Reenviar</button>',
+                           url)
 
 
 class ModulosInline(admin.TabularInline):
@@ -103,6 +121,21 @@ class TallerAdmin(admin.ModelAdmin):
             if hasattr(respuesta, 'render'):
                 respuesta.render()
             return respuesta
+
+    def get_urls(self):
+        propias = [path('<int:taller_id>/reenviar-invitacion/<int:inv_id>/',
+                        self.admin_site.admin_view(self.reenviar_invitacion), name='talleres_taller_reenviar')]
+        return propias + super().get_urls()
+
+    def reenviar_invitacion(self, request, taller_id, inv_id):
+        if request.method != 'POST' or not self.has_change_permission(request):
+            raise PermissionDenied
+        taller = get_object_or_404(Taller, pk=taller_id)
+        with con_taller(taller):
+            inv = get_object_or_404(Invitacion, pk=inv_id, usada__isnull=True)
+            reenviar(taller, inv, request.user)
+        messages.info(request, f'Se reenvió la invitación a {inv.email} (la anterior quedó anulada).')
+        return redirect('admin:talleres_taller_change', taller.pk)
 
     def save_model(self, request, obj, form, change):
         super().save_model(request, obj, form, change)

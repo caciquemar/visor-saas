@@ -1,6 +1,7 @@
 from django.conf import settings
 from django.core.mail import send_mail
 from django.urls import reverse
+from django.utils import timezone
 
 from .models import Invitacion
 
@@ -22,3 +23,15 @@ def invitar(taller, email, rol, invitado_por=None):
         None, [inv.email],
     )
     return inv
+
+
+def reenviar(taller, invitacion, invitado_por=None):
+    """Manda de nuevo una invitación sin usar (vigente o vencida). El link viejo no se puede volver a mandar (en la
+    base solo está su hash): se anula y sale una invitación nueva al mismo mail, con el mismo rol y 7 días más."""
+    if invitacion.usada is not None:
+        raise ValueError('La invitación ya se usó')
+    ahora = timezone.now()
+    if invitacion.vence > ahora:
+        invitacion.vence = ahora
+        invitacion.save(update_fields=['vence'])
+    return invitar(taller, invitacion.email, invitacion.rol, invitado_por)
