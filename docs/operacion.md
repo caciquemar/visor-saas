@@ -49,7 +49,7 @@ Lo hace Martín con estas pantallas; Claude acompaña.
      `visor-saas-copias`. Anotar Access Key ID, Secret y el Account ID.
    - `visor-saas` → Settings → CORS policy:
      ```json
-     [{"AllowedOrigins": ["https://app-prueba.nordgood.com.ar"], "AllowedMethods": ["GET", "HEAD"],
+     [{"AllowedOrigins": ["https://taller.nordgood.com.ar"], "AllowedMethods": ["GET", "HEAD"],
        "AllowedHeaders": ["*"], "MaxAgeSeconds": 86400}]
      ```
 3. **TrueNAS — carpetas:** Datasets → `Applications` → Add Dataset `visor-saas` (preset *Generic*). Adentro:
@@ -63,13 +63,13 @@ Lo hace Martín con estas pantallas; Claude acompaña.
 6. **TrueNAS — la app:** Apps → Discover → ⋮ → *Install via YAML*. Nombre `visor-saas`, pegar
    `despliegue/compose.yml` entero, Save. Esperar que `web` y `cola` queden *Running*.
 7. **Cloudflare — túnel:** Zero Trust → Networks → Tunnels → el túnel del NAS → Public Hostname → Add:
-   subdominio `app-prueba`, dominio `nordgood.com.ar`, servicio `HTTP` → `<IP del NAS en la red de la casa>:8090`
+   subdominio `taller`, dominio `nordgood.com.ar`, servicio `HTTP` → `<IP del NAS en la red de la casa>:8090`
    (la misma IP que usa el visor de Nord Good). En el dominio: SSL/TLS → Edge Certificates → *Always Use HTTPS*.
 8. **Primer usuario:** Apps → visor-saas → contenedor `web` → *Shell* →
-   `python app/manage.py createsuperuser`. Entrar a `https://app-prueba.nordgood.com.ar/admin/`, crear el taller.
+   `python app/manage.py createsuperuser`. Entrar a `https://taller.nordgood.com.ar/admin/`, crear el taller.
    Módulo Zicar para Nord Good: en la ficha del taller → Módulos.
 9. **Avisos:**
-   - UptimeRobot: monitor HTTP(s) `https://app-prueba.nordgood.com.ar/salud/`, cada 5 minutos, aviso por mail.
+   - UptimeRobot: monitor HTTP(s) `https://taller.nordgood.com.ar/salud/`, cada 5 minutos, aviso por mail.
    - Sentry: proyecto Django → copiar el DSN a `SENTRY_DSN` en `visor.env` y reiniciar la app.
    - Brevo: cuenta gratis (300 mails por día) → Senders & IP → dominio `nordgood.com.ar` → poner en Cloudflare DNS
      los registros que pide (DKIM, SPF, DMARC) → SMTP & API → la clave SMTP va en `EMAIL_URL`.
@@ -81,7 +81,7 @@ Lo hace Martín con estas pantallas; Claude acompaña.
    con la anterior.
 2. TrueNAS: Apps → visor-saas → Edit → en la línea `image: ghcr.io/caciquemar/visor-saas:v0.7.0` cambiar el número
    → Save. Baja la imagen nueva y reinicia; `web` migra la base sola. El corte es de menos de un minuto.
-3. Mirar `https://app-prueba.nordgood.com.ar/salud/` → `ok`.
+3. Mirar `https://taller.nordgood.com.ar/salud/` → `ok`.
 
 **Volver atrás:** lo mismo con el número anterior. Si la versión nueva traía migraciones de la base, la vieja puede no
 andar con la base migrada: en ese caso restaurar la copia de antes de actualizar (abajo). Antes de una versión con
@@ -138,7 +138,7 @@ debajo de 2,5 GB en el peor momento (convirtiendo el proyecto más grande).
    `docker login ghcr.io` con el token "nas-imagenes". `docker compose up -d` y ver que `/salud/` ande por la IP.
 2. Avisar a los pilotos (corte de menos de una hora). En el NAS, consola de `cola`: `python app/manage.py copia_base`.
 3. En el VPS: `docker compose exec cola python app/manage.py restaurar_copia diarias/<la recién hecha> --si`.
-4. Cloudflare: el hostname `app-prueba` (o el dominio de la marca) pasa a apuntar al túnel nuevo del VPS (cloudflared
+4. Cloudflare: el hostname `taller` (o el dominio de la marca) pasa a apuntar al túnel nuevo del VPS (cloudflared
    instalado en el VPS). Los archivos ya están en R2: no se copian.
 5. Probar entrar, abrir un proyecto y un link de cliente. Apagar la app `visor-saas` del NAS (Stop) y, unos días
    después, borrarla. UptimeRobot sigue con la misma dirección.

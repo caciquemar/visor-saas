@@ -12,7 +12,7 @@ sincronización a medias rompe la app) y armar la imagen en la PC (hace falta Do
 
 ## 2026-10-07 · Dirección de prueba de los pilotos: subdominio de nordgood.com.ar
 Decisión de Martín (ficha 07a). Mientras no haya dominio de la marca, los pilotos entran por un subdominio de
-nordgood.com.ar (ej. `app-prueba`) en el túnel de Cloudflare que ya existe, y los mails salen de `@nordgood.com.ar`.
+nordgood.com.ar (`taller.nordgood.com.ar`, elegido por Martín) en el túnel de Cloudflare que ya existe, y los mails salen de `@nordgood.com.ar`.
 Es inmediato; la contra es que los pilotos ven "nordgood". Al tener el dominio de la marca se agrega como otro
 hostname y se cambia `DOMINIO_APP`. Descartado por ahora: comprar un dominio neutro, o esperar la marca para empezar.
 
