@@ -225,3 +225,8 @@ para cada taller (instalación y versiones distintas). Puede sumarse después co
 ## 2026-10-04 · Stack inicial
 Django + PostgreSQL + cola de tareas + Cloudflare R2, en un VPS detrás de Cloudflare. Descartado: el NAS de la casa
 para clientes pagos (cortes de luz e internet, sin respaldo de uptime).
+
+## 2026-10-09 · Cobro: se posterga Mercado Pago, se evalúa una pasarela internacional
+Martín postergó la ficha 08 porque se van a recibir pagos del exterior: evaluar Payway u otra pasarela con cuenta en
+EE. UU. antes de elegir. Ya decidido: dólar oficial automático para lo que se cobre en pesos, prueba vencida = solo
+lectura, plan anual (12 meses al precio de 10). Detalle en `docs/sesiones/08-planes-mercadopago.md`.
