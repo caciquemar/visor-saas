@@ -7,25 +7,18 @@
 # Lo que cambia entre NAS y VPS:
 #   - la carpeta de datos: VISOR_DATOS (en el NAS queda la de abajo, no hace falta ponerla)
 #   - config/visor.env y config/postgres.env adentro de esa carpeta (claves, dominio, R2...)
-# Para pasar a una versión nueva: cambiar el número en la línea "image: ghcr.io/..." de abajo y guardar.
-# Volver atrás: poner el número anterior (la base no se toca; si la versión nueva migró, ver docs/operacion.md).
+# Para pasar a una versión nueva: cambiar el número en las TRES líneas "image: ghcr.io/caciquemar/visor-saas:..."
+# (preparar, web y cola; siempre el mismo número), Save, y después Stop y Start de la app.
+# Volver atrás: poner el número anterior en las tres (la base no se toca; si la versión nueva migró, ver
+# docs/operacion.md). Sin atajos de YAML (anclas): TrueNAS los desarma al guardar y quedaban líneas sin cambiar.
 #
 # Puerto 8090: el túnel de Cloudflare apunta a http://<IP del NAS>:8090. No choca con el visor de Nord Good
 # (visor-armado, 8088), que sigue igual.
 
-x-visor: &visor
-  image: ghcr.io/caciquemar/visor-saas:v0.7.0
-  restart: unless-stopped
-  env_file:
-    - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/visor.env
-  logging: &logs
-    driver: json-file
-    options: {max-size: 10m, max-file: "3"}
-
 services:
   # Una vez en cada arranque: crea el usuario y la base de la app si no están (y termina).
   preparar:
-    <<: *visor
+    image: ghcr.io/caciquemar/visor-saas:v0.7.2
     container_name: visor-saas-preparar
     command: ["preparar"]
     restart: "no"
@@ -34,29 +27,38 @@ services:
       - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/postgres.env
     depends_on:
       postgres: {condition: service_healthy}
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
     mem_limit: 128m
 
   # La página: gunicorn con 2 procesos. Migra la base al arrancar.
   web:
-    <<: *visor
+    image: ghcr.io/caciquemar/visor-saas:v0.7.2
     container_name: visor-saas-web
     command: ["web"]
+    restart: unless-stopped
+    env_file:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/visor.env
     ports:
       - "8090:8000"
     depends_on:
       preparar: {condition: service_completed_successfully}
       redis: {condition: service_started}
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
     mem_limit: 384m
 
   # La cola: conversiones (una a la vez), latido para /salud/ y copia diaria de la base a R2.
   # El límite tiene que dejar lugar a la conversión más grande (CONVERSION_MEMORIA_MB en visor.env) + ~200 MB.
   cola:
-    <<: *visor
+    image: ghcr.io/caciquemar/visor-saas:v0.7.2
     container_name: visor-saas-cola
     command: ["cola"]
+    restart: unless-stopped
+    env_file:
+      - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/config/visor.env
     depends_on:
       preparar: {condition: service_completed_successfully}
       redis: {condition: service_started}
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
     mem_limit: 1800m
     stop_grace_period: 30s
 
@@ -75,7 +77,7 @@ services:
       interval: 5s
       timeout: 3s
       retries: 30
-    logging: *logs
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
     mem_limit: 384m
 
   # Cola de Huey y caché (intentos de PIN, latido). Guarda en disco para no perder conversiones en cola si se corta.
@@ -87,5 +89,5 @@ services:
               "--maxmemory-policy", "volatile-lru"]
     volumes:
       - ${VISOR_DATOS:-/mnt/pool1/Applications/visor-saas}/redis:/data
-    logging: *logs
+    logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
     mem_limit: 64m

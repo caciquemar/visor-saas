@@ -79,8 +79,9 @@ Lo hace Martín con estas pantallas; Claude acompaña.
 1. En la PC: `git tag v0.7.1` y `git push origin v0.7.1` (Claude lo hace con tu OK). GitHub corre las pruebas y, si
    pasan, arma la imagen (unos 5 minutos; se ve en *Actions*). Si las pruebas fallan, no hay imagen y el NAS sigue
    con la anterior.
-2. TrueNAS: Apps → visor-saas → Edit → en la línea `image: ghcr.io/caciquemar/visor-saas:v0.7.0` cambiar el número
-   → Save. Baja la imagen nueva, pero **no siempre recrea los contenedores** (pasó con la v0.7.1/0.7.2): después
+2. TrueNAS: Apps → visor-saas → Edit → cambiar el número en **todas** las líneas
+   `image: ghcr.io/caciquemar/visor-saas:...` (preparar, web y cola; con Ctrl+F buscar `visor-saas:` y que no quede
+   ninguna con el número viejo) → Save. Baja la imagen nueva, pero **no siempre recrea los contenedores** (pasó con la v0.7.1/0.7.2): después
    del Save, hacer **Stop** y, cuando diga *Stopped*, **Start**. `web` migra la base sola al arrancar. El corte es
    de un par de minutos.
 3. Comprobar la versión: consola de `web` → `cat /proc/1/environ | tr '\0' '\n' | grep VISOR` tiene que decir el
