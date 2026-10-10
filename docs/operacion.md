@@ -80,8 +80,12 @@ Lo hace Martín con estas pantallas; Claude acompaña.
    pasan, arma la imagen (unos 5 minutos; se ve en *Actions*). Si las pruebas fallan, no hay imagen y el NAS sigue
    con la anterior.
 2. TrueNAS: Apps → visor-saas → Edit → en la línea `image: ghcr.io/caciquemar/visor-saas:v0.7.0` cambiar el número
-   → Save. Baja la imagen nueva y reinicia; `web` migra la base sola. El corte es de menos de un minuto.
-3. Mirar `https://taller.nordgood.com.ar/salud/` → `ok`.
+   → Save. Baja la imagen nueva, pero **no siempre recrea los contenedores** (pasó con la v0.7.1/0.7.2): después
+   del Save, hacer **Stop** y, cuando diga *Stopped*, **Start**. `web` migra la base sola al arrancar. El corte es
+   de un par de minutos.
+3. Comprobar la versión: consola de `web` → `cat /proc/1/environ | tr '\0' '\n' | grep VISOR` tiene que decir el
+   número nuevo (en una consola abierta después del Start; una vieja sigue en el contenedor anterior).
+4. Mirar `https://taller.nordgood.com.ar/salud/` → `ok`.
 
 **Volver atrás:** lo mismo con el número anterior. Si la versión nueva traía migraciones de la base, la vieja puede no
 andar con la base migrada: en ese caso restaurar la copia de antes de actualizar (abajo). Antes de una versión con
