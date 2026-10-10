@@ -10,7 +10,7 @@ from django.utils.html import format_html
 
 from modulos.models import TallerModulo
 
-from .mails import invitar, reenviar
+from .mails import NO_SALIO, invitar, reenviar
 from .models import Invitacion, Membresia, Taller
 from .separacion import con_taller
 
@@ -133,8 +133,11 @@ class TallerAdmin(admin.ModelAdmin):
         taller = get_object_or_404(Taller, pk=taller_id)
         with con_taller(taller):
             inv = get_object_or_404(Invitacion, pk=inv_id, usada__isnull=True)
-            reenviar(taller, inv, request.user)
-        messages.info(request, f'Se reenvió la invitación a {inv.email} (la anterior quedó anulada).')
+            nueva = reenviar(taller, inv, request.user)
+        if nueva.mail_enviado:
+            messages.info(request, f'Se reenvió la invitación a {inv.email} (la anterior quedó anulada).')
+        else:
+            messages.error(request, NO_SALIO)
         return redirect('admin:talleres_taller_change', taller.pk)
 
     def save_model(self, request, obj, form, change):
@@ -142,5 +145,8 @@ class TallerAdmin(admin.ModelAdmin):
         email = form.cleaned_data.get('email_dueno')
         if email:
             with con_taller(obj):
-                invitar(obj, email, Membresia.Rol.DUENO, request.user)
-            messages.info(request, f'Se mandó la invitación de dueño a {email}.')
+                inv = invitar(obj, email, Membresia.Rol.DUENO, request.user)
+            if inv.mail_enviado:
+                messages.info(request, f'Se mandó la invitación de dueño a {email}.')
+            else:
+                messages.error(request, NO_SALIO)

@@ -221,3 +221,22 @@ def test_reenviar_desde_la_administracion(admin_client, db):
         nueva = Invitacion.objects.exclude(pk=inv.pk).get()
     texto = admin_client.get(ficha).text
     assert f'/reenviar-invitacion/{nueva.pk}/' in texto and boton not in texto
+
+
+def test_si_el_mail_no_sale_no_hay_error_500(admin_client, client, t, monkeypatch):
+    """Correo mal configurado (ej. Gmail rechaza la clave): se avisa, la invitación queda para reenviarla."""
+    import smtplib
+
+    def rechaza(*a, **k):
+        raise smtplib.SMTPAuthenticationError(535, b'Username and Password not accepted')
+    monkeypatch.setattr('talleres.mails.send_mail', rechaza)
+    r = admin_client.post('/admin/talleres/taller/add/', {
+        'nombre': 'Muebles Sur', 'slug': 'muebles-sur', 'activo': 'on', 'email_dueno': 'duena@sur.com'},
+        follow=True)
+    assert r.status_code == 200 and 'No se pudo mandar el mail' in r.text
+    taller = Taller.objects.get(slug='muebles-sur')
+    with con_taller(taller):
+        assert Invitacion.objects.get().email == 'duena@sur.com'
+    client.force_login(t.dueno_a)
+    r = client.post('/taller-a/equipo/invitar/', {'email': 'nuevo@a.com', 'rol': 'oficina'}, follow=True)
+    assert r.status_code == 200 and 'No se pudo mandar el mail' in r.text and 'Reenviar' in r.text

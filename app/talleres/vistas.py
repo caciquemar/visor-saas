@@ -15,6 +15,7 @@ from django.views.decorators.http import require_POST
 from . import pin as pines
 from .archivos import abrir_de_taller
 from .formularios import FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, roles_que_puede_dar
+from .mails import NO_SALIO
 from .mails import invitar as mandar_invitacion
 from .mails import reenviar as mandar_de_nuevo
 from .models import Invitacion, Membresia
@@ -59,8 +60,11 @@ def equipo(request, taller):
 def invitar(request, taller):
     form = FormInvitar(request.POST, membresia=request.membresia)
     if form.is_valid():
-        mandar_invitacion(request.taller, form.cleaned_data['email'], form.cleaned_data['rol'], request.user)
-        messages.success(request, f'Invitación enviada a {form.cleaned_data["email"]}.')
+        inv = mandar_invitacion(request.taller, form.cleaned_data['email'], form.cleaned_data['rol'], request.user)
+        if inv.mail_enviado:
+            messages.success(request, f'Invitación enviada a {inv.email}.')
+        else:
+            messages.error(request, NO_SALIO)
     else:
         messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
     return a_equipo(request)
@@ -72,8 +76,10 @@ def reenviar_invitacion(request, taller, id):
     inv = get_object_or_404(Invitacion, pk=id, usada__isnull=True)
     if inv.rol not in dict(roles_que_puede_dar(request.membresia)):
         raise PermissionDenied
-    mandar_de_nuevo(request.taller, inv, request.user)
-    messages.success(request, f'Invitación reenviada a {inv.email}.')
+    if mandar_de_nuevo(request.taller, inv, request.user).mail_enviado:
+        messages.success(request, f'Invitación reenviada a {inv.email}.')
+    else:
+        messages.error(request, NO_SALIO)
     return a_equipo(request)
 
 
