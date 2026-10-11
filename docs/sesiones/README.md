@@ -20,7 +20,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [10](10-pagina-venta-mails.md) | Página de venta, mails y marca aplicada | 08 + marca definida | 15 | pendiente |
 | [11](11-pilotos.md) | Alta de pilotos y migración de Nord Good | 07a | 12+ | pendiente |
 | [12](12-etiquetas-qr.md) | Etiquetas con QR por pieza y por mueble (A4 y térmica) | 04 | antes de pilotos | hecha (2026-10-11; falta probar en papel) |
-| [13](13-avance-carga.md) | Avance por etapas, fin de fabricación por mueble y control de carga | 05 + 12 | antes de pilotos | pendiente |
+| [13](13-avance-carga.md) | Avance por etapas, fin de fabricación por mueble y control de carga | 05 + 12 | antes de pilotos | hecha (2026-10-11) |
 | [14](14-probador-colores.md) | Probador de colores en el link del cliente | 04 | antes de pilotos | pendiente |
 | [15](15-cotas-internas.md) | Cotas internas: luces entre piezas, taladros y herrajes | 04 | después de pilotos | hecha (2026-10-10) |
 

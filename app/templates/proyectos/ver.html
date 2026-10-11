@@ -90,6 +90,59 @@
 </details>
 {% endif %}
 
+{% if avance %}
+<h2 id="avance">Avance <span class="suave" style="font-weight:400">{{ avance.total.pct }}% · {{ avance.total.terminados }} de {{ avance.muebles|length }} muebles terminados</span></h2>
+{% if avance.nuevas %}
+<div class="caja aviso-texturas">
+  <strong>{{ avance.nuevas|length }} pieza{{ avance.nuevas|length|pluralize }} nueva{{ avance.nuevas|length|pluralize }} en esta versión</strong>
+  (no estaban en la anterior, arrancan sin avance):
+  {% for x in avance.nuevas|slice:":30" %}{{ x.panel.num|default:"s/n" }} {{ x.panel.nombre }} ({{ x.panel.mueble }}){% if not forloop.last %}, {% endif %}{% endfor %}{% if avance.nuevas|length > 30 %}…{% endif %}.
+  Imprimí sus etiquetas.
+</div>
+{% endif %}
+{% if avance.sueltas %}<p class="suave">{{ avance.sueltas }} marca{{ avance.sueltas|pluralize }} de piezas que ya no están en esta versión (no cuentan).</p>{% endif %}
+<div class="caja tabla">
+  <table>
+    <thead><tr><th>Mueble</th><th>Avance</th><th>Fabricación</th></tr></thead>
+    <tbody>
+    {% for m in avance.muebles %}
+      <tr>
+        <td>{{ m.nombre }}<br><span class="suave" style="font-size:.85rem">{% for nombre, n in m.etapas %}{{ nombre }} {{ n }}/{{ m.piezas }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></td>
+        <td><strong>{{ m.pct }}%</strong></td>
+        <td>{% if m.fin %}Terminado <span class="suave">· {{ m.fin.por|default:"—" }}, {{ m.fin.cuando|date:"j/n H:i" }}</span>
+              {% if m.fin.motivo %}<br><span class="error">Faltaban {{ m.fin.faltantes|length }}:</span> <span class="suave">{{ m.fin.motivo }}</span>{% endif %}
+              <br><span class="suave">{% for b in m.bultos %}Bulto {{ b.numero }}: {{ b.get_estado_display|lower }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+            {% else %}<a href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=fin&p={{ proyecto.pk }}&m={{ m.nombre|urlencode }}">Terminar</a>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="acciones"><a class="boton" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir el puesto</a></div>
+
+<h3 style="margin-top:1.5rem">Cargas</h3>
+{% for c in avance.cargas %}
+<p><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a>
+  <span class="estado{% if c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
+  <span class="suave">· {% if c.muebles %}{{ c.muebles|join:", " }}{% else %}proyecto completo{% endif %} · {{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></p>
+{% endfor %}
+<details class="caja"{% if not avance.cargas %} open{% endif %}>
+  <summary>Armar una carga</summary>
+  <form method="post" action="{% url 'taller:avance:nueva_carga' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+    <label><input type="radio" name="todo" value="1" checked> Proyecto completo</label>
+    <label><input type="radio" name="todo" value="0"> Algunos muebles:</label>
+    <div style="padding-left:1.5rem">{% for m in avance.muebles %}
+      <label style="font-weight:400;margin:.2rem 0"><input type="checkbox" name="mueble" value="{{ m.nombre }}"> {{ m.nombre }}{% if not m.fin %} <span class="suave">(sin terminar)</span>{% endif %}</label>{% endfor %}</div>
+    <div class="acciones"><button type="submit">Armar la carga</button></div>
+  </form>
+</details>
+<script>
+  // tildar un mueble elige "Algunos muebles"
+  document.querySelectorAll('input[name=mueble]').forEach(c => c.onchange = () => {
+    if (c.checked) document.querySelector('input[name=todo][value="0"]').checked = true; });
+</script>
+{% endif %}
+
 <h2>Versiones</h2>
 {% for v in versiones %}
 <div class="caja version{% if v.pk == proyecto.version_actual_id %} actual{% endif %}">

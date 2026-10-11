@@ -1,0 +1,483 @@
+<!doctype html>
+<html lang="es-AR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1d1d1b">
+<title>Puesto · {{ request.taller.nombre }}</title>
+<style>
+  :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;
+          --acento-texto:#fff; --ok:#2e7d32; --ok-texto:#fff; --ya:#f2a900; --ya-texto:#2b1d00; --mal:#c62828;
+          --mal-texto:#fff; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fondo:#171716; --panel:#222220; --texto:#ecebe7; --suave:#a3a19b; --borde:#3a3936; --acento:#5fae97;
+            --acento-texto:#0f1a17; }
+  }
+  * { box-sizing:border-box; }
+  html, body { height:100%; }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:17px/1.35 system-ui, sans-serif;
+         display:flex; flex-direction:column; -webkit-tap-highlight-color:transparent; }
+  [hidden] { display:none !important; }
+  header { display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem; background:var(--panel);
+           border-bottom:1px solid var(--borde); }
+  header a { color:inherit; text-decoration:none; font-weight:600; }
+  header .titulo { font-weight:700; margin-right:auto; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  header .suave { color:var(--suave); font-size:.9rem; }
+  main { flex:1; display:flex; flex-direction:column; gap:.75rem; padding:.75rem 1rem 1rem; max-width:560px;
+         width:100%; margin:0 auto; min-height:0; }
+  label.campo { font-size:.9rem; color:var(--suave); margin:.25rem 0 -.4rem; }
+  select, input, textarea { font:inherit; width:100%; padding:.8rem; border:1px solid var(--borde); border-radius:12px;
+                            background:var(--panel); color:inherit; }
+  button { font:inherit; font-weight:600; border:0; border-radius:14px; cursor:pointer; padding:1rem;
+           background:var(--panel); color:var(--texto); border:1px solid var(--borde); }
+  button.principal { background:var(--acento); color:var(--acento-texto); border-color:transparent; font-size:1.2rem; }
+  .modos { display:grid; gap:.6rem; }
+  .modos button { text-align:left; font-size:1.25rem; display:flex; justify-content:space-between; align-items:center; }
+  .modos button[aria-pressed=true] { outline:3px solid var(--acento); outline-offset:-3px; }
+  .modos .chico { font-size:.95rem; font-weight:500; color:var(--suave); }
+  .separa { border-top:1px solid var(--borde); margin:.25rem 0; }
+  .barra { display:flex; align-items:center; gap:.5rem; }
+  .barra .nombre { font-size:1.3rem; font-weight:700; margin-right:auto; }
+  .barra .cuenta { font-size:1.1rem; font-variant-numeric:tabular-nums; }
+  .barra button { padding:.5rem .8rem; }
+  .camara { position:relative; background:#111; border-radius:14px; overflow:hidden; height:28vh; min-height:140px;
+            flex:none; }
+  .camara video { width:100%; height:100%; object-fit:cover; display:block; }
+  .camara .marco { position:absolute; inset:18% 22%; border:3px solid rgba(255,255,255,.85); border-radius:12px; }
+  .camara p { position:absolute; left:0; right:0; bottom:.4rem; margin:0; text-align:center; color:#eee;
+              font-size:.85rem; text-shadow:0 1px 2px #000; padding:0 .5rem; }
+  .aviso { flex:1; min-height:9rem; border-radius:16px; padding:1rem; display:flex; flex-direction:column;
+           justify-content:center; text-align:center; gap:.2rem; background:var(--panel); border:1px solid var(--borde); }
+  .aviso .k { font-size:1.25rem; font-weight:700; }
+  .aviso .n { font-size:3.4rem; font-weight:800; line-height:1.05; font-variant-numeric:tabular-nums; }
+  .aviso .s { font-size:1.05rem; }
+  .aviso.ok { background:var(--ok); color:var(--ok-texto); border-color:transparent; }
+  .aviso.ya { background:var(--ya); color:var(--ya-texto); border-color:transparent; }
+  .aviso.mal { background:var(--mal); color:var(--mal-texto); border-color:transparent; }
+  .aviso.pulso { animation:pulso .35s ease-out; }
+  @keyframes pulso { from { transform:scale(.97); } to { transform:none; } }
+  .escribir { display:flex; gap:.5rem; }
+  .escribir input { text-transform:uppercase; }
+  .escribir button { flex:none; }
+  .deshacer { font-size:1.15rem; }
+  details { background:var(--panel); border:1px solid var(--borde); border-radius:12px; padding:.6rem .8rem; }
+  details summary { font-weight:600; cursor:pointer; }
+  ul.lista { list-style:none; margin:.5rem 0 0; padding:0; }
+  ul.lista li { display:flex; gap:.5rem; align-items:center; padding:.4rem 0; border-top:1px solid var(--borde);
+                font-size:.95rem; }
+  ul.lista li span { flex:1; }
+  ul.lista li button { padding:.35rem .6rem; font-size:.85rem; border-radius:8px; }
+  ul.lista .deshecha { text-decoration:line-through; color:var(--suave); }
+  .tarjeta { background:var(--panel); border:1px solid var(--borde); border-radius:16px; padding:1rem; display:grid;
+             gap:.6rem; }
+  .tarjeta h2 { margin:0; font-size:1.35rem; }
+  .pct { font-size:2.4rem; font-weight:800; }
+  .barrita { height:10px; border-radius:99px; background:var(--borde); overflow:hidden; }
+  .barrita i { display:block; height:100%; background:var(--acento); }
+  .contador { display:flex; align-items:center; justify-content:center; gap:1rem; }
+  .contador button { width:3.5rem; height:3.5rem; font-size:1.8rem; padding:0; }
+  .contador output { font-size:2.4rem; font-weight:800; min-width:3ch; text-align:center; }
+  .faltan { color:var(--mal); font-weight:600; }
+  .suave { color:var(--suave); }
+  .error { color:var(--mal); font-weight:600; }
+</style>
+</head>
+<body>
+<header>
+  <a href="{% url 'taller:inicio' taller=request.taller.slug %}" aria-label="Volver al inicio">‹ {{ request.taller.nombre }}</a>
+  <span class="titulo" id="titulo">Puesto</span>
+  <span class="suave">{{ request.user }}</span>
+</header>
+
+<main>
+  <!-- elegir qué se hace en este puesto -->
+  <section id="elegir" class="modos">
+    <label class="campo" for="selProyecto">Proyecto</label>
+    <select id="selProyecto"></select>
+    <label class="campo">¿Qué hacés en este puesto?</label>
+    <div class="modos" id="listaEtapas"></div>
+    <div class="separa"></div>
+    <button type="button" data-modo="fin" aria-pressed="false">Fin de fabricación <span class="chico">mueble por mueble</span></button>
+    <label class="campo" for="selCarga">Carga</label>
+    <select id="selCarga"></select>
+    <div class="modos">
+      <button type="button" data-modo="carga" aria-pressed="false">Cargar bultos <span class="chico">al camión</span></button>
+      <button type="button" data-modo="entrega" aria-pressed="false">Entregar en obra <span class="chico">bulto por bulto</span></button>
+    </div>
+    <p class="error" id="errElegir" hidden></p>
+    <button type="button" class="principal" id="btnEmpezar">Empezar</button>
+  </section>
+
+  <!-- escaneando -->
+  <section id="trabajo" hidden style="display:flex;flex-direction:column;gap:.75rem;flex:1;min-height:0">
+    <div class="barra">
+      <span class="nombre" id="modoNombre"></span>
+      <span class="cuenta" id="cuenta"></span>
+      <button type="button" id="btnCambiar">Cambiar</button>
+    </div>
+    <div class="camara" id="camara">
+      <video id="video" playsinline muted></video>
+      <div class="marco"></div>
+      <p id="camMsg">Apuntá a la etiqueta</p>
+    </div>
+    <div class="aviso" id="aviso" role="status" aria-live="assertive">
+      <div class="k" id="a1">Listo para escanear</div>
+      <div class="n" id="a2"></div>
+      <div class="s" id="a3"></div>
+      <div class="s" id="a4"></div>
+    </div>
+    <div class="tarjeta" id="tarjeta" hidden></div>
+    <form class="escribir" id="formEscribir" autocomplete="off">
+      <input id="escrito" placeholder="Código o número" aria-label="Código de la etiqueta o número de mecanizado" enterkeyhint="go">
+      <button type="submit">OK</button>
+    </form>
+    <button type="button" class="deshacer" id="btnDeshacer" hidden></button>
+    <details id="ultimas" hidden><summary>Últimas lecturas</summary><ul class="lista" id="listaUltimas"></ul></details>
+    <details id="faltanCarga" hidden open><summary id="faltanTitulo">Faltan</summary><ul class="lista" id="listaFaltan"></ul></details>
+    <a id="verCarga" hidden class="suave" href="#">Ver la carga y marcar "Salió a obra"</a>
+  </section>
+</main>
+
+<script>
+(() => {
+const C = {{ config|safe }};
+const $ = id => document.getElementById(id);
+const guardado = (() => { try { return JSON.parse(localStorage.getItem('puesto.eleccion') || '{}'); } catch (e) { return {}; } })();
+const q = new URLSearchParams(location.search);
+let estado = {
+  proyecto: q.get('p') ? +q.get('p') : guardado.proyecto,
+  modo: q.get('modo') || (q.get('c') ? 'carga' : guardado.modo),
+  etapa: guardado.etapa,
+  carga: q.get('c') ? +q.get('c') : guardado.carga,
+};
+let ultimas = [], muebleActual = null, cargaActual = null;
+
+/* ---------- elegir ---------- */
+function opciones(sel, items, valor, vacio){
+  sel.innerHTML = (vacio ? `<option value="">${vacio}</option>` : '') +
+    items.map(i => `<option value="${i.id}">${esc(i.nombre)}</option>`).join('');
+  if (valor && items.some(i => i.id === valor)) sel.value = valor;
+}
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+opciones($('selProyecto'), C.proyectos, estado.proyecto, 'Elegí el proyecto');
+opciones($('selCarga'), C.cargas, estado.carga, C.cargas.length ? 'Elegí la carga' : 'No hay cargas abiertas');
+$('listaEtapas').innerHTML = C.etapas.map(e =>
+  `<button type="button" data-modo="etapa" data-etapa="${e.id}" aria-pressed="false">${esc(e.nombre)}</button>`).join('');
+function marcarElegido(){
+  document.querySelectorAll('[data-modo]').forEach(b => b.setAttribute('aria-pressed',
+    String(b.dataset.modo === estado.modo && (b.dataset.modo !== 'etapa' || +b.dataset.etapa === estado.etapa))));
+}
+document.querySelectorAll('[data-modo]').forEach(b => b.onclick = () => {
+  estado.modo = b.dataset.modo;
+  if (b.dataset.etapa) estado.etapa = +b.dataset.etapa;
+  marcarElegido(); $('errElegir').hidden = true;
+});
+marcarElegido();
+
+function validarEleccion(){
+  estado.proyecto = +$('selProyecto').value || null;
+  estado.carga = +$('selCarga').value || null;
+  if (!estado.modo || (estado.modo === 'etapa' && !C.etapas.some(e => e.id === estado.etapa)))
+    return 'Elegí qué hacés en este puesto.';
+  if ((estado.modo === 'carga' || estado.modo === 'entrega') && !estado.carga)
+    return 'Elegí la carga. Se arma en la pantalla del proyecto.';
+  return null;
+}
+$('btnEmpezar').onclick = () => {
+  const err = validarEleccion();
+  if (err){ $('errElegir').textContent = err; $('errElegir').hidden = false; return; }
+  try { localStorage.setItem('puesto.eleccion', JSON.stringify(estado)); } catch (e) {}
+  activarSonido(); empezar();
+};
+$('btnCambiar').onclick = () => { detenerCamara(); $('trabajo').hidden = true; $('elegir').hidden = false;
+  $('titulo').textContent = 'Puesto'; };
+
+/* ---------- sonido, vibración y pantalla prendida ---------- */
+let audio = null;
+function activarSonido(){
+  try { audio = audio || new (window.AudioContext || window.webkitAudioContext)(); audio.resume(); } catch (e) {}
+}
+function tono(frec, ms, cuando = 0, forma = 'sine'){
+  if (!audio) return;
+  const o = audio.createOscillator(), g = audio.createGain(), t = audio.currentTime + cuando;
+  o.type = forma; o.frequency.value = frec; o.connect(g); g.connect(audio.destination);
+  g.gain.setValueAtTime(.0001, t); g.gain.exponentialRampToValueAtTime(.4, t + .01);
+  g.gain.exponentialRampToValueAtTime(.0001, t + ms / 1000); o.start(t); o.stop(t + ms / 1000 + .02);
+}
+const SONIDOS = {
+  ok:  () => { tono(1320, 130); vibrar([70]); },
+  ya:  () => { tono(660, 120); tono(660, 120, .18); vibrar([60, 80, 60]); },
+  mal: () => { tono(200, 450, 0, 'square'); vibrar([350]); },
+};
+function vibrar(p){ try { navigator.vibrate && navigator.vibrate(p); } catch (e) {} }
+let wake = null;
+async function pantallaPrendida(){
+  try { if ('wakeLock' in navigator && !wake) { wake = await navigator.wakeLock.request('screen');
+    wake.addEventListener('release', () => { wake = null; }); } } catch (e) {}
+}
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible' && !$('trabajo').hidden){ pantallaPrendida(); if (!flujo) abrirCamara(); }
+});
+
+/* ---------- empezar ---------- */
+function empezar(){
+  $('elegir').hidden = true; $('trabajo').hidden = false;
+  const etapa = C.etapas.find(e => e.id === estado.etapa);
+  const carga = C.cargas.find(c => c.id === estado.carga);
+  const nombres = {etapa: etapa && etapa.nombre, fin: 'Fin de fabricación', carga: 'Cargar bultos', entrega: 'Entregar en obra'};
+  $('modoNombre').textContent = nombres[estado.modo];
+  const proyecto = C.proyectos.find(p => p.id === estado.proyecto);
+  $('titulo').textContent = estado.modo === 'carga' || estado.modo === 'entrega'
+    ? (carga ? carga.nombre : '') : (proyecto ? proyecto.nombre : 'Todos los proyectos');
+  $('cuenta').textContent = ''; $('tarjeta').hidden = true; $('aviso').hidden = false;
+  $('faltanCarga').hidden = $('verCarga').hidden = !(estado.modo === 'carga' || estado.modo === 'entrega');
+  ultimas = []; dibujarUltimas();
+  mostrar('', 'Listo para escanear', '', estado.modo === 'etapa' ? 'Pieza tras pieza' : estado.modo === 'fin'
+    ? 'Escaneá la etiqueta del mueble' : 'Escaneá cada bulto');
+  if (estado.modo === 'carga' || estado.modo === 'entrega'){
+    $('verCarga').href = C.carga.replace('{id}', estado.carga);
+    pedir('GET', `cargas/${estado.carga}`).then(r => r.ok && dibujarCarga(r.datos));
+  }
+  if (estado.modo === 'fin' && q.get('m') && estado.proyecto)
+    pedir('GET', `mueble?proyecto=${estado.proyecto}&mueble=${encodeURIComponent(q.get('m'))}`)
+      .then(r => r.ok ? tarjetaMueble(r.datos) : null);
+  pantallaPrendida(); abrirCamara();
+}
+
+/* ---------- lecturas ---------- */
+let ultimoTexto = '', ultimoMomento = 0, ocupado = false;
+async function leido(txt){
+  txt = String(txt).trim();
+  const ahora = Date.now();
+  if (!txt || ocupado || (txt === ultimoTexto && ahora - ultimoMomento < 3000)) return;    // la misma etiqueta frente a la cámara
+  ultimoTexto = txt; ultimoMomento = ahora; ocupado = true;
+  if ($('tarjeta').hidden) mostrar('', 'Leyendo…', '', '');
+  try {
+    if (estado.modo === 'etapa') await marcar(txt);
+    else if (estado.modo === 'fin') await leerMueble(txt);
+    else await leerBulto(txt);
+  } finally { ocupado = false; }
+}
+
+async function pedir(metodo, ruta, cuerpo){
+  try {
+    const r = await fetch(C.api + ruta, {method: metodo, credentials: 'same-origin',
+      headers: cuerpo ? {'Content-Type': 'application/json', 'X-CSRFToken': C.csrf} : {},
+      body: cuerpo ? JSON.stringify(cuerpo) : undefined});
+    let datos = null; try { datos = await r.json(); } catch (e) {}
+    if (r.status === 403 && !datos) datos = {error: 'Se cerró la sesión. Volvé a entrar.'};
+    return {ok: r.ok, datos: datos || {error: 'No se pudo leer la respuesta.'}};
+  } catch (e) { return {ok: false, datos: {error: 'Sin conexión. Probá de nuevo.'}}; }
+}
+
+function mostrar(clase, k, n, s, s2){
+  const a = $('aviso');
+  a.className = 'aviso' + (clase ? ' ' + clase : '');
+  void a.offsetWidth; if (clase) a.classList.add('pulso');
+  $('a1').textContent = k || ''; $('a2').textContent = n || ''; $('a3').textContent = s || ''; $('a4').textContent = s2 || '';
+  if (clase) SONIDOS[clase]();
+}
+const numero = p => p.num ? p.num : 's/n';
+const copia = p => p.de > 1 ? ` (${p.copia} de ${p.de})` : '';
+
+async function marcar(txt){
+  const r = await pedir('POST', 'marcar', {texto: txt, etapa: estado.etapa, proyecto: estado.proyecto});
+  const d = r.datos;
+  if (!r.ok || d.resultado === 'error') return mostrar('mal', d.error || 'No se pudo marcar', '', d.mueble ? `Mueble: ${d.mueble}` : '');
+  const p = d.pieza, etapa = d.etapa.toLowerCase();
+  const detalle = `${p.nombre}${copia(p)} · ${p.mueble}`;
+  const enMueble = `${p.mueble}: ${d.mueble.hechas} de ${d.mueble.piezas}`;
+  if (d.resultado === 'ya'){
+    mostrar('ya', `Ya estaba ${etapa}`, numero(p), `${d.ya.por || '—'}, ${cuandoCorto(d.ya.cuando)}`,
+            d.otro_proyecto ? `Es de ${d.proyecto.nombre}` : detalle);
+  } else if (d.otro_proyecto){
+    mostrar('ya', `Marcada en otro proyecto: ${d.proyecto.nombre}`, numero(p), detalle, enMueble);
+    sumarUltima(d, p);
+  } else {
+    mostrar('ok', `${d.etapa}`, numero(p), detalle, enMueble);
+    sumarUltima(d, p);
+  }
+  if (!d.otro_proyecto) $('cuenta').textContent = `${d.total.hechas} / ${d.total.piezas}`;
+}
+
+function sumarUltima(d, p){
+  ultimas.unshift({marca: d.marca, corto: numero(p), texto: `${numero(p)} ${p.nombre}${copia(p)} · ${p.mueble}`});
+  ultimas = ultimas.slice(0, 10); dibujarUltimas();
+}
+function dibujarUltimas(){
+  const vigente = ultimas.find(u => !u.deshecha);
+  $('btnDeshacer').hidden = !vigente;
+  if (vigente) $('btnDeshacer').textContent = '↶ Deshacer ' + vigente.corto;
+  $('ultimas').hidden = !ultimas.length;
+  $('listaUltimas').innerHTML = ultimas.map((u, i) => `<li><span class="${u.deshecha ? 'deshecha' : ''}">${esc(u.texto)}</span>
+    ${u.deshecha ? '' : `<button type="button" data-i="${i}">Deshacer</button>`}</li>`).join('');
+  $('listaUltimas').querySelectorAll('button').forEach(b => b.onclick = () => deshacer(ultimas[+b.dataset.i]));
+}
+async function deshacer(u){
+  if (!u) return;
+  if (estado.modo === 'carga' || estado.modo === 'entrega'){
+    const r = await pedir('POST', `cargas/${estado.carga}/deshacer`, {bulto: u.bulto});
+    if (!r.ok) return mostrar('mal', r.datos.error);
+    u.deshecha = true; dibujarUltimas(); dibujarCarga(r.datos.carga);
+    return mostrar('', 'Deshecho', '', u.texto);
+  }
+  const r = await pedir('POST', 'deshacer', {marca: u.marca});
+  if (!r.ok) return mostrar('mal', r.datos.error);
+  u.deshecha = true; dibujarUltimas();
+  mostrar('', 'Deshecho', '', u.texto, 'Ya no figura en esta etapa');
+  ultimoTexto = '';               // se puede volver a escanear enseguida
+}
+$('btnDeshacer').onclick = () => deshacer(ultimas.find(u => !u.deshecha));
+
+function cuandoCorto(t){
+  if (!t) return '';
+  const [f, h] = t.split(' '), hoy = new Date();
+  const iso = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, '0')}-${String(hoy.getDate()).padStart(2, '0')}`;
+  return f === iso ? `hoy ${h}` : `${f.split('-').reverse().slice(0, 2).join('/')} ${h}`;
+}
+
+/* ---------- fin de fabricación ---------- */
+async function leerMueble(txt){
+  const r = await pedir('POST', 'mueble', {texto: txt, proyecto: estado.proyecto});
+  if (!r.ok || r.datos.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', r.datos.error); }
+  SONIDOS.ok(); tarjetaMueble(r.datos);
+}
+function tarjetaMueble(d){
+  muebleActual = d;
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta'), fin = d.fin;
+  const faltan = d.faltan.length;
+  t.innerHTML = `<h2>${esc(d.mueble)}</h2>
+    <div class="suave">${esc(d.proyecto.nombre)} · ${d.piezas} piezas</div>
+    <div class="pct">${d.pct}%</div><div class="barrita"><i style="width:${d.pct}%"></i></div>
+    <div class="suave">${d.por_etapa.map(e => `${esc(e.nombre)} ${e.hechas}/${d.piezas}`).join(' · ')}</div>
+    ${fin ? `<p><b>Fabricación terminada</b> · ${esc(fin.por || '')}, ${cuandoCorto(fin.cuando)} · ${fin.bultos} bulto${fin.bultos > 1 ? 's' : ''}</p>
+      ${fin.motivo ? `<p class="suave">Faltaban ${fin.faltantes.length}: ${esc(fin.motivo)}</p>` : ''}
+      <ul class="lista">${fin.lista.map(b => `<li><span>Bulto ${b.numero} de ${fin.bultos}</span><span class="suave">${esc(b.estado_texto)}</span></li>`).join('')}</ul>
+      <button type="button" class="principal" id="btnImprimir">Imprimir etiquetas de los bultos</button>
+      ${C.gestiona ? '<button type="button" id="btnReabrir">Reabrir el mueble</button>' : ''}`
+    : `${faltan ? `<p class="faltan">Faltan ${faltan} pieza${faltan > 1 ? 's' : ''} sin marcar en ${esc(d.etapa)}:</p>
+        <ul class="lista">${d.faltan.slice(0, 30).map(p => `<li><span>${esc(numero(p))} ${esc(p.nombre)}${copia(p)}</span></li>`).join('')}</ul>
+        <label class="campo" for="motivo">Para terminar igual, ¿por qué?</label>
+        <textarea id="motivo" rows="2" maxlength="1000" placeholder="Se manda después, va armado en obra…"></textarea>`
+      : `<p>Todas las piezas están ${esc(d.etapa.toLowerCase())}s.</p>`}
+      <label class="campo">¿Cuántos bultos?</label>
+      <div class="contador"><button type="button" id="menos" aria-label="Uno menos">−</button><output id="bultos">1</output>
+        <button type="button" id="mas" aria-label="Uno más">+</button></div>
+      <p class="error" id="errFin" hidden></p>
+      <button type="button" class="principal" id="btnTerminar">Fabricación terminada</button>`}
+    <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+  $('btnOtro').onclick = () => { t.hidden = true; $('aviso').hidden = false; ultimoTexto = '';
+    mostrar('', 'Listo para escanear', '', 'Escaneá la etiqueta del mueble'); };
+  if (fin){
+    $('btnImprimir').onclick = () => imprimir(d, fin.bultos);
+    if ($('btnReabrir')) $('btnReabrir').onclick = async () => {
+      if (!confirm(`¿Reabrir ${d.mueble}? Sus bultos dejan de valer.`)) return;
+      const r = await pedir('POST', 'reabrir', {proyecto: d.proyecto.id, mueble: d.mueble});
+      if (!r.ok) return alert(r.datos.error);
+      const r2 = await pedir('GET', `mueble?proyecto=${d.proyecto.id}&mueble=${encodeURIComponent(d.mueble)}`);
+      if (r2.ok) tarjetaMueble(r2.datos);
+    };
+    return;
+  }
+  let n = 1;
+  $('menos').onclick = () => { n = Math.max(1, n - 1); $('bultos').textContent = n; };
+  $('mas').onclick = () => { n = Math.min(d.max_bultos, n + 1); $('bultos').textContent = n; };
+  $('btnTerminar').onclick = async () => {
+    const motivo = $('motivo') ? $('motivo').value.trim() : '';
+    if (faltan && !motivo){ $('errFin').textContent = 'Escribí el motivo para terminar con piezas faltantes.';
+      $('errFin').hidden = false; $('motivo').focus(); return; }
+    const r = await pedir('POST', 'terminar', {proyecto: d.proyecto.id, mueble: d.mueble, bultos: n, motivo});
+    if (!r.ok){ $('errFin').textContent = r.datos.error; $('errFin').hidden = false; SONIDOS.mal(); return; }
+    SONIDOS.ok(); tarjetaMueble(r.datos);
+  };
+}
+function imprimir(d, bultos){
+  const qs = new URLSearchParams({proyecto: d.proyecto.id, m: d.mueble, bultos});
+  window.open(C.pdf + '?' + qs, '_blank', 'noopener');
+}
+
+/* ---------- carga y entrega ---------- */
+async function leerBulto(txt){
+  const r = await pedir('POST', `cargas/${estado.carga}/bulto`, {texto: txt, entregar: estado.modo === 'entrega'});
+  const d = r.datos;
+  if (!r.ok || d.resultado === 'error') return mostrar('mal', d.error || 'No se pudo', '', d.mueble ? `${d.mueble} · bulto ${d.numero}` : '');
+  const verbo = estado.modo === 'entrega' ? 'Entregado' : 'Cargado';
+  const texto = `${d.mueble} · bulto ${d.numero} de ${d.de}`;
+  if (d.resultado === 'ya') mostrar('ya', `Ya estaba ${verbo.toLowerCase()}`, `${d.numero}/${d.de}`, d.mueble,
+                                    `${d.ya.por || '—'}, ${cuandoCorto(d.ya.cuando)}`);
+  else { mostrar('ok', verbo, `${d.numero}/${d.de}`, d.mueble);
+    ultimas.unshift({bulto: d.bulto, corto: `bulto ${d.numero}/${d.de}`, texto}); ultimas = ultimas.slice(0, 10); dibujarUltimas(); }
+  dibujarCarga(d.carga);
+}
+function dibujarCarga(c){
+  cargaActual = c;
+  const entrega = estado.modo === 'entrega';
+  const hechos = entrega ? c.entregados : c.cargados, total = entrega ? c.cargados : c.total;
+  $('cuenta').textContent = `${hechos} / ${total}`;
+  const faltan = entrega ? c.bultos.filter(b => b.en_esta && b.estado !== 'entregado').map(b => `${b.mueble} · bulto ${b.numero} de ${b.de}`)
+                         : c.faltantes;
+  $('faltanTitulo').textContent = faltan.length ? `Faltan ${faltan.length}` : (entrega ? 'Todo entregado' : 'Está todo cargado');
+  $('listaFaltan').innerHTML = faltan.map(f => `<li><span>${esc(f)}</span></li>`).join('');
+}
+
+/* ---------- escribir o pistola lectora ---------- */
+$('formEscribir').onsubmit = e => { e.preventDefault(); const v = $('escrito').value; $('escrito').value = '';
+  ultimoTexto = ''; leido(v); };
+let tecleo = '', tecleoT = 0;
+document.addEventListener('keydown', e => {          // una pistola USB o Bluetooth "escribe" el código y Enter
+  if ($('trabajo').hidden || ['INPUT', 'TEXTAREA', 'SELECT'].includes(document.activeElement.tagName)) return;
+  const ahora = Date.now(); if (ahora - tecleoT > 300) tecleo = ''; tecleoT = ahora;
+  if (e.key === 'Enter'){ if (tecleo.length > 2) leido(tecleo); tecleo = ''; }
+  else if (e.key.length === 1) tecleo += e.key;
+});
+
+/* ---------- cámara (como el escáner del visor, pero no se cierra entre lecturas) ---------- */
+let flujo = null, detenido = true, zxing = null;
+const FORMATOS = ['code_128','code_39','code_93','ean_13','ean_8','itf','codabar','qr_code','data_matrix'];
+async function abrirCamara(){
+  detenido = false; $('camMsg').textContent = 'Apuntá a la etiqueta';
+  try {
+    flujo = await navigator.mediaDevices.getUserMedia({video: {facingMode: 'environment', width: {ideal: 1280}, height: {ideal: 720}}});
+  } catch (err) {
+    $('camMsg').textContent = 'No se pudo abrir la cámara. Dale permiso al navegador o escribí el código abajo.';
+    return;
+  }
+  const v = $('video'); v.srcObject = flujo; await v.play();
+  if ('BarcodeDetector' in window){
+    const disp = await BarcodeDetector.getSupportedFormats();
+    const det = new BarcodeDetector({formats: FORMATOS.filter(f => disp.includes(f))});
+    const leer = async () => {
+      if (detenido) return;
+      try { const r = await det.detect(v); if (r.length) leido(r[0].rawValue); } catch (e) {}
+      setTimeout(() => requestAnimationFrame(leer), 120);
+    };
+    leer();
+  } else {
+    try { await cargarZXing(); } catch (e) { return; }
+    zxing = new ZXing.BrowserMultiFormatReader();
+    zxing.decodeFromVideoElementContinuously(v, res => { if (res && !detenido) leido(res.getText()); });
+  }
+}
+function cargarZXing(){
+  if (window.ZXing) return Promise.resolve();
+  return new Promise((ok, mal) => { const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/@zxing/library@0.21.3/umd/index.min.js';
+    s.onload = ok; s.onerror = () => { $('camMsg').textContent = 'No se pudo cargar el lector. Escribí el código abajo.'; mal(); };
+    document.head.appendChild(s); });
+}
+function detenerCamara(){
+  detenido = true;
+  if (zxing){ try { zxing.reset(); } catch (e) {} zxing = null; }
+  if (flujo){ flujo.getTracks().forEach(t => t.stop()); flujo = null; }
+  if (wake){ wake.release().catch(() => {}); wake = null; }
+}
+
+// desde el visor o la pantalla de la carga: ya viene elegido, se empieza solo (el sonido se activa al primer toque)
+if (q.get('modo') || q.get('c')){
+  if (!validarEleccion()){ empezar(); document.addEventListener('pointerdown', activarSonido, {once: true}); }
+}
+})();
+</script>
+</body>
+</html>

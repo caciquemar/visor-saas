@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% block titulo %}Carga {{ carga.pk }} · {{ carga.proyecto.nombre }}{% endblock %}
+{% block cabeza %}{% if carga.estado != 'entregada' %}<meta http-equiv="refresh" content="20">{% endif %}
+<style>
+  .falta { color:var(--error); font-weight:600; }
+  .cuentas { display:flex; gap:1.5rem; flex-wrap:wrap; font-size:1.1rem; margin:.5rem 0 1rem; }
+  .cuentas b { font-size:1.6rem; }
+  textarea { font:inherit; width:100%; padding:.55rem .65rem; border:1px solid var(--borde); border-radius:8px;
+             background:var(--fondo); color:inherit; }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto.pk %}#avance">{{ carga.proyecto.nombre }}</a></p>
+<h1>Carga {{ carga.pk }} <span class="estado{% if carga.estado != 'armando' %} listo{% endif %}">{{ carga.get_estado_display }}</span></h1>
+<p class="suave" style="margin-top:-.5rem">{% if datos.completa %}Proyecto completo{% else %}{{ datos.muebles|join:", " }}{% endif %}
+  · armada por {{ carga.creada_por|default:"—" }}, {{ carga.creada_en|date:"j/n H:i" }}</p>
+
+<div class="cuentas">
+  <span><b>{{ datos.cargados }}</b> de {{ datos.total }} cargados</span>
+  {% if carga.estado != 'armando' %}<span><b>{{ datos.entregados }}</b> de {{ datos.cargados }} entregados</span>{% endif %}
+</div>
+
+<div class="acciones">
+  {% if carga.estado == 'armando' %}<a class="boton" href="{{ puesto }}&modo=carga">Escanear bultos</a>{% endif %}
+  {% if carga.estado == 'salio' %}<a class="boton" href="{{ puesto }}&modo=entrega">Escanear la entrega en obra</a>{% endif %}
+</div>
+
+{% if datos.faltantes and carga.estado == 'armando' %}
+<h2 class="falta">Faltan {{ datos.faltantes|length }}</h2>
+<ul>{% for f in datos.faltantes %}<li class="falta">{{ f }}</li>{% endfor %}</ul>
+{% endif %}
+
+<h2>Bultos</h2>
+<div class="tabla"><table>
+  <tr><th>Mueble</th><th>Bulto</th><th>Estado</th><th>Quién y cuándo</th></tr>
+  {% for b in datos.bultos %}
+  <tr><td>{{ b.mueble }}</td><td>{{ b.numero }} de {{ b.de }}</td>
+      <td>{% if b.en_esta %}{% if b.estado == 'entregado' %}Entregado{% else %}Cargado{% endif %}{% elif b.estado == 'embalado' %}<span class="falta">Falta</span>{% else %}En otra carga{% endif %}</td>
+      <td class="suave">{% if b.en_esta %}{{ b.por|default:"—" }}, {{ b.cuando_corto }}{% endif %}</td></tr>
+  {% endfor %}
+  {% for m in datos.sin_terminar %}
+  <tr><td>{{ m }}</td><td>—</td><td class="falta">Sin terminar</td><td></td></tr>
+  {% endfor %}
+</table></div>
+
+{% if carga.estado == 'armando' %}
+<h2>Salió a obra</h2>
+<form method="post" class="caja">{% csrf_token %}
+  {% if datos.faltantes %}
+  <p class="falta" style="margin-top:0">Faltan {{ datos.faltantes|length }}. Para salir igual, escribí por qué.</p>
+  <label for="motivo">Motivo</label>
+  <textarea id="motivo" name="motivo" rows="2" maxlength="1000" required></textarea>
+  {% else %}<p style="margin-top:0">Está todo cargado.</p>{% endif %}
+  {% if error %}<p class="error">{{ error }}</p>{% endif %}
+  <div class="acciones"><button type="submit">Salió a obra</button></div>
+</form>
+{% else %}
+<h2>Salida</h2>
+<p>Salió a obra: {{ carga.salio_por|default:"—" }}, {{ carga.salio_en|date:"j/n H:i" }}.
+  {% if carga.faltantes %}<br><span class="falta">Salió con {{ carga.faltantes|length }} faltante{{ carga.faltantes|length|pluralize }}</span>
+  ({{ carga.faltantes|join:", " }}). Motivo: {{ carga.motivo }}{% endif %}</p>
+{% if carga.entregada_en %}<p>Entregada: {{ carga.entregada_por|default:"—" }}, {{ carga.entregada_en|date:"j/n H:i" }}.</p>{% endif %}
+{% endif %}
+{% endblock %}

@@ -2,6 +2,19 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-11 · Avance por etapas: cómo marca el puesto y cómo se cuenta
+Decisiones de Martín (ficha 13). (1) **Porcentaje = promedio de etapas:** cada pieza en cada etapa prendida es un
+paso; el avance de un mueble es pasos hechos / pasos (redondeado para abajo: 100 % solo con todo hecho). Se mueve
+desde el primer corte. Descartado: contar solo las piezas armadas (queda en 0 % hasta que se arma). (2) **Pieza de
+otro proyecto en el puesto:** se marca igual en su proyecto (la etiqueta dice cuál) y avisa en ámbar; descartado
+frenar y pedir que se cambie de proyecto (con las manos ocupadas es un toque de más y la marca sería la misma).
+(3) **El puesto también lee el código de barras de mecanizado de OptiCut:** marca la siguiente copia sin marcar de
+ese número en el proyecto elegido (piezas iguales tienen el mismo número). Sirve mientras no se pegan las etiquetas
+QR. Además: las marcas van por la clave de la pieza de la ficha 12, así una versión nueva conserva el avance de las
+piezas iguales; nada se borra (deshacer, reabrir un mueble y volver atrás un bulto dejan quién y cuándo); la última
+etapa prendida es la de armado, la que mira "Fabricación terminada"; cualquiera del taller marca, termina muebles y
+carga; reabrir un mueble es del dueño o la oficina y solo si ningún bulto se cargó.
+
 ## 2026-10-10 · Pantalla del visor: selección en dos pasos, panel al costado en la PC, botones agrupados
 Pedido de Martín para la usabilidad. Primer toque elige el mueble y el siguiente una de sus piezas; tocar el vacío
 sube un nivel. Al elegir una pieza la cámara se queda en el mueble (se puede ir tocando piezas sin perderse); "Pieza"

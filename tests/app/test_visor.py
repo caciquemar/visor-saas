@@ -90,10 +90,12 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert config.pop('salir') == '/salir/'
     assert config.pop('etiquetas') == {'pantalla': '/taller-a/proyectos/{id}/etiquetas/', 'formato': {
         'nombre': 'Hoja A4 · 3 × 8 · 70 × 37 mm', 'hoja': True, 'columnas': 3, 'filas': 8}}
+    assert config.pop('avance') == {'puesto': '/taller-a/puesto/'}
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
         ('Inicio', '/taller-a/'), ('Visor', '/taller-a/visor/'), ('Proyectos', '/taller-a/proyectos/'),
-        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Trabajos', '/taller-a/trabajos/')]
+        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Trabajos', '/taller-a/trabajos/'),
+        ('Puesto', '/taller-a/puesto/')]
     assert [x['nombre'] for x in menu if x['actual']] == ['Visor']
     # equipo: la gente activa de A (no la de B), para "Para quién" en los trabajos
     assert config == {'trabajos': True, 'fotos': True, 'yo': {'id': t.armador_a.pk, 'nombre': 'Arturo'},
@@ -395,9 +397,10 @@ def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Materiales', 'Equipo',
-                 'Marca']),
-    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Materiales', 'Equipo']),
+    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Puesto', 'Materiales',
+                 'Equipo', 'Marca', 'Etapas']),
+    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Puesto', 'Materiales',
+                   'Equipo']),
 ])
 def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
     menu = config_de(cliente_de(getattr(t, quien)).get('/taller-a/visor/'))['menu']

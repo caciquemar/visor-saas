@@ -46,7 +46,9 @@ app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario
                   visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
                   API de trabajos del visor; vistas.py: la pantalla Trabajos), modulos/ (Modulo, TallerModulo;
                   registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), etiquetas/
-                  (Etiqueta, FormatoEtiquetas; claves.py: qué es una pieza entre versiones; pdf.py: el PDF), servicio/
+                  (Etiqueta, FormatoEtiquetas; claves.py: qué es una pieza entre versiones; pdf.py: el PDF), avance/
+                  (Etapa, Marca, FinDeMueble, Bulto, Carga, Movimiento; calculo.py: % y lecturas; acciones.py: lo que
+                  hace el puesto; api.py: API del puesto y del visor; estado.py: estado del pedido, sin mostrar), servicio/
                   (sin modelos: /salud/, latido de la cola, copias de la base y sus comandos), templates/
                   talleres/rls.py: segunda barrera entre talleres en PostgreSQL (row-level security)
 Dockerfile        imagen del servidor; docker/: arranque (web, cola, preparar) y preparar_base.py
@@ -237,8 +239,38 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`visor/api/etiquetas/pdf`): un formulario a otra pestaña llegaba como GET vacío en el navegador integrado y puede
   pasar lo mismo con el visor instalado como app. La pantalla de etiquetas sigue para imprimir muchas juntas y
   acepta `?pz=`/`?m=` ya marcados.
+- 2026-10-11: **ficha 13 hecha.** Avance por etapas, fin de fabricación y control de carga (`avance/`). Etapas por
+  taller (por defecto cortada, canteada, mecanizada, armada; `/<taller>/etapas/`, solo el dueño: renombrar, ordenar,
+  apagar, agregar; la última prendida es la de armado). **Modo puesto** `/<taller>/puesto/` (pantalla propia, sin 3D):
+  se elige proyecto y qué se hace (una etapa, fin de fabricación, cargar o entregar), cámara siempre prendida (misma
+  lectura ignorada 3 s), pantalla prendida (Wake Lock), cada lectura pinta todo el aviso (verde marcada, ámbar ya
+  estaba u otro proyecto, rojo error) con sonido y vibración distintos, número grande, cuántas lleva el mueble,
+  Deshacer grande y últimas 10; acepta QR, código escrito, número de mecanizado de OptiCut (siguiente copia sin marcar)
+  y pistola lectora (teclado + Enter). Marcas por la clave de la ficha 12 (`Marca`, una vigente por pieza y etapa,
+  deshacer no borra): una versión nueva conserva el avance y avisa las piezas nuevas. **Fin de fabricación**: etiqueta
+  del mueble (o de un bulto o una pieza) → % y piezas sin marcar en la etapa de armado; con faltantes pide motivo;
+  cantidad de bultos (`Bulto` embalados) e "Imprimir etiquetas de los bultos" (PDF de la ficha 12); reabrir para
+  dueño u oficina si ningún bulto se cargó. **Carga** (`Carga`, desde la pantalla del proyecto: completo o algunos
+  muebles): en el puesto cada bulto pasa a cargado y se ve la lista de lo que falta (bultos y muebles sin terminar);
+  `/<taller>/cargas/<id>/` no deja marcar "Salió a obra" con faltantes sin motivo (quedan guardados); "Entregar en
+  obra" bulto por bulto y la carga pasa a entregada sola. `Movimiento` guarda cada cambio de bulto. % por proyecto en
+  la lista, tabla por mueble y cargas en la pantalla del proyecto, y en el visor: % y etapas en el bloque del mueble
+  (con link a "Fabricación terminada"), etapas en la ficha de la pieza y las piezas armadas en verde
+  (`visor/api/avance`). "Puesto" en el menú y en la barra; "Etapas" para el dueño. Pruebas en
+  `tests/app/test_avance.py` (también de separación). Probado en el navegador integrado en formato celular con *Rack
+  florencia* (armador con PIN): dos etapas por número, repetida, fin con faltantes y 2 bultos, carga con un bulto de
+  menos que no sale sin motivo, todo con nombre y hora; y las piezas armadas en el visor.
 
 ## Pendientes
+
+- **Ficha 13, probar con el celular de verdad** (Martín, en el NAS por HTTPS): la cámara siempre prendida del puesto,
+  el sonido (en iPhone se activa con "Empezar") y la vibración (Safari no vibra), que la pantalla no se apague, y una
+  pistola lectora si hay. En el navegador integrado la cámara está bloqueada: se probó escribiendo los códigos. Mirar
+  también cuánto tarda cada lectura en el NAS (en la PC, la primera de cada proyecto tarda un poco porque lee el
+  proyecto.json; después queda en memoria).
+- Ficha 13, a revisar con Martín: si "Salió a obra" o reabrir muebles tienen que quedar solo para algunos roles (hoy
+  cualquiera del taller marca, termina y carga), y si hace falta anular una carga armada por error (hoy no se puede:
+  se le sacan los bultos con Deshacer y queda vacía).
 
 - **Ficha 07a, instalación** (Martín, con `docs/operacion.md`): medir la subida de internet; tokens de GitHub;
   `git push` de visor-saas y de las etiquetas de `Polyboard_to_zicar` (`v1.0.0`) y primera etiqueta `v0.7.0`;

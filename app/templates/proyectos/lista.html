@@ -10,11 +10,12 @@
 {% if proyectos %}
 <div class="caja tabla">
   <table>
-    <thead><tr><th>Proyecto</th><th>Versión en uso</th><th>Última subida</th><th>Actualizado</th></tr></thead>
+    <thead><tr><th>Proyecto</th><th>Avance</th><th>Versión en uso</th><th>Última subida</th><th>Actualizado</th></tr></thead>
     <tbody>
     {% for p in proyectos %}
       <tr>
         <td><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=p.pk %}">{{ p.nombre }}</a></td>
+        <td>{% if p.avance %}<strong>{{ p.avance.pct }}%</strong> <span class="suave">· {{ p.avance.terminados }}/{{ p.avance.muebles }} muebles terminados</span>{% else %}<span class="suave">—</span>{% endif %}</td>
         <td>{% if p.version_actual %}v{{ p.version_actual.numero }}{% else %}<span class="suave">—</span>{% endif %}</td>
         <td>{% if p.ultima %}v{{ p.ultima.numero }} <span class="estado {{ p.ultima.estado }}">{{ p.ultima.get_estado_display }}</span>{% endif %}</td>
         <td class="suave">{{ p.actualizado|date:"j/n/Y H:i" }}</td>

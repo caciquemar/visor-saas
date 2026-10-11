@@ -99,11 +99,12 @@ def menu_de(request):
     """Las pantallas del servicio para el menú del visor, con la misma regla de roles que templates/base.html."""
     rol, slug = request.membresia.rol, request.taller.slug
     pantallas = [('Inicio', 'taller:inicio'), ('Visor', 'taller:proyectos:visor'),
-                 ('Proyectos', 'taller:proyectos:lista'), ('Trabajos', 'taller:trabajos:lista')]
+                 ('Proyectos', 'taller:proyectos:lista'), ('Trabajos', 'taller:trabajos:lista'),
+                 ('Puesto', 'taller:avance:puesto')]
     if rol in (Rol.DUENO, Rol.OFICINA):
         pantallas += [('Materiales', 'taller:proyectos:materiales'), ('Equipo', 'taller:equipo')]
     if rol == Rol.DUENO:
-        pantallas.append(('Marca', 'taller:marca'))
+        pantallas += [('Marca', 'taller:marca'), ('Etapas', 'taller:avance:etapas')]
     menu = [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
             for nombre, ruta in pantallas]
     # la del proyecto que se está viendo: el visor pone el id en {id}
@@ -133,6 +134,7 @@ def visor(request, taller):
         'marca': {'nombre': request.taller.nombre},
         'menu': menu_de(request),
         'etiquetas': {'pantalla': url_de_etiquetas(request), 'formato': formato_para_el_visor()},
+        'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug})},
         'salir': reverse('salir'),
     })
 

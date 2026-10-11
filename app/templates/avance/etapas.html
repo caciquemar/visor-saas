@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+{% block titulo %}Etapas{% endblock %}
+{% block contenido %}
+<h1>Etapas de las piezas</h1>
+<p class="suave">Cada puesto del taller elige una etapa y marca las piezas que pasan por ahí. El avance de un mueble es el
+  promedio de todas las etapas prendidas. La última prendida{% if armado %} (<strong>{{ armado.nombre }}</strong>){% endif %}
+  es la que se mira al tocar "Fabricación terminada".</p>
+<form method="post" class="caja">{% csrf_token %}
+  <div class="tabla"><table>
+    <tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>Piezas marcadas</th><th></th></tr>
+    {% for e in etapas %}
+    <tr>
+      <td style="white-space:nowrap">
+        <button class="secundario" name="accion" value="subir-{{ e.pk }}" aria-label="Subir {{ e.nombre }}"{% if forloop.first %} disabled{% endif %}>↑</button>
+        <button class="secundario" name="accion" value="bajar-{{ e.pk }}" aria-label="Bajar {{ e.nombre }}"{% if forloop.last %} disabled{% endif %}>↓</button></td>
+      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre de la etapa"></td>
+      <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendida"></td>
+      <td>{{ e.usadas }}</td>
+      <td>{% if not e.usadas %}<button class="secundario" name="accion" value="borrar-{{ e.pk }}">Borrar</button>{% endif %}</td>
+    </tr>
+    {% endfor %}
+  </table></div>
+  <div class="acciones"><button name="accion" value="guardar">Guardar</button></div>
+</form>
+<h2>Agregar una etapa</h2>
+<form method="post" class="acciones">{% csrf_token %}
+  <input name="nombre" maxlength="40" placeholder="Pintada" aria-label="Nombre de la etapa nueva" style="width:auto">
+  <button name="accion" value="agregar">Agregar</button>
+</form>
+<p class="suave">Apagar una etapa no borra lo que ya se marcó: deja de contar y de aparecer en los puestos.</p>
+{% endblock %}

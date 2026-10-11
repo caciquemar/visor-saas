@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'proyectos',
     'trabajos',
     'etiquetas',
+    'avance',
     'modulos',
     'modulos.zicar',
     'servicio',

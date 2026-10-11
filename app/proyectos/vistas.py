@@ -13,6 +13,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
+from avance import pantalla as pantalla_de_avance
 from conversor.polyboard_a_app import clave
 from modulos import registro
 from talleres.archivos import abrir_de_taller
@@ -74,6 +75,9 @@ def lista(request, taller):
     proyectos = list(Proyecto.objects.select_related('version_actual').prefetch_related('versiones'))
     for p in proyectos:
         p.ultima = max(p.versiones.all(), key=lambda v: v.numero, default=None)
+    avances = pantalla_de_avance.de_la_lista(proyectos)
+    for p in proyectos:
+        p.avance = avances.get(p.pk)
     return render(request, 'proyectos/lista.html', {'proyectos': proyectos,
                                                     'gestiona': request.membresia.rol in GESTION})
 
@@ -121,6 +125,7 @@ def ver(request, taller, id):
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
         'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
         'gestiona': gestiona, 'form_obra': FormObra(instance=proyecto),
+        'avance': pantalla_de_avance.del_proyecto(proyecto) if proyecto.version_actual else None,
     })
 
 
