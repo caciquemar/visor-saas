@@ -7,11 +7,30 @@
   <label for="id_username">Mail</label>
   <input id="id_username" name="username" type="email" autocomplete="email" required autofocus value="{{ form.username.value|default:'' }}">
   <label for="id_password">Contraseña</label>
-  <input id="id_password" name="password" type="password" autocomplete="current-password" required>
+  <div class="con-ojo">
+    <input id="id_password" name="password" type="password" autocomplete="current-password" required
+           autocapitalize="off" autocorrect="off" spellcheck="false">
+    <button type="button" class="secundario" id="ver-clave" aria-controls="id_password" aria-pressed="false">Ver</button>
+  </div>
   <input type="hidden" name="next" value="{{ next }}">
   <div class="acciones"><button type="submit">Entrar</button></div>
   <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a></p>
 </form>
 {% if con_pin %}<p><a class="boton" href="{{ con_pin }}">Entrar con PIN</a></p>
 {% else %}<p class="suave">¿Armás en el taller? Entrá con tu PIN desde el celular del taller.</p>{% endif %}
+<script>
+  // Ver la contraseña: en el celular es fácil que se cuele una mayúscula o un espacio.
+  document.getElementById('ver-clave').addEventListener('click', function () {
+    const campo = document.getElementById('id_password');
+    const ver = campo.type === 'password';
+    campo.type = ver ? 'text' : 'password';
+    this.textContent = ver ? 'Ocultar' : 'Ver';
+    this.setAttribute('aria-pressed', ver);
+    campo.focus();
+  });
+  // Al entrar, que el navegador no guarde la contraseña como texto común.
+  document.querySelector('form.caja').addEventListener('submit', function () {
+    document.getElementById('id_password').type = 'password';
+  });
+</script>
 {% endblock %}
