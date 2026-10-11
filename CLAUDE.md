@@ -217,7 +217,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   Mecanizado) y Vista ▾ (Aislar, Despiece, Transparente, Ver todo). Las cotas internas y de mecanizado se trajeron del
   visor del NAS tal cual (`cotasLuces`, `cotasTaladros`; se calculan en el visor): cierra la ficha 15. En el celular,
   Muebles y Trabajos quedan solo con el ícono. Probado en el navegador integrado (PC, celular y link del cliente).
-- 2026-10-11: **ficha 12 hecha** (falta la prueba en papel, ver Pendientes). Etiquetas con QR (`etiquetas/`): de
+- 2026-10-11: **ficha 12 hecha** (`v0.7.4`, instalada en el NAS; falta la prueba en papel y con celular, ver Pendientes). Etiquetas con QR (`etiquetas/`): de
   pieza (número o "s/n", "1 de 2" en piezas iguales, nombre, mueble, proyecto, medidas, espesor y tablero, y un dibujo
   con los lados con canto y la flecha de veta) y de bulto (proyecto, cliente, mueble, "Bulto 1 de 3", piezas,
   dirección de la obra). Regla de identificación en `docs/decisiones.md`. El QR lleva `URL_APP/<taller>/e/<código>`:
@@ -265,8 +265,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la
   imagen en JPG, PNG o WEBP" (`FormMaterial.clean_textura` revisa el archivo que ya estaba). Mismo arreglo que
   `FormMarca.clean_logo`: revisar solo si es un `UploadedFile`.
-- Ficha 12, prueba en papel (Martín, cuando haya impresora): imprimir A4 y térmica, leer con la cámara del
-  celular y con el escáner del visor en el NAS, y ajustar márgenes si hace falta. La etiqueta de bulto cuenta las
+- Ficha 12, prueba en papel y con celular (Martín, cuando haya impresora y celular; en el NAS ya se ve bien desde
+  la PC): imprimir A4 y térmica, leer con la cámara del celular (sin sesión: entrar con PIN y volver a la etiqueta)
+  y con el escáner del visor, y ajustar márgenes si hace falta. La etiqueta de bulto cuenta las
   piezas de la lista de OptiCut; el bloque del mueble en el visor cuenta los paneles 3D (pueden diferir).
 - Probar en un celular de verdad, por HTTPS (en el NAS, al instalar la 07a): escanear una etiqueta y abrir la
   realidad aumentada desde el link del cliente, y que texturas y GLB lleguen de R2 sin error de CORS. En el navegador
