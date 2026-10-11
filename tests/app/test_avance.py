@@ -334,3 +334,17 @@ def test_avance_de_a_no_se_ve_ni_se_toca_desde_b(cliente_de, t, pa):
                                  cuando=fin.cuando)
     with con_taller(t.A):
         assert Marca.objects.count() == 1 and Bulto.objects.count() == 1 and Carga.objects.count() == 1
+
+
+def test_ordenar_las_etapas_arrastrando(cliente_de, t):
+    e = etapas(t.A)
+    nuevo = [e['Canteada'], e['Cortada'], e['Armada'], e['Mecanizada']]
+    datos_ = {'accion': 'guardar', 'orden': ','.join(map(str, nuevo)), **{f'nombre-{i}': n for n, i in e.items()},
+              **{f'activa-{i}': '1' for i in e.values()}}
+    c = cliente_de(t.dueno_a)
+    c.post('/taller-a/etapas/', datos_)
+    with con_taller(t.A):
+        assert [x.pk for x in etapas_activas()] == nuevo
+        assert etapas_activas()[-1].nombre == 'Mecanizada'        # la última es la que mira "Fabricación terminada"
+    pagina = c.get('/taller-a/etapas/').content.decode()            # y la pantalla las muestra en ese orden
+    assert [pagina.index(f'name="nombre-{i}"') for i in nuevo] == sorted(pagina.index(f'name="nombre-{i}"') for i in nuevo)

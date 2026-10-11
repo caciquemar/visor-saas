@@ -1,31 +1,84 @@
 {% extends 'base.html' %}
 {% block titulo %}Etapas{% endblock %}
+{% block cabeza %}
+<style>
+  .pad { touch-action:none; cursor:grab; background:transparent; color:var(--suave); border:1px solid var(--borde);
+         padding:.45rem .55rem; line-height:0; }
+  .pad:active { cursor:grabbing; }
+  tr.arrastrando { background:var(--fondo); outline:2px solid var(--acento); outline-offset:-2px; }
+  tr.arrastrando .pad { color:var(--acento); border-color:var(--acento); }
+</style>
+{% endblock %}
 {% block contenido %}
 <h1>Etapas de las piezas</h1>
 <p class="suave">Cada puesto del taller elige una etapa y marca las piezas que pasan por ahí. El avance de un mueble es el
   promedio de todas las etapas prendidas. La última prendida{% if armado %} (<strong>{{ armado.nombre }}</strong>){% endif %}
   es la que se mira al tocar "Fabricación terminada".</p>
-<form method="post" class="caja">{% csrf_token %}
+<form method="post" class="caja" id="formEtapas">{% csrf_token %}
+  <input type="hidden" name="orden" id="orden">
   <div class="tabla"><table>
-    <tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>Piezas marcadas</th><th></th></tr>
+    <thead><tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>Piezas marcadas</th><th></th></tr></thead>
+    <tbody id="filas">
     {% for e in etapas %}
-    <tr>
-      <td style="white-space:nowrap">
-        <button class="secundario" name="accion" value="subir-{{ e.pk }}" aria-label="Subir {{ e.nombre }}"{% if forloop.first %} disabled{% endif %}>↑</button>
-        <button class="secundario" name="accion" value="bajar-{{ e.pk }}" aria-label="Bajar {{ e.nombre }}"{% if forloop.last %} disabled{% endif %}>↓</button></td>
+    <tr data-id="{{ e.pk }}">
+      <td><button type="button" class="pad" aria-label="Mover {{ e.nombre }} (arrastrá, o flechas arriba y abajo)">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg></button></td>
       <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre de la etapa"></td>
       <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendida"></td>
       <td>{{ e.usadas }}</td>
       <td>{% if not e.usadas %}<button class="secundario" name="accion" value="borrar-{{ e.pk }}">Borrar</button>{% endif %}</td>
     </tr>
     {% endfor %}
+    </tbody>
   </table></div>
-  <div class="acciones"><button name="accion" value="guardar">Guardar</button></div>
+  <div class="acciones"><button name="accion" value="guardar" id="btnGuardar">Guardar</button></div>
 </form>
 <h2>Agregar una etapa</h2>
 <form method="post" class="acciones">{% csrf_token %}
   <input name="nombre" maxlength="40" placeholder="Pintada" aria-label="Nombre de la etapa nueva" style="width:auto">
   <button name="accion" value="agregar">Agregar</button>
 </form>
-<p class="suave">Apagar una etapa no borra lo que ya se marcó: deja de contar y de aparecer en los puestos.</p>
+<p class="suave">Para cambiar el orden, arrastrá cada etapa desde su manija. Apagar una etapa no borra lo que ya se marcó:
+  deja de contar y de aparecer en los puestos.</p>
+<script>
+(() => {
+  // arrastrar la manija mueve la fila; al soltar se guarda (con los nombres y las tildes como estén)
+  const filas = document.getElementById('filas');
+  const guardar = () => {
+    document.getElementById('orden').value = [...filas.children].map(f => f.dataset.id).join(',');
+    document.getElementById('formEtapas').requestSubmit(document.getElementById('btnGuardar'));
+  };
+  filas.querySelectorAll('.pad').forEach(pad => {
+    const fila = pad.closest('tr');
+    let movio = false;
+    pad.addEventListener('pointerdown', e => {
+      e.preventDefault(); pad.setPointerCapture(e.pointerId); fila.classList.add('arrastrando'); movio = false;
+    });
+    pad.addEventListener('pointermove', e => {
+      if (!pad.hasPointerCapture(e.pointerId)) return;
+      // se mueven las vecinas, no la fila arrastrada: sacarla de la página le hace perder el puntero
+      for (let antes; (antes = fila.previousElementSibling) && e.clientY < antes.getBoundingClientRect().top + antes.offsetHeight / 2;){
+        fila.after(antes); movio = true;
+      }
+      for (let despues; (despues = fila.nextElementSibling) && e.clientY > despues.getBoundingClientRect().top + despues.offsetHeight / 2;){
+        fila.before(despues); movio = true;
+      }
+    });
+    const soltar = e => {
+      if (!fila.classList.contains('arrastrando')) return;
+      fila.classList.remove('arrastrando');
+      if (movio) guardar();
+    };
+    pad.addEventListener('pointerup', soltar);
+    pad.addEventListener('pointercancel', soltar);
+    pad.addEventListener('lostpointercapture', soltar);
+    pad.addEventListener('keydown', e => {
+      if (e.key === 'ArrowUp' && fila.previousElementSibling) fila.after(fila.previousElementSibling);
+      else if (e.key === 'ArrowDown' && fila.nextElementSibling) fila.before(fila.nextElementSibling);
+      else return;
+      e.preventDefault(); pad.focus(); guardar();
+    });
+  });
+})();
+</script>
 {% endblock %}

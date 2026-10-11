@@ -100,14 +100,15 @@ def etapas(request, taller):
                 messages.error(request, 'Dejá al menos una etapa prendida.')
                 lista[-1].activa = True
                 lista[-1].save(update_fields=['activa'])
-        elif accion.startswith(('subir-', 'bajar-')):
-            i = next((i for i, e in enumerate(lista) if str(e.pk) == accion[6:]), None)
-            j = None if i is None else i - 1 if accion.startswith('subir-') else i + 1
-            if i is not None and 0 <= j < len(lista):
-                lista[i], lista[j] = lista[j], lista[i]
+            # el orden en que quedaron las filas al arrastrarlas (ids separados por coma); las que falten, al final
+            pedido = [i for i in request.POST.get('orden', '').split(',') if i.isdigit()]
+            if pedido:
+                lugar = {int(i): n for n, i in enumerate(pedido)}
+                lista.sort(key=lambda e: lugar.get(e.pk, len(lugar)))
                 for n, e in enumerate(lista, 1):
-                    e.orden = n
-                    e.save(update_fields=['orden'])
+                    if e.orden != n:
+                        e.orden = n
+                        e.save(update_fields=['orden'])
         elif accion.startswith('borrar-'):
             e = next((e for e in lista if str(e.pk) == accion[7:]), None)
             if e is not None and not e.marcas.exists() and len(lista) > 1:
@@ -115,6 +116,8 @@ def etapas(request, taller):
             elif e is not None:
                 messages.error(request, f'{e.nombre} ya tiene piezas marcadas: apagala en vez de borrarla.')
         return redirect(url(request, 'etapas'))
-    lista = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True))))
+    # order_by explícito: con annotate (GROUP BY), Django no aplica el orden de Meta
+    lista = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
+                 .order_by('orden', 'pk'))
     return render(request, 'avance/etapas.html', {'etapas': lista,
                                                   'armado': next((e for e in reversed(lista) if e.activa), None)})
