@@ -206,7 +206,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   reenvía las de dueño) y en la ficha del taller de la administración. Como el link solo existe en el mail, reenviar
   anula la vieja y manda una nueva (`talleres/mails.py`, `reenviar`). Mails por Gmail (contraseña de aplicación),
   elección de Martín en vez de Brevo.
-- 2026-10-10: **usabilidad del visor (pedido de Martín) y ficha 15 hecha.** Menú ☰ con las pantallas del servicio
+- 2026-10-10: **usabilidad del visor (pedido de Martín) y ficha 15 hecha** (`v0.7.3`; también en el visor del NAS, ver Pendientes). Menú ☰ con las pantallas del servicio
   según el rol (`VISOR.menu` y `VISOR.salir`, `menu_de` en `proyectos/visor.py`; el link del cliente no lo trae).
   Bloque de información: abajo en el celular con una manija para cambiar el alto; panel a la derecha en la PC (900 px
   o más) que se ensancha arrastrando su borde; los dos tamaños se recuerdan. Selección en dos pasos: el primer toque
@@ -235,15 +235,15 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
 - Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
   se puede dejar de usar (no se tocó la PC).
-- Visor actual de Nord Good: **queda sin modificar por ahora** (decisión de Martín, 2026-10-06). No se le llevan los
-  cambios del conversor del 2026-10-06 (mensaje de DXF dañado y tableros/cantos separados) hasta que él lo pida.
-  Sigue andando igual: `materiales` conserva los cantos que no se llaman como un tablero.
-- Conversor y visor actual de Nord Good: la regla de los lados (sin canto MDF, canto igual al tablero) cambió
-  `glb_ar` en este repo; el visor del NAS no la tiene. Va con el resto de los cambios al NAS, que quedan para el final (decisión de Martín, 2026-10-06).
 - Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
   (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
-- Visor actual de Nord Good: tiene el mismo problema de la cámara en NaN con el panel de trabajos en una pantalla
-  baja (arreglado acá en `tamano()`/`encuadrar()` de `index.html`); va con el resto de los cambios al NAS.
+- Visor del NAS (visor.nordgood.com.ar): desde el 2026-10-10 usa el visor y el conversor de este repo
+  (`polyboard/armado/armado/traer_de_la_app.py` los copia con los cambios propios del NAS). Al cambiar
+  `visor/index.html` o el conversor acá, para llevarlo allá: correr ese script y "Convertir proyecto" (o
+  `convertir.publicar_visor()`). Quedaron **sin reconvertir**, a decidir con Martín: *placards 1p grondona*,
+  *rack tv terrero* y *al heladera* (su `.ocp` o DXF cambió después de publicarlos: reconvertir publicaría la lista
+  nueva; *placards* pasaría de 150 a 120 piezas con número) y *Mueble guardado vinilos* y *hospital* (no está el DXF
+  3D en `a imprimir` ni en Descargas). Siguen andando con el visor nuevo (sin cantos separados ni lados nuevos en AR).
 - Ficha 08: completar `talleres/limites.py` (`trabajos`, `fotos_de_trabajos`); el plan Taller de `docs/plan.md` no
   dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
 - Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con
