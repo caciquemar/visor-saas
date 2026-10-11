@@ -36,8 +36,9 @@ from django.views.decorators.http import require_GET, require_POST
 
 from talleres.archivos import abrir_de_taller
 from talleres.limites import permite
+from talleres.menu import pantallas
 from talleres.models import Membresia
-from talleres.roles import Rol, miembro
+from talleres.roles import miembro
 
 from . import probador, tareas
 from .models import Combinacion, EleccionCliente, GrupoDeColor, LinkCliente, Material, Proyecto, Version
@@ -102,17 +103,8 @@ def url_de_etiquetas(request):
 
 
 def menu_de(request):
-    """Las pantallas del servicio para el menú del visor, con la misma regla de roles que templates/base.html."""
-    rol, slug = request.membresia.rol, request.taller.slug
-    pantallas = [('Inicio', 'taller:inicio'), ('Visor', 'taller:proyectos:visor'),
-                 ('Proyectos', 'taller:proyectos:lista'), ('Trabajos', 'taller:trabajos:lista'),
-                 ('Puesto', 'taller:avance:puesto')]
-    if rol in (Rol.DUENO, Rol.OFICINA):
-        pantallas += [('Materiales', 'taller:proyectos:materiales'), ('Equipo', 'taller:equipo')]
-    if rol == Rol.DUENO:
-        pantallas += [('Marca', 'taller:marca'), ('Etapas', 'taller:avance:etapas')]
-    menu = [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
-            for nombre, ruta in pantallas]
+    """Las pantallas del servicio para el menú del visor: las mismas que el menú ☰ de las demás páginas."""
+    menu = [dict(x, actual=x['nombre'] == 'Visor') for x in pantallas(request)]
     # la del proyecto que se está viendo: el visor pone el id en {id}
     menu.insert(3, {'nombre': 'Etiquetas del proyecto', 'url': url_de_etiquetas(request), 'actual': False,
                     'proyecto': True})

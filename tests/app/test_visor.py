@@ -408,3 +408,18 @@ def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
     # cada una abre (no hay direcciones rotas en el menú)
     c = cliente_de(getattr(t, quien))
     assert all(c.get(x['url'].replace('{id}', str(pa.pk))).status_code == 200 for x in menu)
+
+
+@pytest.mark.parametrize('quien,pantallas', [
+    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Puesto', 'Materiales', 'Equipo', 'Marca', 'Etapas']),
+    ('armador_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Puesto']),
+])
+def test_menu_de_las_paginas_igual_al_del_visor(cliente_de, t, quien, pantallas):
+    """El menú ☰ de las demás pantallas (templates/menu.html) tiene las mismas que el del visor y marca la actual."""
+    c = cliente_de(getattr(t, quien))
+    for pagina, actual in [('/taller-a/proyectos/', 'Proyectos'), ('/taller-a/puesto/', 'Puesto'),
+                           ('/taller-a/', 'Inicio')]:
+        r = c.get(pagina)
+        assert [x['nombre'] for x in r.context['menu']] == pantallas
+        assert [x['nombre'] for x in r.context['menu'] if x['actual']] == [actual]
+        assert 'id="btnMenu"' in r.content.decode()

@@ -84,9 +84,8 @@
 </head>
 <body>
 <header>
-  <a href="{% url 'taller:inicio' taller=request.taller.slug %}" aria-label="Volver al inicio">‹ {{ request.taller.nombre }}</a>
+  {% include 'menu.html' %}
   <span class="titulo" id="titulo">Puesto</span>
-  <span class="suave">{{ request.user }}</span>
 </header>
 
 <main>

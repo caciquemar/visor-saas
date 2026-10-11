@@ -275,6 +275,10 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   en `docs/decisiones.md`. Probado en el navegador integrado con *Rack florencia* (formato celular): dos grupos
   cambiados, 3D, AR cargando el GLB de la combinación generada en el servidor, elección vista en el proyecto.
 
+- 2026-10-11: **pedidos de Martín.** Entrar: botón "Ver" la contraseña (en el celular se colaba una mayúscula).
+  Menú ☰ como el del visor en todas las pantallas, también el Puesto (`templates/menu.html`; la lista sale de
+  `talleres/menu.py`, la misma que usa `menu_de` del visor): el nombre del usuario y Salir quedan dentro del menú.
+
 ## Pendientes
 
 - **Ficha 14, probar con un celular de verdad** (en el NAS por HTTPS): abrir la AR de una combinación en Android
