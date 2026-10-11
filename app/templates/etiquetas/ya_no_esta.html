@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block titulo %}Etiqueta vieja{% endblock %}
+{% block contenido %}
+<h1>{{ texto }}</h1>
+<p>La etiqueta es del proyecto <strong>{{ etiqueta.proyecto.nombre }}</strong>. Puede que en Polyboard se haya
+  cambiado el nombre, el número o el mueble de {% if etiqueta.tipo == 'pieza' %}la pieza{% else %}este mueble{% endif %},
+  o que se haya sacado del proyecto. Si sigue existiendo, imprimí una etiqueta nueva.</p>
+{% if etiqueta.tipo == 'pieza' %}
+<p class="suave">En la etiqueta: {{ etiqueta.clave.num|default:"sin número" }} · {{ etiqueta.clave.nombre }} · {{ etiqueta.clave.mueble }}</p>
+{% else %}
+<p class="suave">En la etiqueta: {{ etiqueta.clave.mueble }}</p>
+{% endif %}
+<div class="acciones">
+  <a class="boton" href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=etiqueta.proyecto_id %}">Ir al proyecto</a>
+  <a class="boton" style="background:transparent;color:var(--texto);border:1px solid var(--borde)" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ etiqueta.proyecto_id }}">Abrir en el visor</a>
+</div>
+{% endblock %}

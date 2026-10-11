@@ -21,6 +21,7 @@
 {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
 {% if candidatos %}
 <form method="post" autocomplete="off">{% csrf_token %}
+  {% if siguiente %}<input type="hidden" name="next" value="{{ siguiente }}">{% endif %}
   <div class="nombres">
   {% for m in candidatos %}
     <label><input type="radio" name="miembro" value="{{ m.pk }}" required {% if elegido == m.pk|stringformat:"d" %}checked{% endif %}><span>{{ m.usuario }}</span></label>
@@ -44,5 +45,5 @@
 {% else %}
 <p>Todavía no hay armadores ni instaladores con PIN en este taller. El dueño o la oficina los da de alta en Equipo.</p>
 {% endif %}
-<p class="suave"><a href="{% url 'entrar' %}">Entrar con mail y contraseña</a></p>
+<p class="suave"><a href="{% url 'entrar' %}{% if siguiente %}?next={{ siguiente|urlencode }}{% endif %}">Entrar con mail y contraseña</a></p>
 {% endblock %}

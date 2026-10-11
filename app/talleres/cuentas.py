@@ -2,9 +2,11 @@
 Usan `sin_filtro` porque todavía no hay taller en el contexto (archivo permitido en separacion.py)."""
 from django.contrib.auth import get_user_model, login, logout
 from django.contrib.auth.decorators import login_required
-from django.contrib.auth.views import redirect_to_login
+from django.contrib.auth.views import LoginView, redirect_to_login
 from django.db import transaction
 from django.shortcuts import redirect, render
+from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -14,6 +16,22 @@ from .pin import SESION_PIN
 from .separacion import con_taller
 
 BACKEND = 'django.contrib.auth.backends.ModelBackend'
+
+
+class Entrar(LoginView):
+    """Entrar con mail. Si se venía de una dirección de un taller (por ejemplo, el QR de una etiqueta escaneado con
+    la cámara), ofrece también entrar con PIN en ese taller y volver ahí."""
+    template_name = 'cuentas/entrar.html'
+    redirect_authenticated_user = True
+
+    def get_context_data(self, **kwargs):
+        from .middleware import partes_de_taller
+        datos = super().get_context_data(**kwargs)
+        siguiente = datos.get('next') or ''
+        partes = partes_de_taller(siguiente) if siguiente.startswith('/') else None
+        if partes and Taller.objects.filter(slug=partes[0], activo=True).exists():
+            datos['con_pin'] = reverse('taller:pin', kwargs={'taller': partes[0]}) + '?' + urlencode({'next': siguiente})
+        return datos
 
 
 @login_required

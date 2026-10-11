@@ -12,5 +12,6 @@
   <div class="acciones"><button type="submit">Entrar</button></div>
   <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a></p>
 </form>
-<p class="suave">¿Armás en el taller? Entrá con tu PIN desde el celular del taller.</p>
+{% if con_pin %}<p><a class="boton" href="{{ con_pin }}">Entrar con PIN</a></p>
+{% else %}<p class="suave">¿Armás en el taller? Entrá con tu PIN desde el celular del taller.</p>{% endif %}
 {% endblock %}

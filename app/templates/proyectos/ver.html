@@ -33,8 +33,10 @@
 
 <div class="acciones" style="margin:0 0 .5rem">
   {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir en el visor</a>{% endif %}
+  {% if listo %}<a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}">Imprimir etiquetas</a>{% endif %}
   {% if gestiona %}<a class="boton{% if listo %} secundario-enlace{% endif %}" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>{% endif %}
 </div>
+{% if proyecto.cliente or proyecto.direccion %}<p class="suave" style="margin:0 0 .5rem">{{ proyecto.cliente }}{% if proyecto.cliente and proyecto.direccion %} · {% endif %}{{ proyecto.direccion }}</p>{% endif %}
 
 {% if gestiona and listo %}
 <h2>Link para el cliente</h2>
@@ -75,6 +77,17 @@
     setTimeout(() => b.textContent = 'Copiar', 2000);
   });
 </script>
+{% endif %}
+
+{% if gestiona %}
+<details class="caja" style="margin-top:1rem">
+  <summary>Datos de la obra (van en la etiqueta de cada bulto)</summary>
+  <form method="post" action="{% url 'taller:proyectos:obra' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+    <label for="id_cliente">Cliente</label>{{ form_obra.cliente }}
+    <label for="id_direccion">Dirección de la obra</label>{{ form_obra.direccion }}
+    <div class="acciones"><button type="submit">Guardar</button></div>
+  </form>
+</details>
 {% endif %}
 
 <h2>Versiones</h2>

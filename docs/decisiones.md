@@ -239,3 +239,19 @@ para clientes pagos (cortes de luz e internet, sin respaldo de uptime).
 Martín postergó la ficha 08 porque se van a recibir pagos del exterior: evaluar Payway u otra pasarela con cuenta en
 EE. UU. antes de elegir. Ya decidido: dólar oficial automático para lo que se cobre en pesos, prueba vencida = solo
 lectura, plan anual (12 meses al precio de 10). Detalle en `docs/sesiones/08-planes-mercadopago.md`.
+
+## 2026-10-11 · Etiquetas con QR: qué es una pieza entre versiones
+Lleva etiqueta cada panel 3D que está en la lista de OptiCut (`pieza` no vacío), tenga o no número de mecanizado; los
+que no se cortan (material "no construir", sin fila en el .ocp) no. La pieza se identifica por **mueble + nombre +
+número + copia**: `copia` numera 1, 2, … las piezas iguales (`cant` > 1), ordenadas por el id del DXF, así cada una
+tiene su QR ("1 de 2"). El mueble, por su nombre. Las claves se guardan por **proyecto** (no por versión) con un
+código de 8 letras y números sin 0/O ni 1/I/L (`etiquetas.models.Etiqueta`), creado la primera vez que se imprime.
+Al abrir una etiqueta se busca su clave en la versión actual; si no está: "Esta pieza ya no está en la versión
+actual" (si vuelve en otra versión, la etiqueta vuelve a andar). Descartado: el id del DXF y la fila del .ocp, que
+Polyboard rearma entre versiones. Límite: si se renombra la pieza o el mueble o cambia el número, es otra pieza y hay
+que reimprimir su etiqueta.
+
+El QR lleva solo `URL_APP/<taller>/e/<código>` (el bulto suma `/<n>`; todos los bultos de un mueble comparten
+código). Con el slug del taller, el middleware de siempre filtra: un QR de otro taller da 404. El PDF se arma con
+**reportlab** (también dibuja el QR, sin otra dependencia). Cualquiera del taller imprime (el armador repone una
+etiqueta perdida) y el formato elegido queda guardado para el taller.

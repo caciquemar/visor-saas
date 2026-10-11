@@ -1202,6 +1202,53 @@ function mostrar(codigo){
   if (navigator.vibrate) navigator.vibrate(60);
 }
 
+/* ---------- etiquetas con QR (con la app): /<taller>/e/<código>[/<bulto>] ---------- */
+// El QR lleva solo la dirección; la app dice qué pieza o mueble es en la versión actual (api/etiqueta/<código>).
+// También se puede escribir el código (8 letras y números) en lugar del número de mecanizado.
+const CODIGO = /^[2-9A-HJ-NP-Z]{8}$/i;
+let pedidoEtiqueta = null;   // pieza o mueble para abrir cuando termine de cargar el proyecto
+function etiquetaDe(txt){
+  txt = String(txt).trim();
+  if (CODIGO.test(txt) && /[a-z]/i.test(txt)) return {codigo: txt.toUpperCase()};
+  let u; try{ u = new URL(txt); }catch(e){ return null; }
+  const m = u.pathname.match(/^\/([^/]+)\/e\/([^/]+)(?:\/(\d+))?\/?$/);
+  if (!m) return null;
+  const propio = u.host === location.host && location.pathname.split('/')[1] === m[1];
+  return propio ? {codigo: m[2].toUpperCase(), bulto: m[3] ? +m[3] : null} : {ajena: true};
+}
+function avisar(texto){ $('error').textContent = texto; $('error').classList.add('visible'); }
+function buscar(txt){
+  const e = etiquetaDe(txt);
+  if (!e) return mostrar(txt);
+  if (CLIENTE || !VISOR.menu) return avisar('Las etiquetas con QR se abren con el visor del taller.');
+  $('numManual').value = '';
+  if (e.ajena) return avisar('Esta etiqueta es de otro taller o de otro servicio.');
+  abrirEtiqueta(e.codigo);
+}
+async function abrirEtiqueta(codigo){
+  $('error').classList.remove('visible');
+  let r;
+  try{ r = await api('etiqueta/' + encodeURIComponent(codigo)); }
+  catch(e){ return avisar(e.message.startsWith('error ') ? 'No se pudo abrir la etiqueta. Probá de nuevo.' : e.message); }
+  const pedido = r.tipo === 'pieza' ? {pz: r.panel, copia: r.copia, de: r.de} : {m: r.mueble};
+  if (item && item.id === r.proyecto) return aplicarPedido(pedido);
+  const i = (listaProyectos || []).findIndex(x => x.id === r.proyecto);
+  if (i < 0) return avisar('El proyecto de esta etiqueta no tiene una versión lista.');
+  pedidoEtiqueta = pedido; $('proyecto').value = i; cargar(listaProyectos[i]);
+}
+function aplicarPedido(p){
+  if (p.pz != null){
+    const mallas = paneles.filter(x => x.userData.p.id === p.pz);
+    if (!mallas.length) return avisar('Esta pieza ya no está en la versión actual del proyecto.');
+    seleccionar(mallas);
+    $('fNota').textContent = p.de > 1 ? `Es la ${p.copia} de ${p.de} piezas iguales (la de esta etiqueta).` : '';
+  } else if (p.m != null){
+    if (!paneles.some(x => x.userData.p.mueble === p.m)) return avisar('Este mueble ya no está en la versión actual del proyecto.');
+    verMueble(p.m);
+  }
+  if (navigator.vibrate) navigator.vibrate(60);
+}
+
 /* ---------- muebles ---------- */
 function datosMuebles(){
   const m = {};
@@ -1321,7 +1368,7 @@ function seleccionar(mallas){
     + (p.cant > 1 ? `<span><b>${p.cant}</b> piezas iguales</span>` : '')
     + ((infoMaterial(p.mat) || {}).textura && Math.abs(a - b) > 1.5 ? `<span>veta a lo largo de <b>${p.vt ? b : a}</b> mm</span>` : '');
   let nota = '';
-  if (!p.num) nota = 'Sin mecanizado: esta pieza no lleva código de barras.';
+  if (!p.num) nota = 'Sin mecanizado: no tiene código de barras de mecanizado (sí la etiqueta con QR, si se imprimió).';
   else if (p.cant > 1) nota = mallas.length > 1
     ? `El mecanizado ${p.num} es igual para ${p.cant} piezas; están todas marcadas en azul.`
     : `Hay ${p.cant} piezas con el mecanizado ${p.num}; está marcada la que tocaste.`;
@@ -1387,7 +1434,7 @@ $('fCabecera').onclick = () => {
 aplicarFicha();
 function limpiarNombre(s){ return s.replace(/\s*\[\d+\]/g,'').replace(/_(\d+)$/,' $1'); }
 
-$('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ mostrar(v); $('numManual').blur(); } });
+$('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ buscar(v); $('numManual').blur(); } });
 $('verPieza').onclick = () => { if (!seleccion || !seleccion.mallas.length) return; modoPieza = true; pintar(); verPieza(); };
 function verPieza(){
   // mirar de frente la cara con más taladros
@@ -1485,11 +1532,16 @@ document.addEventListener('keydown', e => {
 
 /* ---------- menú de la app (solo taller): las pantallas del servicio, según el rol ---------- */
 if (!CLIENTE && Array.isArray(VISOR.menu) && VISOR.menu.length){
-  $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.actual ? ' aria-current="page"' : ''}>${esc(x.nombre)}</a>`).join('')
+  $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.actual ? ' aria-current="page"' : ''}${x.proyecto ? ` data-proyecto="${esc(x.url)}"` : ''}>${esc(x.nombre)}</a>`).join('')
     + (VISOR.salir ? `<div class="quien">${esc((VISOR.yo && VISOR.yo.nombre) || '')}</div>
       <form method="post" action="${esc(VISOR.salir)}"><input type="hidden" name="csrfmiddlewaretoken" value="${esc(VISOR.csrf || '')}">
       <button type="submit">Salir</button></form>` : '');
   $('menuApp').hidden = false;
+  // "Etiquetas" es del proyecto que se está viendo: la dirección trae {id}
+  $('menuLista').querySelectorAll('a[data-proyecto]').forEach(a => a.addEventListener('click', ev => {
+    if (!item || item.id == null){ ev.preventDefault(); return; }
+    a.href = a.dataset.proyecto.replace('{id}', item.id);
+  }));
 }
 
 /* ---------- tamaño del bloque de información: alto en el celular, ancho en la PC (se recuerda) ---------- */
@@ -1544,7 +1596,7 @@ let flujo = null, detenido = true, zxing = null;
 const FORMATOS = ['code_128','code_39','code_93','ean_13','ean_8','itf','codabar','qr_code','data_matrix'];
 
 async function abrirEscaner(){
-  $('scanMsg').textContent = 'Apuntá al código de barras de la etiqueta';
+  $('scanMsg').textContent = 'Apuntá al código de la etiqueta (barras o QR)';
   $('scanner').classList.add('visible');
   detenido = false;
   try{
@@ -1583,7 +1635,11 @@ function cerrarEscaner(){
   if (flujo){ flujo.getTracks().forEach(t => t.stop()); flujo = null; }
   $('scanner').classList.remove('visible');
 }
-function leido(txt){ cerrarEscaner(); $('numManual').value = normalizar(txt).padStart(4,'0'); mostrar(txt); }
+function leido(txt){
+  cerrarEscaner();
+  if (etiquetaDe(txt)){ $('numManual').value = ''; buscar(txt); return; }
+  $('numManual').value = normalizar(txt).padStart(4,'0'); mostrar(txt);
+}
 $('btnEscanear').onclick = abrirEscaner;
 $('btnCerrar').onclick = cerrarEscaner;
 
@@ -1925,13 +1981,19 @@ async function iniciar(){
   // por posición: dos proyectos pueden llamarse igual. Se recuerda el archivo (o el nombre, si no hay archivo)
   const sel = $('proyecto'), cual = x => x.archivo || x.proyecto;
   sel.innerHTML = lista.map((x, i) => `<option value="${i}">${esc(x.proyecto)}</option>`).join('');
-  const pedido = new URLSearchParams(location.search).get('p');
+  listaProyectos = lista;
+  const busqueda = new URLSearchParams(location.search);
+  const pedido = busqueda.get('p');
+  // desde una etiqueta (/<taller>/e/<código> redirige acá): ?pz=<id del panel> o ?m=<mueble>
+  if (busqueda.get('pz')) pedidoEtiqueta = {pz: busqueda.get('pz')};
+  else if (busqueda.get('m')) pedidoEtiqueta = {m: busqueda.get('m')};
   const previo = pedido != null ? lista.findIndex(x => String(x.id) === pedido) : lista.findIndex(x => cual(x) === recordar());
   if (previo >= 0) sel.value = previo;
   sel.onchange = () => cargar(lista[+sel.value]);
   cargar(lista[+sel.value]);
 }
 let item = null;   // el proyecto de la lista que se está viendo
+let listaProyectos = null;
 async function cargar(elegido){
   $('cargando').hidden = false; $('cargando').textContent = 'Cargando proyecto…';
   try{
@@ -1957,6 +2019,7 @@ async function cargar(elegido){
     return;
   }
   const q = new URLSearchParams(location.search).get('pieza'); if (q) mostrar(q);
+  if (pedidoEtiqueta){ const p = pedidoEtiqueta; pedidoEtiqueta = null; aplicarPedido(p); }
 }
 iniciar();
 })();

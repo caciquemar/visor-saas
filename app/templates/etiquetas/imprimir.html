@@ -1,0 +1,126 @@
+{% extends 'base.html' %}
+{% block titulo %}Etiquetas · {{ proyecto.nombre }}{% endblock %}
+{% block cabeza %}
+<style>
+  .mueble { padding:.6rem 0; border-bottom:1px solid var(--borde); }
+  .mueble summary { display:flex; flex-wrap:wrap; gap:.4rem 1rem; align-items:center; cursor:pointer; }
+  .mueble summary strong { margin-right:auto; }
+  .mueble label, .opcion { display:flex; gap:.45rem; align-items:center; font-weight:400; margin:.2rem 0; }
+  .mueble input[type=number] { width:4.2rem; padding:.3rem .4rem; }
+  .piezas { margin:.4rem 0 .2rem 1.6rem; columns:2 18rem; }
+  .piezas label { break-inside:avoid; }
+  .num { font-variant-numeric:tabular-nums; font-weight:600; min-width:2.6rem; }
+  .medidas { display:grid; gap:0 1rem; grid-template-columns:repeat(auto-fill, minmax(12rem, 1fr)); }
+  .medidas input { max-width:8rem; }
+  .barra { display:flex; gap:.5rem; flex-wrap:wrap; margin-bottom:.5rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=proyecto.pk %}">{{ proyecto.nombre }}</a></p>
+<h1>Etiquetas</h1>
+
+{% if sin_version %}
+<p>El proyecto todavía no tiene una versión lista. Cuando termine de convertirse vas a poder imprimir sus etiquetas.</p>
+{% else %}
+<p class="suave">Cada etiqueta lleva un QR que abre esa pieza o ese mueble en el visor (hay que ser del taller).
+  Sirve aunque subas una versión nueva, mientras la pieza siga con el mismo nombre, número y mueble.</p>
+{% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+{% if form.non_field_errors %}<p class="error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+
+<form method="post" target="_blank" id="formEtiquetas">{% csrf_token %}
+  <input type="hidden" name="version" value="{{ version.pk }}">
+
+  <h2>Qué imprimir</h2>
+  <div class="caja">
+    <div class="barra">
+      <button type="button" class="secundario" data-marcar="pieza">Todas las piezas</button>
+      <button type="button" class="secundario" data-marcar="mueble">Todos los muebles</button>
+      <button type="button" class="secundario" data-marcar="">Nada</button>
+    </div>
+    {% for g in grupos %}
+    <details class="mueble">
+      <summary>
+        <strong>{{ g.nombre }}</strong>
+        <label onclick="event.stopPropagation()"><input type="checkbox" name="mueble" value="{{ g.indice }}"{% if g.indice in elegidos %} checked{% endif %}> Etiqueta del mueble</label>
+        <label onclick="event.stopPropagation()">bultos <input type="number" name="bultos-{{ g.indice }}" value="1" min="1" max="{{ max_bultos }}"></label>
+        <label onclick="event.stopPropagation()"><input type="checkbox" data-todas> {{ g.piezas|length }} pieza{{ g.piezas|length|pluralize }}</label>
+      </summary>
+      <div class="piezas">
+        {% for i, x in g.piezas %}
+        <label><input type="checkbox" name="pieza" value="{{ i }}"{% if i in elegidas %} checked{% endif %}>
+          <span class="num">{{ x.panel.num|default:"s/n" }}</span>
+          <span>{{ x.panel.nombre }}{% if x.de > 1 %} <span class="suave">({{ x.copia }} de {{ x.de }})</span>{% endif %}</span></label>
+        {% endfor %}
+      </div>
+    </details>
+    {% endfor %}
+    <p class="suave" id="cuenta" aria-live="polite"></p>
+  </div>
+
+  <h2>Formato</h2>
+  <div class="caja">
+    <label for="{{ form.formato.id_for_label }}">Papel</label>{{ form.formato }}{{ form.formato.errors }}
+    <div id="medida" class="medidas">
+      {% for campo in form %}{% if campo.name in 'ancho alto columnas filas margen_sup margen_izq sep_h sep_v' %}
+      <div data-campo="{{ campo.name }}"><label for="{{ campo.id_for_label }}">{{ campo.label|capfirst }}</label>{{ campo }}{{ campo.errors }}</div>
+      {% endif %}{% endfor %}
+    </div>
+    <p class="suave" style="margin-bottom:0">Si la impresora corre el dibujo, corregilo acá (también con números negativos):</p>
+    <div class="medidas">
+      <div><label for="{{ form.ajuste_x.id_for_label }}">{{ form.ajuste_x.label|capfirst }}</label>{{ form.ajuste_x }}{{ form.ajuste_x.errors }}</div>
+      <div><label for="{{ form.ajuste_y.id_for_label }}">{{ form.ajuste_y.label|capfirst }}</label>{{ form.ajuste_y }}{{ form.ajuste_y.errors }}</div>
+      <div id="desdeCaja"><label for="desde">Empezar en la etiqueta</label>
+        <input id="desde" name="desde" type="number" min="1" value="1"><span class="ayuda">Para aprovechar una hoja empezada: 1 es la de arriba a la izquierda.</span></div>
+    </div>
+    <label class="opcion">{{ form.bordes }} {{ form.bordes.label|capfirst }} <span class="suave">(para probar en papel común)</span></label>
+    <p class="suave" style="margin-bottom:0">El formato queda guardado para la próxima vez.</p>
+  </div>
+
+  <div class="acciones"><button type="submit">Armar PDF</button></div>
+</form>
+
+<script>
+(() => {
+  const f = document.getElementById('formEtiquetas');
+  const cajas = n => [...f.querySelectorAll(`input[name="${n}"]`)];
+  const cuenta = () => {
+    const p = cajas('pieza').filter(c => c.checked).length;
+    const b = cajas('mueble').filter(c => c.checked)
+      .reduce((a, c) => a + (+f.querySelector(`[name="bultos-${c.value}"]`).value || 1), 0);
+    document.getElementById('cuenta').textContent = p || b
+      ? `Van ${p} etiqueta${p === 1 ? '' : 's'} de pieza y ${b} de bulto.` : 'Todavía no elegiste nada.';
+    f.querySelectorAll('details.mueble').forEach(d => {
+      const ps = [...d.querySelectorAll('input[name="pieza"]')];
+      const t = d.querySelector('[data-todas]');
+      t.checked = ps.length && ps.every(c => c.checked); t.indeterminate = !t.checked && ps.some(c => c.checked);
+    });
+  };
+  f.addEventListener('change', cuenta);
+  f.querySelectorAll('[data-todas]').forEach(t => t.addEventListener('change', () => {
+    t.closest('details').querySelectorAll('input[name="pieza"]').forEach(c => c.checked = t.checked); cuenta();
+  }));
+  f.querySelectorAll('[data-marcar]').forEach(b => b.onclick = () => {
+    const que = b.dataset.marcar;
+    if (!que) ['pieza', 'mueble'].forEach(n => cajas(n).forEach(c => c.checked = false));
+    else cajas(que).forEach(c => c.checked = true);
+    cuenta();
+  });
+  // medidas: todas para 'a medida' en hoja; ancho y alto para rollo a medida
+  const papel = document.getElementById('{{ form.formato.id_for_label }}');
+  const ver = () => {
+    const v = papel.value, hoja = v === '{{ medida_hoja }}', rollo = v === '{{ medida_rollo }}';
+    f.querySelectorAll('#medida [data-campo]').forEach(d =>
+      d.hidden = !(hoja || (rollo && ['ancho', 'alto'].includes(d.dataset.campo))));
+    document.getElementById('desdeCaja').hidden = !(v.startsWith('a4') || hoja);
+  };
+  papel.addEventListener('change', ver); ver();
+  f.addEventListener('submit', e => {
+    if (!cajas('pieza').some(c => c.checked) && !cajas('mueble').some(c => c.checked)){
+      e.preventDefault(); document.getElementById('cuenta').textContent = 'Elegí al menos una pieza o un mueble.';
+    }
+  });
+  cuenta();
+})();
+</script>
+{% endif %}
+{% endblock %}

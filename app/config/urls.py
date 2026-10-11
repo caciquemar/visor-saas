@@ -13,8 +13,7 @@ urlpatterns = [
     path('', cuentas.inicio, name='inicio'),
     path('admin/', admin.site.urls),
     path('salud/', salud, name='salud'),                     # para UptimeRobot: pública y sin datos
-    path('entrar/', auth.LoginView.as_view(template_name='cuentas/entrar.html', redirect_authenticated_user=True),
-         name='entrar'),
+    path('entrar/', cuentas.Entrar.as_view(), name='entrar'),
     path('salir/', cuentas.salir, name='salir'),
     path('cuenta/olvide/', auth.PasswordResetView.as_view(
         template_name='cuentas/olvide.html', email_template_name='cuentas/mail_clave.txt',

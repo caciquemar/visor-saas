@@ -25,6 +25,9 @@ def codigo_de_link():
 
 class Proyecto(DatoDeTaller):
     nombre = models.CharField('nombre', max_length=150)
+    # Para la etiqueta de cada bulto (ficha 12); no los ve el cliente.
+    cliente = models.CharField('cliente', max_length=150, blank=True)
+    direccion = models.CharField('dirección de la obra', max_length=200, blank=True)
     # Código del link del cliente (ficha 04). Se pasa al conversor en cada versión para que el link no cambie.
     codigo_cliente = models.CharField('código del cliente', max_length=32, unique=True, default=codigo_nuevo,
                                       editable=False)

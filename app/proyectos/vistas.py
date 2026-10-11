@@ -19,7 +19,7 @@ from talleres.archivos import abrir_de_taller
 from talleres.roles import Rol, con_rol, miembro
 
 from .archivos import solo_nombre
-from .formularios import FormMaterial, FormProyectoNuevo, FormSinCanto, FormSubida
+from .formularios import FormMaterial, FormObra, FormProyectoNuevo, FormSinCanto, FormSubida
 from .models import LinkCliente, Material, Original, Proyecto, Version
 from .tareas import encolar
 from .visor import url_de_link
@@ -120,8 +120,21 @@ def ver(request, taller, id):
         'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
         'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
-        'gestiona': gestiona,
+        'gestiona': gestiona, 'form_obra': FormObra(instance=proyecto),
     })
+
+
+@require_POST
+@con_rol(*GESTION)
+def obra(request, taller, id):
+    proyecto = get_object_or_404(Proyecto, pk=id)
+    form = FormObra(request.POST, instance=proyecto)
+    if form.is_valid():
+        form.save()
+        messages.success(request, 'Guardaste los datos de la obra.')
+    else:
+        messages.error(request, 'Revisá los datos de la obra: ' + ' '.join(e for es in form.errors.values() for e in es))
+    return a_proyecto(request, proyecto)
 
 
 @con_rol(*GESTION)

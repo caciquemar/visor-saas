@@ -9,7 +9,9 @@ from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.decorators.http import require_POST
 
 from . import pin as pines
@@ -146,6 +148,16 @@ def ip_de(request):
     return request.META.get('REMOTE_ADDR', '')
 
 
+def siguiente_del_taller(request):
+    """Adónde volver después de entrar con PIN (`next`): solo una dirección de este mismo taller; si no, ''."""
+    siguiente = request.POST.get('next') or request.GET.get('next') or ''
+    if not url_has_allowed_host_and_scheme(siguiente, allowed_hosts={request.get_host()}):
+        return ''
+    if not siguiente.startswith(f'/{request.taller.slug}/') or siguiente.startswith(f'/{request.taller.slug}/pin/'):
+        return ''
+    return siguiente
+
+
 def entrar_con_pin(request, taller):
     """Pública (sin sesión): cualquiera con la dirección del taller la ve. Ver talleres/pin.py."""
     candidatos = (Membresia.objects.select_related('usuario')
@@ -153,6 +165,7 @@ def entrar_con_pin(request, taller):
                           usuario__is_staff=False)
                   .exclude(pin='').order_by('usuario__nombre'))
     error, elegido = None, request.POST.get('miembro', '')
+    siguiente = siguiente_del_taller(request)
     if request.method == 'POST':
         m = candidatos.filter(pk=int(elegido)).first() if elegido.isdigit() else None
         if m is None:
@@ -167,9 +180,10 @@ def entrar_con_pin(request, taller):
                     login(request, m.usuario, backend='django.contrib.auth.backends.ModelBackend')
                     request.session[pines.SESION_PIN] = request.taller.pk
                     request.session.set_expiry(pines.HORAS_SESION_PIN * 3600)
-                    return redirect('taller:inicio', taller=request.taller.slug)
+                    return redirect(siguiente or reverse('taller:inicio', kwargs={'taller': request.taller.slug}))
                 error = 'PIN incorrecto.'
-    return render(request, 'talleres/pin.html', {'candidatos': candidatos, 'error': error, 'elegido': elegido},
+    return render(request, 'talleres/pin.html', {'candidatos': candidatos, 'error': error, 'elegido': elegido,
+                                                'siguiente': siguiente},
                   status=200 if error is None else 400)
 
 

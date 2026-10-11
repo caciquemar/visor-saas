@@ -6,7 +6,7 @@ from django.conf import settings
 from .archivos import solo_nombre
 from talleres.models import Taller
 
-from .models import Material
+from .models import Material, Proyecto
 
 MB = 1024 * 1024
 DXF_TEXTO = re.compile(rb'^(\xef\xbb\xbf)?\s*0\s*\r?\n\s*SECTION\b')
@@ -80,6 +80,13 @@ class FormProyectoNuevo(FormSubida):
     nombre = forms.CharField(label='Nombre del proyecto', max_length=150, required=False,
                              help_text='Si lo dejás vacío, se usa el nombre del DXF.')
     field_order = ['nombre', 'archivos']
+
+
+class FormObra(forms.ModelForm):
+    """Cliente y dirección de la obra: van en la etiqueta de cada bulto."""
+    class Meta:
+        model = Proyecto
+        fields = ('cliente', 'direccion')
 
 
 class FormMaterial(forms.ModelForm):

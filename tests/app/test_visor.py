@@ -91,7 +91,7 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
         ('Inicio', '/taller-a/'), ('Visor', '/taller-a/visor/'), ('Proyectos', '/taller-a/proyectos/'),
-        ('Trabajos', '/taller-a/trabajos/')]
+        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Trabajos', '/taller-a/trabajos/')]
     assert [x['nombre'] for x in menu if x['actual']] == ['Visor']
     # equipo: la gente activa de A (no la de B), para "Para quién" en los trabajos
     assert config == {'trabajos': True, 'fotos': True, 'yo': {'id': t.armador_a.pk, 'nombre': 'Arturo'},
@@ -393,12 +393,13 @@ def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Materiales', 'Equipo', 'Marca']),
-    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Materiales', 'Equipo']),
+    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Materiales', 'Equipo',
+                 'Marca']),
+    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Materiales', 'Equipo']),
 ])
-def test_menu_del_visor_segun_el_rol(cliente_de, t, quien, pantallas):
+def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
     menu = config_de(cliente_de(getattr(t, quien)).get('/taller-a/visor/'))['menu']
     assert [x['nombre'] for x in menu] == pantallas
     # cada una abre (no hay direcciones rotas en el menú)
     c = cliente_de(getattr(t, quien))
-    assert all(c.get(x['url']).status_code == 200 for x in menu)
+    assert all(c.get(x['url'].replace('{id}', str(pa.pk))).status_code == 200 for x in menu)

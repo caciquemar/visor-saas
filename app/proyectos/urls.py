@@ -9,6 +9,7 @@ urlpatterns = [
     path('proyectos/', vistas.lista, name='lista'),
     path('proyectos/nuevo/', vistas.nuevo, name='nuevo'),
     path('proyectos/<int:id>/', vistas.ver, name='ver'),
+    path('proyectos/<int:id>/obra/', vistas.obra, name='obra'),
     path('proyectos/<int:id>/versiones/nueva/', vistas.nueva_version, name='nueva_version'),
     path('proyectos/<int:id>/versiones/<int:numero>/usar/', vistas.usar_version, name='usar_version'),
     path('proyectos/<int:id>/versiones/<int:numero>/reconvertir/', vistas.reconvertir, name='reconvertir'),

@@ -13,6 +13,7 @@ dependencies = [
     "ezdxf>=1.4",
     "pillow>=11",
     "whitenoise>=6.8",
+    "reportlab>=4.2",
 ]
 
 [project.optional-dependencies]

@@ -99,8 +99,12 @@ def menu_de(request):
         pantallas += [('Materiales', 'taller:proyectos:materiales'), ('Equipo', 'taller:equipo')]
     if rol == Rol.DUENO:
         pantallas.append(('Marca', 'taller:marca'))
-    return [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
+    menu = [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
             for nombre, ruta in pantallas]
+    # las del proyecto que se está viendo: el visor pone el id en {id}
+    etiquetas = reverse('taller:etiquetas:imprimir', kwargs={'taller': slug, 'id': 0}).replace('/0/', '/{id}/')
+    menu.insert(3, {'nombre': 'Etiquetas del proyecto', 'url': etiquetas, 'actual': False, 'proyecto': True})
+    return menu
 
 
 @miembro
