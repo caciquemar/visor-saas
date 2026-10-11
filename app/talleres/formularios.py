@@ -4,6 +4,8 @@ from django import forms
 from django.contrib.auth import password_validation
 from django.core.files.uploadedfile import UploadedFile
 
+from usuarios.models import Usuario, normalizar_usuario, validar_usuario
+
 from .models import Membresia, Taller
 from .pin import validar_pin
 
@@ -42,10 +44,54 @@ class FormInvitar(forms.Form):
         return email
 
 
+class CampoUsuario(forms.CharField):
+    """Usuario para entrar con PIN: único en todo el servicio (no solo en el taller)."""
+
+    def __init__(self, **kwargs):
+        kwargs.setdefault('label', 'Usuario para entrar')
+        kwargs.setdefault('max_length', 40)
+        kwargs.setdefault('widget', forms.TextInput(attrs={'autocapitalize': 'off', 'autocorrect': 'off',
+                                                           'spellcheck': 'false'}))
+        super().__init__(**kwargs)
+
+    def clean(self, valor):
+        valor = normalizar_usuario(super().clean(valor))
+        if valor:
+            validar_usuario(valor)
+        return valor
+
+
+def usuario_tomado(valor, excluir=None):
+    return Usuario.objects.filter(usuario=valor).exclude(pk=excluir).exists()
+
+
 class FormAltaConPin(forms.Form):
     nombre = forms.CharField(label='Nombre', max_length=80)
+    usuario = CampoUsuario(required=False, help_text='Con esto y el PIN entra. Si lo dejás vacío, se arma con '
+                                                     'el nombre (Ramón Pérez → ramon-perez).')
     rol = forms.ChoiceField(label='Rol', choices=[(r.value, r.label) for r in Membresia.ROLES_CON_PIN])
     pin = CampoPin()
+
+    def clean_usuario(self):
+        valor = self.cleaned_data['usuario']
+        if valor and usuario_tomado(valor):
+            raise forms.ValidationError(f'El usuario «{valor}» ya existe. Probá con otro (por ejemplo, con el '
+                                        f'apellido o un número).')
+        return valor
+
+
+class FormUsuarioPin(forms.Form):
+    usuario = CampoUsuario(label='Usuario nuevo')
+
+    def __init__(self, *args, usuario, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.usuario = usuario
+
+    def clean_usuario(self):
+        valor = self.cleaned_data['usuario']
+        if usuario_tomado(valor, excluir=self.usuario.pk):
+            raise forms.ValidationError(f'El usuario «{valor}» ya existe. Probá con otro.')
+        return valor
 
 
 class FormMiembro(forms.Form):

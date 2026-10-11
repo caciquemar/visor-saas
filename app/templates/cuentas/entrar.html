@@ -3,10 +3,12 @@
 {% block contenido %}
 <h1>Entrar</h1>
 <form class="caja" method="post">{% csrf_token %}
-  {% if form.non_field_errors %}<p class="error">Mail o contraseña incorrectos.</p>{% endif %}
-  <label for="id_username">Mail</label>
-  <input id="id_username" name="username" type="email" autocomplete="email" required autofocus value="{{ form.username.value|default:'' }}">
-  <label for="id_password">Contraseña</label>
+  {% for e in form.non_field_errors %}<p class="error" role="alert">{{ e }}</p>{% endfor %}
+  <label for="id_username">Mail o usuario</label>
+  <input id="id_username" name="username" type="text" autocomplete="username" required autofocus
+         autocapitalize="off" autocorrect="off" spellcheck="false" value="{{ form.username.value|default:'' }}">
+  <span class="ayuda">Con mail, tu contraseña. Armadores e instaladores: tu usuario y tu PIN.</span>
+  <label for="id_password">Contraseña o PIN</label>
   <div class="con-ojo">
     <input id="id_password" name="password" type="password" autocomplete="current-password" required
            autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -14,11 +16,19 @@
   </div>
   <input type="hidden" name="next" value="{{ next }}">
   <div class="acciones"><button type="submit">Entrar</button></div>
-  <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a></p>
+  <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a>
+    <span class="suave">· ¿Te olvidaste el PIN? Pedile uno nuevo al dueño o a la oficina.</span></p>
 </form>
-{% if con_pin %}<p><a class="boton" href="{{ con_pin }}">Entrar con PIN</a></p>
-{% else %}<p class="suave">¿Armás en el taller? Entrá con tu PIN desde el celular del taller.</p>{% endif %}
 <script>
+  // Sin @ es un usuario con PIN: en el celular, teclado de números para el segundo campo.
+  const quien = document.getElementById('id_username');
+  const tecladoPin = () => {
+    const clave = document.getElementById('id_password');
+    if (quien.value.trim() && !quien.value.includes('@')) clave.setAttribute('inputmode', 'numeric');
+    else clave.removeAttribute('inputmode');
+  };
+  quien.addEventListener('input', tecladoPin);
+  tecladoPin();
   // Ver la contraseña: en el celular es fácil que se cuele una mayúscula o un espacio.
   document.getElementById('ver-clave').addEventListener('click', function () {
     const campo = document.getElementById('id_password');

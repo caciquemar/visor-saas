@@ -2,6 +2,17 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-11 · Una sola pantalla para entrar: mail o usuario
+Pedido de Martín. `/entrar/` tiene "Mail o usuario" y "Contraseña o PIN": con @ es mail y contraseña; sin @, el
+usuario y el PIN de un armador o instalador. Cada usuario sin mail tiene un **usuario para entrar**
+(`Usuario.usuario`, único en todo el servicio, minúsculas): lo elige el dueño u oficina al darlo de alta o se arma
+con el nombre (Ramón Pérez → `ramon-perez`), y se cambia en Equipo. Los que ya existían lo recibieron en la
+migración. Si alguien tiene PIN en dos talleres, entra en el del PIN que puso (con el mismo PIN, en el de `next`).
+Usuario inexistente y PIN incorrecto dan el mismo mensaje; el límite por IP pasa a ser de todo el servicio (antes,
+por taller). La sesión de PIN sigue igual (12 horas, solo ese taller), y con una abierta `/entrar/` deja entrar al
+siguiente sin tocar Salir (celular compartido). `/<taller>/pin/` ahora lleva a `/entrar/`.
+Reemplaza la pantalla de PIN del taller con la lista de nombres: ya no se ven los nombres sin sesión.
+
 ## 2026-10-11 · Probador de colores: grupos y combinaciones de realidad aumentada
 Decisiones de Martín (ficha 14). (1) **Grupo = tableros que cambian juntos**, con un nombre para el cliente
 ("Frentes" = Roble; "Cuerpos" = Blanco + Blanco 15); el cliente elige un color por grupo. Descartado un selector por

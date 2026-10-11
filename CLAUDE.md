@@ -278,6 +278,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-11: **pedidos de Martín.** Entrar: botón "Ver" la contraseña (en el celular se colaba una mayúscula).
   Menú ☰ como el del visor en todas las pantallas, también el Puesto (`templates/menu.html`; la lista sale de
   `talleres/menu.py`, la misma que usa `menu_de` del visor): el nombre del usuario y Salir quedan dentro del menú.
+- 2026-10-11: **una sola pantalla para entrar (pedido de Martín).** `/entrar/` con "Mail o usuario" y "Contraseña
+  o PIN" (`talleres/cuentas.py`, `FormEntrar`): los armadores e instaladores entran con su usuario (`Usuario.usuario`,
+  se elige en el alta o se arma con el nombre; se ve y se cambia en Equipo) y su PIN. Ya no hay lista de nombres
+  sin sesión; `/<taller>/pin/` lleva a `/entrar/` y Salir también. Límite de PIN por IP de todo el servicio.
+  Ver `docs/decisiones.md`. **Al instalar en el NAS**, la migración les arma el usuario a los armadores que ya están:
+  hay que decirles cuál es (Equipo lo muestra).
 
 ## Pendientes
 

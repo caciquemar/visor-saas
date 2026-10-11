@@ -27,8 +27,8 @@ Para crear el usuario de la administración (una sola vez; pide mail, nombre y c
 ```
 
 Para probar un taller: en la administración, *Talleres → Añadir* con el mail del dueño. En la PC los mails no se
-mandan: quedan como archivos en `datos/mails/`, y de ahí se copia el link de la invitación. Los armadores entran con
-PIN en http://127.0.0.1:8000/<taller>/pin/.
+mandan: quedan como archivos en `datos/mails/`, y de ahí se copia el link de la invitación. Los armadores entran
+en http://127.0.0.1:8000/entrar/ con su usuario (lo muestra Equipo) y su PIN.
 
 Por defecto usa SQLite y la cola de tareas corre en el mismo proceso, así que no hace falta Docker. Para trabajar
 con PostgreSQL y Redis como en el servidor: instalar Docker Desktop, correr `docker compose up -d` y descomentar

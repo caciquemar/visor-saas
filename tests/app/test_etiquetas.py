@@ -231,25 +231,25 @@ def test_no_se_imprimen_etiquetas_de_un_proyecto_de_b(cliente_de, t):
 
 # ---------------------------------------------------------------- entrar desde la cámara del celular
 
-def test_sin_sesion_pide_entrar_y_ofrece_el_pin_del_taller(client, t, pa):
+def test_sin_sesion_pide_entrar_y_vuelve_a_la_etiqueta(client, t, pa):
     e = etiqueta(t.A, pa, una_pieza())
     r = client.get(f'/taller-a/e/{e.codigo}')
     assert r.status_code == 302 and r['Location'] == f'/entrar/?next=/taller-a/e/{e.codigo}'
     html = client.get(r['Location']).content.decode()
-    assert f'/taller-a/pin/?next=%2Ftaller-a%2Fe%2F{e.codigo}' in html
+    assert 'Contraseña o PIN' in html and f'value="/taller-a/e/{e.codigo}"' in html
 
 
 def test_entrar_con_pin_vuelve_a_la_etiqueta(client, t, pa):
     e = etiqueta(t.A, pa, una_pieza())
     destino = f'/taller-a/e/{e.codigo}'
-    r = client.post(f'/taller-a/pin/?next={destino}', {'miembro': t.m_armador_a.pk, 'pin': '1234'})
+    r = client.post(f'/entrar/?next={destino}', {'username': 'arturo', 'password': '1234', 'next': destino})
     assert r.status_code == 302 and r['Location'] == destino
     assert client.get(destino).status_code == 302
 
 
 @pytest.mark.parametrize('siguiente', ['https://otro.com/taller-a/e/X', '/taller-b/e/ABCDEFGH', '//otro.com/x'])
 def test_el_pin_no_vuelve_a_otro_lado(client, t, siguiente):
-    r = client.post('/taller-a/pin/', {'miembro': t.m_armador_a.pk, 'pin': '1234', 'next': siguiente})
+    r = client.post('/entrar/', {'username': 'arturo', 'password': '1234', 'next': siguiente})
     assert r['Location'] == '/taller-a/'
 
 
@@ -259,11 +259,6 @@ def test_entrar_con_mail_vuelve_a_la_etiqueta(client, t, pa):
     destino = f'/taller-a/e/{e.codigo}'
     r = client.post('/entrar/', {'username': 'dueno@a.com', 'password': CLAVE, 'next': destino})
     assert r['Location'] == destino
-
-
-def test_entrar_sin_venir_de_un_taller_no_ofrece_pin(client, t):
-    html = client.get('/entrar/?next=/taller-que-no-existe/e/X').content.decode()
-    assert '/pin/' not in html
 
 
 # ---------------------------------------------------------------- pantalla de impresión

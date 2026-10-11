@@ -1,9 +1,9 @@
-"""PIN de armadores e instaladores para el celular compartido del taller.
+"""PIN de armadores e instaladores. Entran en /entrar/ con su usuario y PIN (talleres/cuentas.py).
 
 Se puede usar desde cualquier celular (decisión 2026-10-05), así que el bloqueo es duro:
 - cada 5 fallos seguidos de una persona: 15 minutos sin poder probar;
 - a los 10 fallos seguidos: bloqueado hasta que el dueño u oficina lo desbloquee en Equipo;
-- además, por IP y taller: 20 fallos en una hora y esa IP no puede probar más por una hora.
+- además, por IP: 20 fallos en una hora (usuarios inexistentes incluidos) y esa IP no puede probar más por una hora.
 Con un PIN de 4 dígitos, alguien de afuera tiene como mucho 10 intentos sobre 10.000 por persona.
 """
 import re
@@ -50,16 +50,28 @@ def bloqueado_del_todo(membresia):
     return membresia.pin_fallos >= FALLOS_BLOQUEO
 
 
-def _clave_ip(taller, ip):
-    return f'pin-fallos:{taller.pk}:{ip}'
+def _clave_ip(ip):
+    return f'pin-fallos:{ip}'
 
 
-def probar_pin(membresia, pin, ip):
-    """True si el PIN es correcto. Lanza PinBloqueado si no se puede probar ahora."""
-    ahora = timezone.now()
-    clave = _clave_ip(membresia.taller, ip)
-    if cache.get(clave, 0) >= FALLOS_POR_IP:
+def revisar_ip(ip):
+    if cache.get(_clave_ip(ip), 0) >= FALLOS_POR_IP:
         raise PinBloqueado('Demasiados intentos desde este celular. Probá de nuevo en una hora.')
+
+
+def fallo_de_ip(ip):
+    clave = _clave_ip(ip)
+    cache.add(clave, 0, timeout=3600)
+    try:
+        cache.incr(clave)
+    except ValueError:                    # venció justo entre add e incr
+        cache.set(clave, 1, timeout=3600)
+
+
+def probar_pin(membresia, pin):
+    """True si el PIN es correcto (y borra los fallos); si no, suma un fallo a la persona. Lanza PinBloqueado si
+    no se puede probar ahora. El límite por IP lo lleva quien llama (revisar_ip / fallo_de_ip)."""
+    ahora = timezone.now()
     if bloqueado_del_todo(membresia):
         raise PinBloqueado('PIN bloqueado. Pedile al dueño o a la oficina que lo desbloquee.')
     if membresia.pin_bloqueado_hasta and ahora < membresia.pin_bloqueado_hasta:
@@ -75,9 +87,4 @@ def probar_pin(membresia, pin, ip):
     if membresia.pin_fallos % FALLOS_PAUSA == 0 and not bloqueado_del_todo(membresia):
         membresia.pin_bloqueado_hasta = ahora + timedelta(minutes=MINUTOS_PAUSA)
         membresia.save(update_fields=['pin_bloqueado_hasta'])
-    cache.add(clave, 0, timeout=3600)
-    try:
-        cache.incr(clave)
-    except ValueError:                    # venció justo entre add e incr
-        cache.set(clave, 1, timeout=3600)
     return False

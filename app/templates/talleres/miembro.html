@@ -3,7 +3,8 @@
 {% block contenido %}
 <p><a href="{% url 'taller:equipo' taller=request.taller.slug %}">← Equipo</a></p>
 <h1>{{ otro.usuario }}</h1>
-<p class="suave">{{ otro.usuario.email|default:"Sin mail: entra con PIN" }}</p>
+<p class="suave">{% if otro.usuario.email %}{{ otro.usuario.email }}{% else %}Entra con el usuario
+  <strong>{{ otro.usuario.usuario }}</strong> y su PIN.{% endif %}</p>
 
 <form class="caja" method="post">{% csrf_token %}
   <input type="hidden" name="accion" value="guardar">
@@ -19,6 +20,13 @@
   {{ form_pin.as_div }}
   <div class="acciones"><button type="submit">Cambiar PIN</button></div>
 </form>
+{% if form_usuario %}
+<form class="caja" method="post" style="margin-top:1rem">{% csrf_token %}
+  <input type="hidden" name="accion" value="usuario">
+  {{ form_usuario.as_div }}
+  <div class="acciones"><button type="submit">Cambiar usuario</button></div>
+</form>
+{% endif %}
 {% if otro.pin_fallos or otro.pin_bloqueado_hasta %}
 <form class="caja" method="post" style="margin-top:1rem">{% csrf_token %}
   <input type="hidden" name="accion" value="desbloquear">

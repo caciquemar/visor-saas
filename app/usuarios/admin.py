@@ -22,12 +22,12 @@ class UsuarioAdmin(UserAdmin):
     form = FormUsuario
     add_form = FormAltaUsuario
     ordering = ('nombre', 'email')
-    list_display = ('nombre', 'email', 'is_staff', 'is_active', 'last_login')
+    list_display = ('nombre', 'email', 'usuario', 'is_staff', 'is_active', 'last_login')
     list_filter = ('is_staff', 'is_superuser', 'is_active')
-    search_fields = ('nombre', 'email')
+    search_fields = ('nombre', 'email', 'usuario')
     readonly_fields = ('last_login', 'creado')
     fieldsets = (
-        (None, {'fields': ('email', 'nombre', 'password')}),
+        (None, {'fields': ('email', 'nombre', 'usuario', 'password')}),
         ('Permisos', {'fields': ('is_active', 'is_staff', 'is_superuser', 'groups', 'user_permissions')}),
         ('Fechas', {'fields': ('last_login', 'creado')}),
     )

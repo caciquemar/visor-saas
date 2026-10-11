@@ -4,19 +4,20 @@ from django.conf import settings
 from datetime import timedelta
 
 from django.contrib import messages
-from django.contrib.auth import get_user_model, login
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.db import transaction
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.http import url_has_allowed_host_and_scheme
+from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
 from . import pin as pines
 from .archivos import abrir_de_taller
-from .formularios import FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, roles_que_puede_dar
+from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, FormUsuarioPin,
+                          roles_que_puede_dar)
 from .mails import NO_SALIO
 from .mails import invitar as mandar_invitacion
 from .mails import reenviar as mandar_de_nuevo
@@ -93,10 +94,11 @@ def alta_con_pin(request, taller):
         messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
         return a_equipo(request)
     with transaction.atomic():
-        usuario = get_user_model().objects.create_user(email=None, nombre=form.cleaned_data['nombre'])
+        usuario = get_user_model().objects.create_user(email=None, nombre=form.cleaned_data['nombre'],
+                                                       usuario=form.cleaned_data['usuario'])
         membresia = Membresia.objects.create(usuario=usuario, rol=form.cleaned_data['rol'])
         pines.asignar_pin(membresia, form.cleaned_data['pin'])
-    messages.success(request, f'{usuario} ya puede entrar con su PIN.')
+    messages.success(request, f'{usuario} ya puede entrar con el usuario «{usuario.usuario}» y su PIN.')
     return a_equipo(request)
 
 
@@ -113,6 +115,8 @@ def editar_miembro(request, taller, id):
         raise PermissionDenied('Solo un dueño puede cambiar a otro dueño.')
     form = FormMiembro(initial={'rol': otro.rol, 'activa': otro.activa}, membresia=request.membresia)
     form_pin = FormPin()
+    # El usuario para entrar se cambia acá solo si no tiene mail (los que tienen mail lo manejan ellos).
+    form_usuario = FormUsuarioPin(usuario=otro.usuario) if otro.usa_pin and not otro.usuario.email else None
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'guardar':
@@ -132,11 +136,19 @@ def editar_miembro(request, taller, id):
                 pines.asignar_pin(otro, form_pin.cleaned_data['pin'])
                 messages.success(request, f'PIN de {otro.usuario} cambiado.')
                 return a_equipo(request)
+        elif accion == 'usuario' and form_usuario is not None:
+            form_usuario = FormUsuarioPin(request.POST, usuario=otro.usuario)
+            if form_usuario.is_valid():
+                otro.usuario.usuario = form_usuario.cleaned_data['usuario']
+                otro.usuario.save(update_fields=['usuario'])
+                messages.success(request, f'{otro.usuario} ahora entra con el usuario «{otro.usuario.usuario}».')
+                return a_equipo(request)
         elif accion == 'desbloquear':
             pines.desbloquear(otro)
             messages.success(request, f'PIN de {otro.usuario} desbloqueado.')
             return a_equipo(request)
     return render(request, 'talleres/miembro.html', {'otro': otro, 'form': form, 'form_pin': form_pin,
+                                                     'form_usuario': form_usuario,
                                                      'bloqueado': pines.bloqueado_del_todo(otro)})
 
 
@@ -159,32 +171,9 @@ def siguiente_del_taller(request):
 
 
 def entrar_con_pin(request, taller):
-    """Pública (sin sesión): cualquiera con la dirección del taller la ve. Ver talleres/pin.py."""
-    candidatos = (Membresia.objects.select_related('usuario')
-                  .filter(rol__in=Membresia.ROLES_CON_PIN, activa=True, usuario__is_active=True,
-                          usuario__is_staff=False)
-                  .exclude(pin='').order_by('usuario__nombre'))
-    error, elegido = None, request.POST.get('miembro', '')
-    siguiente = siguiente_del_taller(request)
-    if request.method == 'POST':
-        m = candidatos.filter(pk=int(elegido)).first() if elegido.isdigit() else None
-        if m is None:
-            error = 'Tocá tu nombre.'
-        else:
-            try:
-                correcto = pines.probar_pin(m, request.POST.get('pin', ''), ip_de(request))
-            except pines.PinBloqueado as e:
-                error = str(e)
-            else:
-                if correcto:
-                    login(request, m.usuario, backend='django.contrib.auth.backends.ModelBackend')
-                    request.session[pines.SESION_PIN] = request.taller.pk
-                    request.session.set_expiry(pines.HORAS_SESION_PIN * 3600)
-                    return redirect(siguiente or reverse('taller:inicio', kwargs={'taller': request.taller.slug}))
-                error = 'PIN incorrecto.'
-    return render(request, 'talleres/pin.html', {'candidatos': candidatos, 'error': error, 'elegido': elegido,
-                                                'siguiente': siguiente},
-                  status=200 if error is None else 400)
+    """Dirección vieja de la pantalla de PIN: ahora todos entran en /entrar/ (con usuario y PIN)."""
+    siguiente = siguiente_del_taller(request) or reverse('taller:inicio', kwargs={'taller': request.taller.slug})
+    return redirect(f"{reverse('entrar')}?{urlencode({'next': siguiente})}")
 
 
 @con_rol(Rol.DUENO)
