@@ -27,6 +27,19 @@
     se llama como su tablero, el borde se ve igual que el tablero.</span>
 </form>
 
+<details class="caja"{% if form_nuevo.is_bound %} open{% endif %} style="margin-top:1rem">
+  <summary>Agregar un tablero <span class="suave">· para ofrecerlo en el probador de colores aunque ningún proyecto lo use</span></summary>
+  <form method="post" enctype="multipart/form-data" action="{% url 'taller:proyectos:nuevo_tablero' taller=request.taller.slug %}">{% csrf_token %}
+    {% if form_nuevo.non_field_errors %}<p class="error">{{ form_nuevo.non_field_errors|join:" " }}</p>{% endif %}
+    {% for campo in form_nuevo %}
+      <label for="{{ campo.id_for_label }}">{{ campo.label|capfirst }}</label>
+      {{ campo }}{% if campo.errors %}<span class="error">{{ campo.errors|join:" " }}</span>{% endif %}
+      {% if campo.help_text %}<span class="ayuda">{{ campo.help_text }}</span>{% endif %}
+    {% endfor %}
+    <div class="acciones"><button type="submit">Agregar</button></div>
+  </form>
+</details>
+
 {% if faltan %}<p><strong>{{ faltan }} sin textura.</strong> Subí la imagen que usás en Polyboard (está en la carpeta Textures).</p>{% endif %}
 
 {% for etiqueta, materiales in grupos %}

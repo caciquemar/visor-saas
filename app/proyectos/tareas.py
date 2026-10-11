@@ -190,6 +190,31 @@ def guardar_resultado(version, resultado, res):
             proyecto.save(update_fields=['version_actual', 'actualizado'])
 
 
+def encolar_combinacion(combinacion):
+    transaction.on_commit(partial(generar_combinacion, combinacion.taller_id, combinacion.pk))
+
+
+@db_task()
+@tarea_de_taller
+def generar_combinacion(combinacion_id):
+    """GLB de realidad aumentada de una combinación del probador de colores (proyectos/probador.py). Corre en este
+    mismo proceso: la entrada es nuestro cliente.json, no un archivo del taller."""
+    from . import probador
+    from .models import Combinacion
+
+    combinacion = Combinacion.objects.select_related('version__proyecto').filter(pk=combinacion_id).first()
+    if combinacion is None or combinacion.estado != Combinacion.Estado.EN_COLA:
+        return
+    try:
+        with tempfile.TemporaryDirectory(prefix='visor-comb-') as tmp:
+            combinacion.ar = probador.generar(combinacion, Path(tmp))
+        combinacion.estado = Combinacion.Estado.LISTA if combinacion.ar else Combinacion.Estado.ERROR
+    except Exception:
+        log.exception('Falló la combinación de colores %s', combinacion_id)
+        combinacion.estado = Combinacion.Estado.ERROR
+    combinacion.save(update_fields=['ar', 'estado'])
+
+
 def anotar_materiales(con_imagen):
     """Suma a la biblioteca los tableros y cantos que en Polyboard tienen imagen (cada tipo por su lado).
     Devuelve los que no tienen textura subida todavía: [{nombre, tipo}]."""

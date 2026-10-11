@@ -42,8 +42,9 @@ docs/             plan, decisiones y fichas de cada sesión
 negocio/claude-ai instrucciones y archivos para el Proyecto de claude.ai (negocio, marca, entrevistas)
 app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario), talleres/ (Taller, Membresia,
                   Invitacion, separación entre talleres, PIN, Equipo, Marca), proyectos/ (Proyecto, Version, Original,
-                  Material, LinkCliente; subida, cola de conversión en proceso aparte, biblioteca de texturas,
-                  visor.py: el visor y el link del cliente), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
+                  Material, LinkCliente, GrupoDeColor, Combinacion, EleccionCliente; subida, cola de conversión en
+                  proceso aparte, biblioteca de texturas, visor.py: el visor y el link del cliente; probador.py: el
+                  probador de colores), trabajos/ (Trabajo, CambioDeEstado, Foto; api.py: la
                   API de trabajos del visor; vistas.py: la pantalla Trabajos), modulos/ (Modulo, TallerModulo;
                   registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), etiquetas/
                   (Etiqueta, FormatoEtiquetas; claves.py: qué es una pieza entre versiones; pdf.py: el PDF), avance/
@@ -261,7 +262,26 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   florencia* (armador con PIN): dos etapas por número, repetida, fin con faltantes y 2 bultos, carga con un bulto de
   menos que no sale sin motivo, todo con nombre y hora; y las piezas armadas en el visor.
 
+- 2026-10-11: **ficha 14 hecha.** Probador de colores en el link del cliente (`proyectos/probador.py`). En la pantalla
+  del proyecto (dueño y oficina), "Probador de colores": grupos de tableros que cambian juntos con un nombre para el
+  cliente (`GrupoDeColor`) y qué tableros de la biblioteca ofrece cada uno; ahí mismo se ven las elecciones del
+  cliente (`EleccionCliente`) con nombre, fecha y hora, comentario y qué eligió en vez de qué. En Materiales,
+  "Agregar un tablero" (nombre e imagen o color) para ofrecer colores que ningún proyecto usó. En el link, debajo de
+  "Ver en tu espacio", muestras por grupo (textura o color); el 3D cambia al instante sin mover la cámara, con la
+  misma sustitución que el servidor (cantos con el nombre del tablero acompañan). La AR de una combinación se arma
+  en la cola la primera vez (`Combinacion`, `tareas.generar_combinacion`, con el `glb_ar` del conversor sin tocarlo)
+  y se guarda en `resultado/combinaciones/<clave>/`; mientras, "Preparando…". Hasta 20 por versión; después, el
+  modelo del celular. "Me gusta esta" con nombre y comentario. El visor del taller no trae el probador. Decisiones
+  en `docs/decisiones.md`. Probado en el navegador integrado con *Rack florencia* (formato celular): dos grupos
+  cambiados, 3D, AR cargando el GLB de la combinación generada en el servidor, elección vista en el proyecto.
+
 ## Pendientes
+
+- **Ficha 14, probar con un celular de verdad** (en el NAS por HTTPS): abrir la AR de una combinación en Android
+  (Scene Viewer) y en iPhone (Quick Look), y mirar cuánto tarda en prepararse con la cola de verdad (en la PC la cola
+  es inmediata). Probar también pasar el límite de 20 (modelo del celular).
+- Materiales: un tablero cargado solo con color (sin imagen) cuenta como "sin textura" y sale en rojo; para los que
+  se agregan a mano para el probador quizás no corresponda avisar.
 
 - **Ficha 13, probar con el celular de verdad** (Martín, en el NAS por HTTPS): la cámara siempre prendida del puesto,
   el sonido (en iPhone se activa con "Empezar") y la vibración (Safari no vibra), que la pantalla no se apague, y una

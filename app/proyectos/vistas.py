@@ -10,6 +10,7 @@ from django.db import transaction
 from django.db.models import Max
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -19,9 +20,10 @@ from modulos import registro
 from talleres.archivos import abrir_de_taller
 from talleres.roles import Rol, con_rol, miembro
 
+from . import probador
 from .archivos import solo_nombre
-from .formularios import FormMaterial, FormObra, FormProyectoNuevo, FormSinCanto, FormSubida
-from .models import LinkCliente, Material, Original, Proyecto, Version
+from .formularios import FormMaterial, FormObra, FormProyectoNuevo, FormSinCanto, FormSubida, FormTableroNuevo
+from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version
 from .tareas import encolar
 from .visor import url_de_link
 
@@ -118,7 +120,10 @@ def ver(request, taller, id):
     links = list(proyecto.links.filter(anulado__isnull=True)) if gestiona else []
     for link in links:
         link.direccion = url_de_link(request, link)
+    listo = bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO)
     return render(request, 'proyectos/ver.html', {
+        'probador': pantalla_del_probador(proyecto, gestiona) if listo else None,
+        'elecciones': list(proyecto.elecciones.all()[:50]),
         'proyecto': proyecto, 'versiones': versiones, 'base': base,
         'listo': bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO),
         'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
@@ -127,6 +132,56 @@ def ver(request, taller, id):
         'gestiona': gestiona, 'form_obra': FormObra(instance=proyecto),
         'avance': pantalla_de_avance.del_proyecto(proyecto) if proyecto.version_actual else None,
     })
+
+
+def pantalla_del_probador(proyecto, gestiona):
+    """Grupos del probador de colores con lo que hace falta para editarlos en la pantalla del proyecto."""
+    tableros = probador.tableros_de(probador.leer_cliente(proyecto.version_actual))
+    grupos = list(GrupoDeColor.objects.filter(proyecto=proyecto))
+    biblioteca = list(Material.objects.filter(tipo=Material.Tipo.TABLERO)) if gestiona else []
+    presentes = {clave(t) for t in tableros}
+    for g in grupos:
+        g.sueltos = [t for t in g.tableros if clave(t) not in presentes]       # ya no están en esta versión
+        g.marcados = {clave(t) for t in g.tableros}
+        g.ofrecidos = set(g.opciones)
+    usados = {clave(t) for g in grupos for t in g.tableros}
+    return {'tableros': [(t, clave(t)) for t in tableros], 'grupos': grupos, 'biblioteca': biblioteca,
+            'libres': [t for t in tableros if clave(t) not in usados]}
+
+
+@require_POST
+@con_rol(*GESTION)
+def grupo_color(request, taller, id, grupo_id=None):
+    """Crear, guardar o borrar un grupo del probador de colores."""
+    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
+    grupo = get_object_or_404(GrupoDeColor, pk=grupo_id, proyecto=proyecto) if grupo_id else None
+    volver = redirect(reverse('taller:proyectos:ver', kwargs={'taller': request.taller.slug, 'id': id}) + '#colores')
+    if grupo and request.POST.get('borrar'):
+        grupo.delete()
+        messages.success(request, f'Borraste el grupo {grupo.nombre}.')
+        return volver
+    nombre = request.POST.get('nombre', '').strip()[:60]
+    presentes = {clave(t): t for t in probador.tableros_de(probador.leer_cliente(proyecto.version_actual))}
+    # los tableros de versiones anteriores que el grupo ya tenía se conservan (pueden volver)
+    tableros = [presentes[k] for k in dict.fromkeys(clave(t) for t in request.POST.getlist('tablero'))
+                if k in presentes]
+    tableros += [t for t in (grupo.tableros if grupo else []) if clave(t) not in presentes]
+    try:
+        pedidas = {int(x) for x in request.POST.getlist('opcion')}
+    except ValueError:
+        pedidas = set()
+    opciones = sorted(Material.objects.filter(pk__in=pedidas, tipo=Material.Tipo.TABLERO)
+                      .values_list('pk', flat=True))
+    if not nombre or not tableros or not opciones:
+        messages.error(request, 'El grupo necesita un nombre, al menos un tablero del proyecto y al menos un color '
+                                'para ofrecer.')
+        return volver
+    if grupo is None:
+        grupo = GrupoDeColor(proyecto=proyecto, orden=GrupoDeColor.objects.filter(proyecto=proyecto).count())
+    grupo.nombre, grupo.tableros, grupo.opciones = nombre, tableros, opciones
+    grupo.save()
+    messages.success(request, f'Guardaste el grupo {nombre}. El cliente ya lo ve en su link.')
+    return volver
 
 
 @require_POST
@@ -186,7 +241,7 @@ def original(request, taller, id, numero, original_id):
 
 
 @con_rol(*GESTION)
-def materiales(request, taller):
+def materiales(request, taller, form_nuevo=None):
     lista = sorted(Material.objects.all(), key=lambda m: (bool(m.textura), m.clave))
     grupos = [(etiqueta, [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista if m.tipo == tipo])
               for tipo, etiqueta in (('tablero', 'Tableros'), ('canto', 'Cantos'))]
@@ -194,7 +249,20 @@ def materiales(request, taller):
         'grupos': [(etiqueta, mats) for etiqueta, mats in grupos if mats],
         'faltan': sum(1 for m in lista if not m.textura),
         'form_sin_canto': FormSinCanto(instance=request.taller),
-    })
+        'form_nuevo': form_nuevo or FormTableroNuevo(auto_id='nuevo_%s'),
+    }, status=400 if form_nuevo else 200)
+
+
+@require_POST
+@con_rol(*GESTION)
+def nuevo_tablero(request, taller):
+    """Agregar a la biblioteca un tablero que todavía no usa ningún proyecto (para ofrecerlo en el probador)."""
+    form = FormTableroNuevo(request.POST, request.FILES, auto_id='nuevo_%s')
+    if not form.is_valid():
+        return materiales(request, taller=taller, form_nuevo=form)
+    m = form.save()
+    messages.success(request, f'Agregaste el tablero {m.nombre}. Ya lo podés ofrecer en el probador de colores.')
+    return redirect('taller:proyectos:materiales', taller=request.taller.slug)
 
 
 @require_POST

@@ -4,6 +4,7 @@ from django import forms
 from django.conf import settings
 
 from .archivos import solo_nombre
+from conversor.polyboard_a_app import clave as clave_de_material
 from talleres.models import Taller
 
 from .models import Material, Proyecto
@@ -115,6 +116,26 @@ class FormMaterial(forms.ModelForm):
         if color and not re.fullmatch(r'#[0-9A-Fa-f]{6}', color):
             raise forms.ValidationError('El color tiene que ser como #A1B2C3.')
         return color.upper()
+
+
+class FormTableroNuevo(FormMaterial):
+    """Un tablero que todavía no usa ningún proyecto, para ofrecerlo en el probador de colores (ficha 14)."""
+    class Meta(FormMaterial.Meta):
+        fields = ('nombre', 'textura', 'ancho_mm', 'color')
+        help_texts = {**FormMaterial.Meta.help_texts, 'nombre': 'Como se llama en Polyboard.',
+                      'color': 'Si no tenés la imagen, el color que se ve.'}
+
+    def clean_nombre(self):
+        nombre = ' '.join(self.cleaned_data.get('nombre', '').split())
+        if Material.objects.filter(tipo=Material.Tipo.TABLERO, clave=clave_de_material(nombre)).exists():
+            raise forms.ValidationError(f'Ya tenés el tablero {nombre}: cambiale la imagen en la lista.')
+        return nombre
+
+    def clean(self):
+        datos = super().clean()
+        if not datos.get('textura') and not datos.get('color'):
+            raise forms.ValidationError('Subí la imagen o poné un color.')
+        return datos
 
 
 class FormSinCanto(forms.ModelForm):

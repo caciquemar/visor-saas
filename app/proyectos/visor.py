@@ -11,6 +11,9 @@ página, así index.html cambia lo mínimo:
     /c/<código>/data/cliente.json         la versión cliente (sin números de mecanizado)
     /c/<código>/data/clientes/<cc>/x.glb  modelos para realidad aumentada
     /c/<código>/data/texturas/<archivo>   texturas
+    /c/<código>/data/opciones/<id>.<ext>  texturas de los tableros que ofrece el probador de colores (ficha 14)
+    /c/<código>/data/combinaciones/<clave>/x.glb   AR de una combinación del probador
+    /c/<código>/probador/ar, …/elegir     probador: pedir la AR de una combinación, "Me gusta esta"
 
 Por /c/ nunca sale proyecto.json: solo lo que está en la lista blanca de `dato_cliente`.
 """
@@ -20,6 +23,8 @@ import re
 from functools import lru_cache
 
 from django.conf import settings
+from django.core.cache import cache
+from django.db import IntegrityError, transaction
 from django.db.models import F, Q
 from django.http import Http404, HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
@@ -27,14 +32,15 @@ from django.shortcuts import get_object_or_404, render
 from django.templatetags.static import static
 from django.urls import reverse
 from django.utils import timezone
-from django.views.decorators.http import require_GET
+from django.views.decorators.http import require_GET, require_POST
 
 from talleres.archivos import abrir_de_taller
 from talleres.limites import permite
 from talleres.models import Membresia
 from talleres.roles import Rol, miembro
 
-from .models import LinkCliente, Proyecto, Version
+from . import probador, tareas
+from .models import Combinacion, EleccionCliente, GrupoDeColor, LinkCliente, Material, Proyecto, Version
 
 mimetypes.add_type('model/gltf-binary', '.glb')
 INDEX = settings.RAIZ / 'visor' / 'index.html'
@@ -213,11 +219,16 @@ def cliente(request, codigo):
     if not es_del_taller(request):
         LinkCliente.objects.filter(pk=link.pk).update(visitas=F('visitas') + 1, ultima_visita=timezone.now())
     taller = request.taller
-    return pagina({
+    config = {
         'cliente': True, 'trabajos': False, 'sinCanto': taller.color_sin_canto,
         'marca': {'nombre': taller.nombre, 'color': taller.color or None, 'logo': 'logo' if taller.logo else None},
         'pie': {'nombre': settings.MARCA_SERVICIO, 'url': settings.MARCA_URL or None},
-    })
+    }
+    p, v = version_lista(link.proyecto_id)
+    grupos = probador.para_el_visor(probador.grupos_vigentes(p, probador.leer_cliente(v)))
+    if grupos:          # probador de colores (ficha 14): solo en el link del cliente
+        config.update(probador=grupos, csrf=get_token(request))
+    return pagina(config)
 
 
 @require_GET
@@ -231,9 +242,114 @@ def dato_cliente(request, codigo, ruta):
     elif (re.fullmatch(rf'clientes/{re.escape(p.codigo_cliente)}/[\w.-]+\.glb', ruta)
           or re.fullmatch(r'texturas/[\w.-]+', ruta)):
         archivo = ruta
+    elif m := re.fullmatch(rf'{probador.CARPETA_OPCIONES}/(\d+)\.\w+', ruta):
+        return textura_de_opcion(request, p, int(m.group(1)), ruta)
+    elif m := re.fullmatch(rf'{probador.CARPETA_COMBINACIONES}/(\w+)/[\w.-]+\.glb', ruta):
+        comb = v.combinaciones.filter(clave=m.group(1), estado=Combinacion.Estado.LISTA).first()
+        if comb is None or ruta not in comb.ar.values():
+            raise Http404('No existe el archivo')
+        archivo = ruta
     else:
         raise Http404('No existe el archivo')
     return servir(request, f'{v.carpeta()}resultado/{archivo}')
+
+
+def textura_de_opcion(request, proyecto, material_id, ruta):
+    """La textura de un tablero de la biblioteca, solo si el taller lo ofrece en el probador de este proyecto."""
+    ofrecidos = {pk for g in GrupoDeColor.objects.filter(proyecto=proyecto) for pk in g.opciones}
+    m = Material.objects.filter(pk=material_id, tipo=Material.Tipo.TABLERO).exclude(textura='').first()
+    if material_id not in ofrecidos or m is None or probador.textura_de(m) != ruta:
+        raise Http404('No existe el archivo')
+    r = abrir_de_taller(request, m.textura.name)
+    r['Cache-Control'] = 'no-cache'          # el taller puede cambiar la imagen
+    return r
+
+
+# ---------------------------------------------------------------- probador de colores (ficha 14)
+
+NUEVAS_POR_IP = 10          # combinaciones nuevas por hora desde una misma IP (cada una es trabajo para la cola)
+ELECCIONES_POR_IP = 10      # "Me gusta esta" por hora desde una misma IP
+
+
+def pasar_tope(request, que, tope):
+    """False si esta IP ya hizo `tope` veces `que` en la última hora con este link; si no, cuenta una más."""
+    from talleres.vistas import ip_de
+    k = f'probador-{que}:{request.link_cliente.pk}:{ip_de(request)}'
+    if cache.get(k, 0) >= tope:
+        return False
+    cache.add(k, 0, timeout=3600)
+    try:
+        cache.incr(k)
+    except ValueError:
+        cache.set(k, 1, timeout=3600)
+    return True
+
+
+def json_del_pedido(request):
+    try:
+        datos = json.loads(request.body or b'{}')
+    except ValueError:
+        datos = None
+    return datos if isinstance(datos, dict) else None
+
+
+def del_probador(request):
+    """(proyecto, versión, grupos vigentes) del link; 404 si no hay probador."""
+    link = link_o_404(request)
+    p, v = version_lista(link.proyecto_id)
+    vigentes = probador.grupos_vigentes(p, probador.leer_cliente(v))
+    if not vigentes:
+        raise Http404('Este proyecto no tiene colores para probar')
+    return p, v, vigentes
+
+
+@require_POST
+def probador_ar(request, codigo):
+    """Modelos de AR de una combinación: {estado: 'lista', ar} | {estado: 'preparando'} | {estado: 'celular'}
+    (sin modelo guardado: el visor lo arma en el celular). El visor repite el pedido hasta que deja de preparar."""
+    p, v, vigentes = del_probador(request)
+    datos = json_del_pedido(request)
+    if datos is None:
+        return JsonResponse({'error': 'Pedido inválido'}, status=400)
+    elecciones = probador.normalizar(datos.get('elecciones'), vigentes)
+    if not elecciones:
+        return JsonResponse({'estado': 'lista', 'ar': {}})        # como está: los modelos de siempre
+    k = probador.clave_de(elecciones, vigentes)
+    comb = v.combinaciones.filter(clave=k).first()
+    if comb is None:
+        if v.combinaciones.count() >= probador.LIMITE_COMBINACIONES or not pasar_tope(request, 'ar', NUEVAS_POR_IP):
+            return JsonResponse({'estado': 'celular'})
+        try:
+            with transaction.atomic():
+                comb = Combinacion.objects.create(version=v, clave=k, elecciones=elecciones)
+                tareas.encolar_combinacion(comb)
+        except IntegrityError:          # la pidió otro al mismo tiempo
+            comb = v.combinaciones.get(clave=k)
+        comb.refresh_from_db()          # con la cola en modo inmediato ya quedó generada
+    if comb.estado == Combinacion.Estado.LISTA:
+        return JsonResponse({'estado': 'lista', 'ar': comb.ar})
+    if comb.estado == Combinacion.Estado.ERROR:
+        return JsonResponse({'estado': 'celular'})
+    return JsonResponse({'estado': 'preparando'})
+
+
+@require_POST
+def probador_elegir(request, codigo):
+    """"Me gusta esta": guarda la combinación con el nombre y el comentario del cliente."""
+    p, v, vigentes = del_probador(request)
+    datos = json_del_pedido(request)
+    if datos is None:
+        return JsonResponse({'error': 'Pedido inválido'}, status=400)
+    nombre = str(datos.get('nombre') or '').strip()[:80]
+    comentario = str(datos.get('comentario') or '').strip()[:1000]
+    if not nombre:
+        return JsonResponse({'error': 'Escribí tu nombre.'}, status=400)
+    if not pasar_tope(request, 'elegir', ELECCIONES_POR_IP):
+        return JsonResponse({'error': 'Ya mandaste varias. Probá de nuevo en un rato.'}, status=429)
+    elecciones = probador.normalizar(datos.get('elecciones'), vigentes)
+    EleccionCliente.objects.create(proyecto=p, version=v, link=request.link_cliente, nombre=nombre,
+                                   comentario=comentario, elecciones=probador.elegidos(elecciones, vigentes))
+    return JsonResponse({'ok': True})
 
 
 @require_GET

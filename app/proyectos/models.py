@@ -183,3 +183,62 @@ class LinkCliente(DatoDeTaller):
 
     def url(self):
         return f'{settings.URL_APP}/c/{self.codigo}/'
+
+
+# ---------------------------------------------------------------- probador de colores (ficha 14)
+
+class GrupoDeColor(DatoDeTaller):
+    """Tableros del proyecto que el cliente puede cambiar juntos ("Frentes", "Cuerpos") y los tableros de la
+    biblioteca que se le ofrecen. Va por proyecto: en una versión nueva, los tableros que ya no están se ignoran."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='grupos_de_color')
+    nombre = models.CharField('nombre para el cliente', max_length=60)
+    orden = models.PositiveSmallIntegerField('orden', default=0)
+    tableros = models.JSONField('tableros del proyecto', default=list)        # nombres, como en el proyecto
+    opciones = models.JSONField('opciones', default=list)                     # ids de Material (tableros)
+    creado = models.DateTimeField('creado', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'grupo de colores'
+        verbose_name_plural = 'grupos de colores'
+        ordering = ['orden', 'pk']
+
+    def __str__(self):
+        return self.nombre
+
+
+class Combinacion(DatoDeTaller):
+    """Modelos de realidad aumentada de una combinación de colores, generados la primera vez que el cliente los
+    pide (proyectos/probador.py). `clave` sale de las elecciones y de la fecha de los materiales usados."""
+    class Estado(models.TextChoices):
+        EN_COLA = 'en_cola', 'En cola'
+        LISTA = 'lista', 'Lista'
+        ERROR = 'error', 'Error'
+
+    version = models.ForeignKey(Version, on_delete=models.CASCADE, related_name='combinaciones')
+    clave = models.CharField(max_length=20)
+    elecciones = models.JSONField(default=dict)          # {id de grupo: id de Material}
+    estado = models.CharField(max_length=8, choices=Estado.choices, default=Estado.EN_COLA)
+    ar = models.JSONField(default=dict)                   # como cliente['ar']: {mueble o '': ruta del GLB}
+    creada = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'combinación de colores'
+        verbose_name_plural = 'combinaciones de colores'
+        constraints = [models.UniqueConstraint(fields=['version', 'clave'], name='una_combinacion_por_clave')]
+
+
+class EleccionCliente(DatoDeTaller):
+    """"Me gusta esta": la combinación que mandó el cliente desde el link. No cambia el proyecto."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='elecciones')
+    version = models.ForeignKey(Version, on_delete=models.SET_NULL, null=True, related_name='+')
+    link = models.ForeignKey(LinkCliente, on_delete=models.SET_NULL, null=True, related_name='+')
+    nombre = models.CharField('nombre', max_length=80)
+    comentario = models.TextField('comentario', max_length=1000, blank=True)
+    # foto de los nombres al elegir (grupo, tableros del proyecto, elegido), por si después cambian
+    elecciones = models.JSONField(default=list)
+    creada = models.DateTimeField('creada', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'elección del cliente'
+        verbose_name_plural = 'elecciones del cliente'
+        ordering = ['-creada']

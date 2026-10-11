@@ -1,0 +1,26 @@
+{% comment %}Formulario de un grupo del probador de colores (ver.html). grupo=None: grupo nuevo.{% endcomment %}
+<form method="post" action="{% if grupo %}{% url 'taller:proyectos:grupo_color' taller=request.taller.slug id=proyecto.pk grupo_id=grupo.pk %}{% else %}{% url 'taller:proyectos:grupo_color_nuevo' taller=request.taller.slug id=proyecto.pk %}{% endif %}">{% csrf_token %}
+  <label for="gc{{ grupo.pk|default:'0' }}-nombre">Nombre para el cliente</label>
+  <input id="gc{{ grupo.pk|default:'0' }}-nombre" name="nombre" maxlength="60" required value="{{ grupo.nombre|default:'' }}" placeholder="Frentes, Cuerpos, Cajonería…">
+  <fieldset>
+    <legend>Tableros del proyecto que cambian</legend>
+    <div class="muestras">{% for t, k in probador.tableros %}
+      <label><input type="checkbox" name="tablero" value="{{ t }}"{% if grupo and k in grupo.marcados %} checked{% endif %}> {{ t }}</label>{% endfor %}</div>
+    {% if grupo.sueltos %}<p class="suave">También tenía {{ grupo.sueltos|join:", " }}, que no está en esta versión.</p>{% endif %}
+  </fieldset>
+  <fieldset>
+    <legend>Colores que se ofrecen</legend>
+    {% if probador.biblioteca %}
+    <div class="muestras">{% for m in probador.biblioteca %}
+      <label><input type="checkbox" name="opcion" value="{{ m.pk }}"{% if grupo and m.pk in grupo.ofrecidos %} checked{% endif %}>
+        <span class="muestra" style="{% if m.textura %}background-image:url('{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}'){% elif m.color %}background:{{ m.color }}{% endif %}"></span>
+        {{ m.nombre }}{% if not m.textura and not m.color %} <span class="suave">(sin imagen)</span>{% endif %}</label>{% endfor %}</div>
+    {% else %}<p class="suave">Tu biblioteca no tiene tableros todavía: se suman solos al convertir proyectos.</p>{% endif %}
+    <p class="suave">Para sumar uno que no está, subilo en <a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Materiales</a> (aparece cuando un proyecto lo usa).</p>
+  </fieldset>
+  <div class="acciones">
+    <button type="submit">{% if grupo %}Guardar{% else %}Agregar grupo{% endif %}</button>
+    {% if grupo %}<button class="secundario" type="submit" name="borrar" value="1" formnovalidate
+      onclick="return confirm('¿Borrar el grupo {{ grupo.nombre|escapejs }}? El cliente deja de verlo.')">Borrar</button>{% endif %}
+  </div>
+</form>

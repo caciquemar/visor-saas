@@ -9,4 +9,6 @@ urlpatterns = [
     path('<str:codigo>/', visor.cliente, name='pagina'),
     path('<str:codigo>/logo', visor.logo_cliente, name='logo'),
     path('<str:codigo>/data/<path:ruta>', visor.dato_cliente, name='dato'),
+    path('<str:codigo>/probador/ar', visor.probador_ar, name='probador_ar'),
+    path('<str:codigo>/probador/elegir', visor.probador_elegir, name='probador_elegir'),
 ]

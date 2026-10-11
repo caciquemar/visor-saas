@@ -230,6 +230,28 @@ body.modo-cliente .hoja{max-height:36vh}
 .capa-ar .cerrar{align-self:center;margin:12px 0 calc(16px + env(safe-area-inset-bottom,0px));font:600 17px var(--sans);
   color:var(--tinta);background:var(--hoja);border:1px solid var(--linea);border-radius:24px;padding:10px 28px}
 #cliente .lista button[aria-current="true"] .n,#cliente .lista button[aria-current="true"]{color:var(--tiza)}
+/* probador de colores (link del cliente) */
+.probador[hidden]{display:none}
+.probador{margin:12px 0 0;padding:12px 0 0;border-top:1px solid var(--linea)}
+.pr-titulo{font:600 17px var(--sans);color:var(--tinta);margin:0 0 6px}
+.pr-grupo{margin:8px 0 10px}
+.pr-nombre{font-size:15px;color:var(--tinta-2);margin:0 0 6px}
+.pr-nombre b{color:var(--tinta)}
+.pr-muestras{display:flex;flex-wrap:wrap;gap:8px}
+.pr-muestra{width:52px;height:52px;border-radius:10px;border:2px solid var(--linea);padding:0;cursor:pointer;
+  background:#ccc center/cover no-repeat;position:relative}
+.pr-muestra[aria-pressed="true"]{border-color:var(--tiza);box-shadow:0 0 0 2px var(--tiza)}
+.pr-muestra .pr-tilde{position:absolute;right:-6px;top:-6px;width:20px;height:20px;border-radius:50%;background:var(--tiza);
+  color:#fff;font:700 13px/20px var(--sans);display:none}
+.pr-muestra[aria-pressed="true"] .pr-tilde{display:block}
+.pr-acciones{display:flex;flex-wrap:wrap;gap:8px;margin:6px 0 0}
+.pr-form{display:grid;gap:8px;margin:10px 0 0}
+.pr-form[hidden]{display:none}
+.pr-form input,.pr-form textarea{width:100%;font:16px var(--sans);color:var(--tinta);background:var(--hoja);
+  border:1px solid var(--linea);border-radius:8px;padding:8px 10px}
+.pr-form textarea{min-height:64px;resize:vertical}
+.pr-msg{margin:8px 0 0;font-size:15px;color:var(--tinta)}
+.pr-msg:empty{display:none}
 .cargando{position:absolute;inset:0;display:grid;place-items:center;color:var(--tinta-2)}
 
 .hoja{position:relative;max-height:60vh;overflow-y:auto;background:var(--hoja);border-top:1px solid var(--linea);
@@ -388,6 +410,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
     <button class="manija" id="manija" aria-label="Agrandar o achicar este panel"></button>
     <nav class="camino solo-taller" id="camino" aria-label="Qué está elegido" hidden></nav>
     <div class="solo-cliente" id="cliente"></div>
+    <div class="solo-cliente probador" id="probador" hidden></div>
     <p class="pie-marca solo-cliente" id="pieMarca" hidden></p>
     <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada, o tocá un mueble en el dibujo y después una de sus piezas. Tocá donde no hay nada para volver un paso.</p>
     <div class="error solo-taller" id="error"></div>
@@ -787,7 +810,8 @@ function mallaPanel(p){
   return mesh;
 }
 
-function construir(d){
+// quedarse: sin mover la cámara (el probador de colores rehace las piezas con otros tableros)
+function construir(d, quedarse){
   if (grupo) scene.remove(grupo);
   grupo = new THREE.Group(); scene.add(grupo);
   paneles = d.paneles.map(p => { const m = mallaPanel(p); grupo.add(m); return m; });
@@ -802,7 +826,7 @@ function construir(d){
   });
   muros = d.muros.map(t => { const m = mallaDe(t, COL.muro); m.material.opacity = .18; m.material.depthWrite = false;
     m.userData.borde.material.opacity = .25; m.renderOrder = -1; grupo.add(m); return m; });
-  seleccion = null; grupoTal.clear(); pintar(); encuadrar(cajaDe(paneles), true);
+  seleccion = null; grupoTal.clear(); pintar(); if (!quedarse) encuadrar(cajaDe(paneles), true);
 }
 
 // caja de las piezas donde van a quedar (con el despiece ya terminado); armado=true: sin despiece
@@ -1035,7 +1059,8 @@ function verCliente(mueble, mover){
   const medidas = (an, al, pr) => `<div class="datos"><span>ancho <b>${an}</b></span><span>alto <b>${al}</b></span><span>prof. <b>${pr}</b> mm</span></div>`;
   const botonAR = `<button class="btn-prim btn-ar" id="cAR">
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5"/></svg>
-      ${m ? 'Ver este mueble en tu espacio (AR)' : 'Ver en tu espacio (AR)'}</button>`;
+      ${m ? 'Ver este mueble en tu espacio (AR)' : 'Ver en tu espacio (AR)'}</button><div id="lugarProbador"></div>`;
+  $('cliente').after($('probador'));      // el probador va debajo del botón de AR: se saca antes de rehacer el bloque
   $('cliente').innerHTML = (m
       ? `<div class="pm-titulo">${esc(m.nombre)}</div>${medidas(m.ancho, m.alto, m.prof)}${botonAR}
          <button class="link" id="cTodo">Ver todo el proyecto</button>`
@@ -1047,6 +1072,7 @@ function verCliente(mueble, mover){
   $('cliente').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => verCliente(lista[+b.dataset.i].nombre, true));
   if ($('cTodo')) $('cTodo').onclick = () => verCliente(null, true);
   $('cAR').onclick = () => abrirAR(mueble);
+  $('lugarProbador').appendChild($('probador'));
 }
 
 /* ---------- realidad aumentada (link del cliente): el mueble a escala real en su espacio ----------
@@ -1116,11 +1142,15 @@ async function abrirAR(mueble){
     await customElements.whenDefined('model-viewer');
     const mv = $('arVisor');
     if (mv.dataset.url){ URL.revokeObjectURL(mv.dataset.url); delete mv.dataset.url; }
-    const publicado = datos.ar && datos.ar[mueble || ''];
+    // con otros colores elegidos en el probador, el modelo de esa combinación (se arma en el servidor la primera vez)
+    const conColores = PROB.activo && Object.keys(PROB.elecciones).length > 0;
+    const publicado = conColores ? await arDeLaCombinacion(mueble, estado)
+                                 : datos.ar && datos.ar[mueble || ''] && 'clientes/' + datos.ar[mueble || ''];
+    if (capa.hidden) return;        // cerró mientras se preparaba
     if (publicado){
-      // modelo generado por el conversor: Scene Viewer (Android) lo abre nativo y lo apoya en el piso
+      // modelo generado en el servidor: Scene Viewer (Android) lo abre nativo y lo apoya en el piso
       mv.setAttribute('ar-modes', 'scene-viewer webxr quick-look');
-      mv.src = new URL('data/clientes/' + publicado, location.href).href;
+      mv.src = new URL('data/' + publicado, location.href).href;
     } else {
       // sin modelo publicado (datos viejos): se arma acá; solo sirve WebXR / Quick Look
       mv.setAttribute('ar-modes', 'webxr scene-viewer quick-look');
@@ -1131,11 +1161,125 @@ async function abrirAR(mueble){
     mv.alt = mueble ? `${mueble} de ${datos.proyecto}` : datos.proyecto;
     mv.hidden = false; estado.hidden = true;
     mv.addEventListener('load', () => {
-      if (!mv.canActivateAR){ estado.hidden = false; estado.textContent = 'Este dispositivo no permite ver en realidad aumentada. Podés girar el modelo con el dedo.'; }
+      if (!mv.canActivateAR){ estado.hidden = false; estado.textContent = conColores && !publicado
+        ? 'Esta combinación de colores no se puede ver en realidad aumentada en este celular. Podés girar el modelo con el dedo, o probar con los colores de antes.'
+        : 'Este dispositivo no permite ver en realidad aumentada. Podés girar el modelo con el dedo.'; }
     }, {once: true});
   }catch(e){ estado.textContent = 'No se pudo preparar la realidad aumentada: ' + e.message; }
 }
 $('arCerrar').onclick = () => { $('capaAR').hidden = true; };
+
+/* ---------- probador de colores (link del cliente, VISOR.probador) ----------
+   El taller ofrece, por grupo de tableros ("Frentes"), otros tableros de su biblioteca. Se cambian las piezas de
+   esos tableros y los cantos que se llaman como ellos (la misma regla que proyectos/probador.py: sustituir). */
+const PROB = {activo: false, original: null, elecciones: {}};     // elecciones: {id de grupo: id de tablero}
+const claveMat = t => sinAcento(t).replace(/\s+/g, ' ');
+function probadorSustituir(base, elecciones){
+  const d = JSON.parse(JSON.stringify(base)), nuevo = {}, porClave = {}, elegidos = [];
+  (VISOR.probador || []).forEach(g => {
+    const o = g.opciones.find(x => x.id === elecciones[g.id]);
+    if (!o) return;
+    g.tableros.forEach(t => { nuevo[t] = o.nombre; porClave[claveMat(t)] = o.nombre; });
+    elegidos.push(o);
+  });
+  if (!elegidos.length) return d;
+  d.paneles.forEach(p => {
+    if (nuevo[p.mat]) p.mat = nuevo[p.mat];
+    (p.cantos || []).forEach(c => { if (c.mat && porClave[claveMat(c.mat)]) c.mat = porClave[claveMat(c.mat)]; });
+  });
+  d.materiales = d.materiales || {};
+  elegidos.forEach(o => {
+    const info = {};
+    if (o.textura){ info.textura = o.textura; if (o.ancho) info.ancho = o.ancho; }
+    if (o.color) info.color = o.color;
+    d.materiales[o.nombre] = info;
+    if (d.cantos && o.color) d.cantos[o.nombre] = {color: o.color};
+  });
+  return d;
+}
+function probadorAplicar(){
+  const mueble = seleccion && seleccion.mueble, ais = aislado;
+  datos = probadorSustituir(PROB.original, PROB.elecciones);
+  MATS = datos.materiales || {}; CANTOS = datos.cantos || null; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
+  construir(datos, true);
+  verCliente(mueble || null, false);
+  if (ais) aislar(ais);
+}
+// muestra de un tablero: su textura o su color
+function fondoMuestra(info, nombre){
+  if (info && info.textura) return `background-image:url('${esc(encodeURI(BASE + info.textura))}')`;
+  return `background-color:${esc(info && /^#[0-9a-f]{6}$/i.test(info.color) ? info.color : colorMaterial(nombre))}`;
+}
+function probadorPintar(){
+  const caja = $('probador'), grupos = VISOR.probador || [];
+  const elegido = g => g.opciones.find(o => o.id === PROB.elecciones[g.id]);
+  caja.innerHTML = `<div class="pr-titulo">Probá otros colores</div>`
+    + grupos.map(g => {
+      const orig = g.tableros[0], infoOrig = buscarNombre(PROB.original.materiales || {}, orig), e = elegido(g);
+      return `<div class="pr-grupo"><div class="pr-nombre"><b>${esc(g.nombre)}</b> · ${esc(e ? e.nombre : 'como está')}</div>
+        <div class="pr-muestras" role="group" aria-label="${esc(g.nombre)}">
+          <button class="pr-muestra" data-g="${g.id}" data-o="" aria-pressed="${!e}" title="Como está (${esc(g.tableros.join(', '))})"
+            aria-label="Como está" style="${fondoMuestra(infoOrig, orig)}"><span class="pr-tilde" aria-hidden="true">✓</span></button>
+          ${g.opciones.filter(o => !g.tableros.every(t => claveMat(t) === claveMat(o.nombre))).map(o =>
+            `<button class="pr-muestra" data-g="${g.id}" data-o="${o.id}" aria-pressed="${!!e && e.id === o.id}" title="${esc(o.nombre)}"
+              aria-label="${esc(o.nombre)}" style="${fondoMuestra(o, o.nombre)}"><span class="pr-tilde" aria-hidden="true">✓</span></button>`).join('')}
+        </div></div>`;
+    }).join('')
+    + `<div class="pr-acciones"><button class="btn-sec" id="prGusta">Me gusta esta</button></div>
+      <form class="pr-form" id="prForm" hidden>
+        <input id="prNombre" maxlength="80" autocomplete="name" placeholder="Tu nombre" aria-label="Tu nombre" required>
+        <textarea id="prComentario" maxlength="1000" placeholder="Comentario (opcional)" aria-label="Comentario"></textarea>
+        <div class="pr-acciones"><button class="btn-prim" type="submit" id="prEnviar">Mandársela a ${esc(NOMBRE)}</button>
+          <button class="btn-sec" type="button" id="prCancelar">Cancelar</button></div>
+      </form>
+      <p class="pr-msg" id="prMsg" aria-live="polite"></p>`;
+  caja.querySelectorAll('.pr-muestra').forEach(b => b.onclick = () => {
+    if (b.dataset.o) PROB.elecciones[b.dataset.g] = +b.dataset.o; else delete PROB.elecciones[b.dataset.g];
+    probadorAplicar(); probadorPintar();
+  });
+  $('prGusta').onclick = () => {
+    $('prForm').hidden = false; $('prGusta').hidden = true; $('prMsg').textContent = '';
+    try{ $('prNombre').value = localStorage.getItem('probador.nombre') || ''; }catch(e){}
+    $('prNombre').focus();
+  };
+  $('prCancelar').onclick = () => { $('prForm').hidden = true; $('prGusta').hidden = false; };
+  $('prForm').onsubmit = async ev => {
+    ev.preventDefault();
+    const nombre = $('prNombre').value.trim();
+    if (!nombre){ $('prNombre').focus(); return; }
+    try{ localStorage.setItem('probador.nombre', nombre); }catch(e){}
+    $('prEnviar').disabled = true;
+    try{
+      const r = await pedirProbador('elegir', {elecciones: PROB.elecciones, nombre, comentario: $('prComentario').value});
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'No se pudo mandar.');
+      $('prForm').hidden = true; $('prGusta').hidden = false; $('prComentario').value = '';
+      $('prMsg').textContent = `Listo, se la mandamos a ${NOMBRE}.`;
+    }catch(e){ $('prMsg').textContent = e.message === 'Failed to fetch' ? 'Sin conexión. Probá de nuevo.' : e.message; }
+    $('prEnviar').disabled = false;
+  };
+}
+const pedirProbador = (que, cuerpo) => fetch('probador/' + que, {method: 'POST', credentials: 'same-origin',
+  headers: {'Content-Type': 'application/json', 'X-CSRFToken': VISOR.csrf || ''}, body: JSON.stringify(cuerpo)});
+// ruta (relativa a data/) del GLB de la combinación elegida, o null: se arma en el celular
+async function arDeLaCombinacion(mueble, estado){
+  estado.textContent = 'Preparando el modelo con los colores elegidos…';
+  for (let i = 0; i < 90 && !$('capaAR').hidden; i++){          // hasta unos 3 minutos
+    try{
+      const r = await pedirProbador('ar', {elecciones: PROB.elecciones});
+      const j = r.ok ? await r.json() : {estado: 'celular'};
+      if (j.estado === 'lista') return (j.ar || {})[mueble || ''] || null;
+      if (j.estado !== 'preparando') return null;
+    }catch(e){ return null; }
+    await new Promise(ok => setTimeout(ok, 2000));
+  }
+  return null;
+}
+function probadorIniciar(){
+  if (!(VISOR.cliente && Array.isArray(VISOR.probador) && VISOR.probador.length)) return;
+  PROB.activo = true; PROB.original = datos; PROB.elecciones = {};
+  probadorPintar(); $('probador').hidden = false;
+}
 
 /* ---------- aislar: ocultar los demás muebles ---------- */
 let aislado = null;
@@ -2159,6 +2303,7 @@ async function cargar(elegido){
       ? `<a href="${esc(VISOR.pie.url)}" target="_blank" rel="noopener">${esc(VISOR.pie.nombre)}</a>` : esc(VISOR.pie.nombre));
       $('pieMarca').hidden = false; }
     verCliente(null, false); encuadrar(marco(cajaDe(paneles)), true);
+    probadorIniciar();
     return;
   }
   const q = new URLSearchParams(location.search).get('pieza'); if (q) mostrar(q);

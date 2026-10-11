@@ -2,6 +2,21 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-11 · Probador de colores: grupos y combinaciones de realidad aumentada
+Decisiones de Martín (ficha 14). (1) **Grupo = tableros que cambian juntos**, con un nombre para el cliente
+("Frentes" = Roble; "Cuerpos" = Blanco + Blanco 15); el cliente elige un color por grupo. Descartado un selector por
+tablero (el cliente no sabe qué es "e-negro veta"). Los cantos que se llaman como un tablero cambiado (misma regla de
+los lados) pasan al tablero nuevo; los demás quedan. Va por proyecto, no por versión: en una versión nueva los
+tableros que ya no están se ignoran. (2) **AR de una combinación: GLB a pedido, guardado.** La primera vez que el
+cliente la pide se arma en la cola desde `clientes/<código>.json` con el `glb_ar` del conversor (sin DXF ni .ocp,
+en el mismo proceso: la entrada es nuestro JSON) y queda en `resultado/combinaciones/<clave>/`. La clave sale de las
+elecciones y de la fecha de cada material elegido (si el taller cambia la imagen, se vuelve a generar). El conversor
+no se tocó. Descartado generar todas las combinaciones al convertir (crecen multiplicando opciones). (3) **Hasta 20
+combinaciones guardadas por versión;** pasado eso, el modelo se arma en el celular (como los proyectos viejos: anda
+en iPhone y en Android con WebXR; si no, avisa). Además, desde una misma IP, 10 combinaciones nuevas y 10 "Me gusta
+esta" por hora y por link. (4) **La biblioteca acepta tableros cargados a mano** (Materiales → Agregar un tablero:
+nombre e imagen o color), para ofrecer colores que todavía no usó ningún proyecto.
+
 ## 2026-10-11 · Avance por etapas: cómo marca el puesto y cómo se cuenta
 Decisiones de Martín (ficha 13). (1) **Porcentaje = promedio de etapas:** cada pieza en cada etapa prendida es un
 paso; el avance de un mueble es pasos hechos / pasos (redondeado para abajo: 100 % solo con todo hecho). Se mueve

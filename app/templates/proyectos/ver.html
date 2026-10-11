@@ -11,6 +11,16 @@
   .link-cliente { padding:.75rem 0; border-bottom:1px solid var(--borde); }
   .link-cliente input { max-width:100%; margin-bottom:.35rem; }
   .boton.secundario-enlace { background:transparent; color:var(--texto); border:1px solid var(--borde); }
+  .eleccion { padding:.6rem 0; border-bottom:1px solid var(--borde); }
+  .eleccion ul { margin:.25rem 0; padding-left:1.1rem; }
+  .eleccion .comentario { margin:.25rem 0 0; font-style:italic; }
+  .grupo-color { padding:.5rem 0; border-bottom:1px solid var(--borde); }
+  .grupo-color fieldset { border:0; padding:0; margin:.6rem 0 0; }
+  .grupo-color legend { font-weight:600; padding:0; margin-bottom:.25rem; }
+  .muestras { display:grid; grid-template-columns:repeat(auto-fill, minmax(150px, 1fr)); gap:.35rem; }
+  .muestras label { display:flex; align-items:center; gap:.4rem; font-weight:400; margin:0; }
+  .muestra { width:28px; height:28px; border-radius:4px; border:1px solid var(--borde); flex:none;
+    background:#ddd center/cover no-repeat; }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -77,6 +87,42 @@
     setTimeout(() => b.textContent = 'Copiar', 2000);
   });
 </script>
+{% endif %}
+
+{% if probador and gestiona or elecciones %}
+<h2 id="colores">Probador de colores</h2>
+{% endif %}
+{% if elecciones %}
+<div class="caja">
+  <strong>Lo que eligió el cliente</strong>
+  {% for e in elecciones %}
+  <div class="eleccion">
+    <div><strong>{{ e.nombre }}</strong> <span class="suave">· {{ e.creada|date:"j/n/Y H:i" }}{% if e.version and e.version.pk != proyecto.version_actual_id %} · con la versión {{ e.version.numero }}{% endif %}</span></div>
+    <ul>{% for x in e.elecciones %}<li>{{ x.grupo }}: {% if x.elegido %}<strong>{{ x.elegido }}</strong> <span class="suave">(en vez de {{ x.tableros|join:", " }})</span>{% else %}como está ({{ x.tableros|join:", " }}){% endif %}</li>{% endfor %}</ul>
+    {% if e.comentario %}<p class="comentario">“{{ e.comentario }}”</p>{% endif %}
+  </div>
+  {% endfor %}
+  <p class="suave" style="margin-bottom:0">El proyecto no cambia solo: si van con esta, cambiá los tableros en Polyboard y subí una versión nueva.</p>
+</div>
+{% endif %}
+{% if probador and gestiona %}
+<div class="caja">
+  <p class="suave" style="margin-top:0">En el link, el cliente prueba otros tableros sobre su mueble, en 3D y en realidad aumentada,
+    y te manda el que le gusta. Armá grupos de tableros que cambian juntos (por ejemplo "Frentes") y elegí qué colores de tu biblioteca ofrecer.
+    Los cantos que se llaman como el tablero cambian con él.</p>
+  {% for g in probador.grupos %}
+  <details class="grupo-color"{% if not g.marcados %} open{% endif %}>
+    <summary><strong>{{ g.nombre }}</strong> <span class="suave">· {{ g.tableros|join:", " }} · {{ g.opciones|length }} color{{ g.opciones|length|pluralize:"es" }}</span></summary>
+    {% include 'proyectos/grupo_color.html' with grupo=g %}
+  </details>
+  {% endfor %}
+  {% if probador.tableros %}
+  <details class="grupo-color"{% if not probador.grupos %} open{% endif %}>
+    <summary>Agregar un grupo{% if probador.libres %} <span class="suave">· sin grupo: {{ probador.libres|join:", " }}</span>{% endif %}</summary>
+    {% include 'proyectos/grupo_color.html' with grupo=None %}
+  </details>
+  {% else %}<p class="suave">Esta versión no tiene la lista de tableros para el cliente. Volvé a convertirla.</p>{% endif %}
+</div>
 {% endif %}
 
 {% if gestiona %}
