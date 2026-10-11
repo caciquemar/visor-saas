@@ -88,7 +88,8 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert csrf and r.cookies['csrftoken']
     menu = config.pop('menu')
     assert config.pop('salir') == '/salir/'
-    assert config.pop('etiquetas') == '/taller-a/proyectos/{id}/etiquetas/'
+    assert config.pop('etiquetas') == {'pantalla': '/taller-a/proyectos/{id}/etiquetas/', 'formato': {
+        'nombre': 'Hoja A4 · 3 × 8 · 70 × 37 mm', 'hoja': True, 'columnas': 3, 'filas': 8}}
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
         ('Inicio', '/taller-a/'), ('Visor', '/taller-a/visor/'), ('Proyectos', '/taller-a/proyectos/'),

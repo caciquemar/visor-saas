@@ -74,6 +74,60 @@ def elegidos(request, campo, total):
     return sorted({int(i) for i in request.POST.getlist(campo) if i.isdigit() and int(i) < total})
 
 
+def armar_pdf(request, proyecto, piezas, muebles, cuenta, formato, desde):
+    """El PDF de esas piezas (de claves.piezas) y esos muebles [(nombre, bultos)]; crea los códigos que falten."""
+    etiquetas = []
+    for x in piezas:
+        e = Etiqueta.para(proyecto, Etiqueta.Tipo.PIEZA, x['clave'])
+        etiquetas.append(pdf.etiqueta_de_pieza(x['panel'], proyecto.nombre, url_de(request, e), x['copia'], x['de']))
+    for nombre, bultos in muebles:
+        e = Etiqueta.para(proyecto, Etiqueta.Tipo.MUEBLE, {'mueble': nombre})
+        for b in range(1, bultos + 1):
+            etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e, b), cuenta[nombre],
+                                                    b, bultos, proyecto.cliente, proyecto.direccion))
+    r = HttpResponse(pdf.generar(etiquetas, formato, desde=desde), content_type='application/pdf')
+    r['Content-Disposition'] = f'inline; filename="etiquetas-{proyecto.pk}.pdf"'
+    return r
+
+
+def formato_guardado():
+    return FormatoEtiquetas.objects.first() or FormatoEtiquetas()
+
+
+def formato_para_el_visor():
+    """Lo que la ventana "Imprimir etiqueta" del visor muestra del formato guardado del taller."""
+    f = formato_guardado()
+    pdf_ = f.para_pdf()
+    return {'nombre': f.get_formato_display(), 'hoja': pdf_.tipo == 'hoja', 'columnas': pdf_.columnas,
+            'filas': pdf_.filas}
+
+
+@miembro
+@require_GET
+def desde_el_visor(request, taller):
+    """La ventana "Imprimir etiqueta" del visor: la pieza elegida (`pz`, una o varias copias) o el mueble (`m`, con
+    `bultos`), en el formato guardado del taller. Se abre en otra pestaña. Es GET (sin formulario) para
+    que ande en cualquier navegador, también con el visor instalado como app; crear los códigos no cambia nada
+    que se vea: si ya existen, se usan los mismos."""
+    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'),
+                                 pk=numero(request.GET.get('proyecto'), 0, 0, 2 ** 31))
+    v = version_actual(proyecto)
+    if v is None:
+        return HttpResponse('El proyecto no tiene una versión lista.', status=400, content_type='text/plain; charset=utf-8')
+    d = proyecto_de(v)
+    piezas, cuenta = claves.piezas(d), claves.muebles(d)
+    ids = set(request.GET.getlist('pz'))
+    elegidas = [x for x in piezas if x['panel']['id'] in ids]
+    m = request.GET.get('m')
+    muebles = [(m, numero(request.GET.get('bultos'), 1, 1, MAX_BULTOS))] if m in cuenta else []
+    if not elegidas and not muebles:
+        return HttpResponse('Eso ya no está en la versión actual del proyecto (o no lleva etiqueta). Volvé al visor '
+                            'y elegilo de nuevo.', status=400, content_type='text/plain; charset=utf-8')
+    formato = formato_guardado().para_pdf()
+    return armar_pdf(request, proyecto, elegidas, muebles, cuenta, formato,
+                     numero(request.GET.get('desde'), 1, 1, formato.por_hoja))
+
+
 @miembro
 def imprimir(request, taller, id):
     """Cualquiera del taller imprime (el armador repone una etiqueta perdida). El formato elegido queda guardado
@@ -86,7 +140,7 @@ def imprimir(request, taller, id):
     piezas = claves.piezas(d)
     cuenta = claves.muebles(d)
     muebles = list(cuenta)
-    form = FormFormato(request.POST or None, instance=FormatoEtiquetas.objects.first() or FormatoEtiquetas())
+    form = FormFormato(request.POST or None, instance=formato_guardado())
     error = None
     if request.method == 'POST':
         sel_piezas, sel_muebles = elegidos(request, 'pieza', len(piezas)), elegidos(request, 'mueble', len(muebles))
@@ -96,24 +150,10 @@ def imprimir(request, taller, id):
             error = 'Elegí al menos una pieza o un mueble.'
         elif form.is_valid():
             formato = form.save().para_pdf()
-            etiquetas = []
-            for i in sel_piezas:
-                x = piezas[i]
-                e = Etiqueta.para(proyecto, Etiqueta.Tipo.PIEZA, x['clave'])
-                etiquetas.append(pdf.etiqueta_de_pieza(x['panel'], proyecto.nombre, url_de(request, e),
-                                                       x['copia'], x['de']))
-            for i in sel_muebles:
-                nombre = muebles[i]
-                e = Etiqueta.para(proyecto, Etiqueta.Tipo.MUEBLE, {'mueble': nombre})
-                bultos = numero(request.POST.get(f'bultos-{i}'), 1, 1, MAX_BULTOS)
-                for b in range(1, bultos + 1):
-                    etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e, b),
-                                                            cuenta[nombre], b, bultos, proyecto.cliente,
-                                                            proyecto.direccion))
-            desde = numero(request.POST.get('desde'), 1, 1, formato.por_hoja)
-            r = HttpResponse(pdf.generar(etiquetas, formato, desde=desde), content_type='application/pdf')
-            r['Content-Disposition'] = f'inline; filename="etiquetas-{proyecto.pk}.pdf"'
-            return r
+            return armar_pdf(request, proyecto, [piezas[i] for i in sel_piezas],
+                             [(muebles[i], numero(request.POST.get(f'bultos-{i}'), 1, 1, MAX_BULTOS))
+                              for i in sel_muebles],
+                             cuenta, formato, numero(request.POST.get('desde'), 1, 1, formato.por_hoja))
     if request.method == 'GET':
         # desde el visor ("Imprimir la etiqueta"): ?pz=<id del panel> (uno o varios) o ?m=<mueble>, ya marcados
         pedidas = set(request.GET.getlist('pz'))

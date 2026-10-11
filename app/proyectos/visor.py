@@ -112,6 +112,11 @@ def menu_de(request):
     return menu
 
 
+def formato_para_el_visor():
+    from etiquetas.vistas import formato_para_el_visor as formato
+    return formato()
+
+
 @miembro
 def visor(request, taller):
     """Con trabajos (trabajos/api.py): quién es el que mira, la gente del taller para "Para quién" y el token CSRF
@@ -127,7 +132,7 @@ def visor(request, taller):
         'sinCanto': request.taller.color_sin_canto,
         'marca': {'nombre': request.taller.nombre},
         'menu': menu_de(request),
-        'etiquetas': url_de_etiquetas(request),
+        'etiquetas': {'pantalla': url_de_etiquetas(request), 'formato': formato_para_el_visor()},
         'salir': reverse('salir'),
     })
 

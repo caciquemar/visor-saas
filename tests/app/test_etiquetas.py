@@ -344,3 +344,42 @@ def test_desde_el_visor_llega_marcada_la_pieza_o_el_mueble(cliente_de, t, pa):
     assert f'name="mueble" value="{j}" checked' in html
     assert len(re.findall(r'value="\d+" checked', html)) == 2     # solo esa copia y ese mueble
     assert html.count('<details class="mueble" open>') == 2  # abiertos: el mueble de la pieza y el pedido
+
+
+# ---------------------------------------------------------------- ventana "Imprimir etiqueta" del visor
+
+def test_visor_imprime_la_pieza_elegida_con_el_formato_guardado(cliente_de, t, pa):
+    x = una_pieza(lambda x: x['de'] == 2)
+    copias = [y['panel']['id'] for y in claves.piezas(GRONDONA)
+              if {**y['clave'], 'copia': 0} == {**x['clave'], 'copia': 0}]
+    with con_taller(t.A):
+        FormatoEtiquetas.objects.create(formato='rollo-62x40')
+    c = cliente_de(t.armador_a)
+    r = c.get('/taller-a/visor/api/etiquetas/pdf', {'proyecto': pa.pk, 'pz': copias, 'desde': '5'})
+    assert r.status_code == 200 and r['Content-Type'] == 'application/pdf'
+    assert paginas(r.content) == 2                          # rollo: una por página, una por copia
+    with con_taller(t.A):
+        assert Etiqueta.objects.filter(tipo='pieza').count() == 2
+    config = c.get('/taller-a/visor/').content.decode()
+    assert '"nombre": "Rollo térmico · 62 × 40 mm", "hoja": false' in config
+
+
+def test_visor_imprime_los_bultos_del_mueble(cliente_de, t, pa):
+    mueble = next(iter(claves.muebles(GRONDONA)))
+    r = cliente_de(t.armador_a).get('/taller-a/visor/api/etiquetas/pdf',
+                                     {'proyecto': pa.pk, 'm': mueble, 'bultos': '3', 'desde': '23'})
+    assert r.status_code == 200
+    assert paginas(r.content) == 2                          # hoja 3x8 desde la 23: 2 en la primera y 1 en otra
+
+
+def test_visor_pide_algo_que_ya_no_esta(cliente_de, t, pa):
+    r = cliente_de(t.armador_a).get('/taller-a/visor/api/etiquetas/pdf',
+                                     {'proyecto': pa.pk, 'pz': 'no-existe', 'm': 'tampoco'})
+    assert r.status_code == 400 and 'ya no está' in r.content.decode()
+
+
+def test_visor_no_imprime_un_proyecto_de_b(cliente_de, t):
+    pb = proyecto_de(t.B)
+    r = cliente_de(t.dueno_a).get('/taller-a/visor/api/etiquetas/pdf',
+                                   {'proyecto': pb.pk, 'pz': una_pieza()['panel']['id']})
+    assert r.status_code == 404

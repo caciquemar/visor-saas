@@ -10,5 +10,6 @@ urlpatterns = [
     path('e/<str:codigo>', vistas.abrir, name='abrir'),
     path('e/<str:codigo>/<int:bulto>', vistas.abrir, name='abrir_bulto'),
     path('visor/api/etiqueta/<str:codigo>', vistas.api, name='api'),
+    path('visor/api/etiquetas/pdf', vistas.desde_el_visor, name='desde_el_visor'),
     path('proyectos/<int:id>/etiquetas/', vistas.imprimir, name='imprimir'),
 ]

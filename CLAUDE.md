@@ -230,8 +230,13 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   la cámara del celular lleva a entrar con mail o PIN y vuelve a la etiqueta (el PIN ahora respeta `next`). Probado:
   los QR de los PDF se leen con un lector (zxing), y en el navegador integrado etiqueta de pieza sin número, de
   mueble, código escrito a mano, de otro proyecto y de otro taller.
-  Agregado (pedido de Martín): en el visor, "Imprimir la etiqueta de esta pieza" (en la ficha, a la vista) y "… de
-  este mueble" (en el bloque del mueble) abren la pantalla de etiquetas con eso ya marcado (`?pz=`, `?m=`).
+  Agregado (pedido de Martín): en el visor, la pieza y el mueble tienen los mismos dos botones en el mismo lugar
+  (debajo del título y del aviso de trabajos): "Anotar trabajo" e "Imprimir etiqueta". Imprimir abre una ventana en
+  el visor (bultos si es mueble, el formato guardado con link para cambiarlo, y en hoja A4 un dibujo de la hoja para
+  tocar dónde empezar; el próximo lugar libre se recuerda en ese equipo) y el PDF sale en otra pestaña por GET
+  (`visor/api/etiquetas/pdf`): un formulario a otra pestaña llegaba como GET vacío en el navegador integrado y puede
+  pasar lo mismo con el visor instalado como app. La pantalla de etiquetas sigue para imprimir muchas juntas y
+  acepta `?pz=`/`?m=` ya marcados.
 
 ## Pendientes
 
