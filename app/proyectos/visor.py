@@ -25,13 +25,14 @@ from django.http import Http404, HttpResponse, JsonResponse
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, render
 from django.templatetags.static import static
+from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET
 
 from talleres.archivos import abrir_de_taller
 from talleres.limites import permite
 from talleres.models import Membresia
-from talleres.roles import miembro
+from talleres.roles import Rol, miembro
 
 from .models import LinkCliente, Proyecto, Version
 
@@ -89,6 +90,19 @@ def url_de_link(request, link):
 
 # ---------------------------------------------------------------- taller
 
+def menu_de(request):
+    """Las pantallas del servicio para el menú del visor, con la misma regla de roles que templates/base.html."""
+    rol, slug = request.membresia.rol, request.taller.slug
+    pantallas = [('Inicio', 'taller:inicio'), ('Visor', 'taller:proyectos:visor'),
+                 ('Proyectos', 'taller:proyectos:lista'), ('Trabajos', 'taller:trabajos:lista')]
+    if rol in (Rol.DUENO, Rol.OFICINA):
+        pantallas += [('Materiales', 'taller:proyectos:materiales'), ('Equipo', 'taller:equipo')]
+    if rol == Rol.DUENO:
+        pantallas.append(('Marca', 'taller:marca'))
+    return [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
+            for nombre, ruta in pantallas]
+
+
 @miembro
 def visor(request, taller):
     """Con trabajos (trabajos/api.py): quién es el que mira, la gente del taller para "Para quién" y el token CSRF
@@ -103,6 +117,8 @@ def visor(request, taller):
         'csrf': get_token(request),
         'sinCanto': request.taller.color_sin_canto,
         'marca': {'nombre': request.taller.nombre},
+        'menu': menu_de(request),
+        'salir': reverse('salir'),
     })
 
 

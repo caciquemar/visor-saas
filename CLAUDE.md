@@ -206,6 +206,16 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   reenvía las de dueño) y en la ficha del taller de la administración. Como el link solo existe en el mail, reenviar
   anula la vieja y manda una nueva (`talleres/mails.py`, `reenviar`). Mails por Gmail (contraseña de aplicación),
   elección de Martín en vez de Brevo.
+- 2026-10-10: **usabilidad del visor (pedido de Martín) y ficha 15 hecha.** Menú ☰ con las pantallas del servicio
+  según el rol (`VISOR.menu` y `VISOR.salir`, `menu_de` en `proyectos/visor.py`; el link del cliente no lo trae).
+  Bloque de información: abajo en el celular con una manija para cambiar el alto; panel a la derecha en la PC (900 px
+  o más) que se ensancha arrastrando su borde; los dos tamaños se recuerdan. Selección en dos pasos: el primer toque
+  elige el mueble (su info en el bloque), el siguiente una de sus piezas (su ficha) sin mover la cámara; tocar el vacío
+  o Esc sube un nivel; escanear o escribir el número va directo a la pieza. Camino `Proyecto › Mueble › Pieza` arriba
+  del bloque. Botones agrupados: `[Mueble | Pieza]` (el activo es lo elegido), Cotas ▾ (Generales, Internas,
+  Mecanizado) y Vista ▾ (Aislar, Despiece, Transparente, Ver todo). Las cotas internas y de mecanizado se trajeron del
+  visor del NAS tal cual (`cotasLuces`, `cotasTaladros`; se calculan en el visor): cierra la ficha 15. En el celular,
+  Muebles y Trabajos quedan solo con el ícono. Probado en el navegador integrado (PC, celular y link del cliente).
 
 ## Pendientes
 

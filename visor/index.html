@@ -61,7 +61,7 @@ header select{font:inherit;font-size:16px;color:var(--tinta);background:var(--ho
   border:1px solid var(--linea);border-radius:8px;padding:6px 10px;min-width:0;flex:0 1 auto;text-overflow:ellipsis}
 header h1,.btn-muebles{flex:none}
 .btn-muebles.btn-trabajos{margin-left:0}
-@media (max-width:430px){ header{gap:8px} .btn-muebles{padding:6px 8px;font-size:14px} }
+@media (max-width:430px){ header{gap:8px} .btn-muebles{padding:6px 8px;font-size:14px} .btn-muebles .txt{display:none} }
 .insignia{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--alerta);color:#fff;
   font:700 13px var(--sans);display:inline-grid;place-items:center}
 .insignia[hidden],.aviso-trab[hidden],.panel-trabajos[hidden]{display:none}
@@ -112,18 +112,60 @@ header h1,.btn-muebles{flex:none}
 
 #escena{position:relative;min-height:0}
 #escena canvas{display:block;width:100%;height:100%;touch-action:none}
-.vista{position:absolute;left:12px;right:12px;top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;gap:5px;pointer-events:none}
-.vista button{pointer-events:auto}
-.vista button[aria-pressed="true"]{background:var(--tiza);border-color:var(--tiza);color:#fff}
+.vista{position:absolute;left:12px;right:12px;top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;
+  gap:6px;pointer-events:none;z-index:3}
+.vista>*{pointer-events:auto}
 .vista button{font:500 15px var(--sans);color:var(--tinta);background:var(--hoja);border:1px solid var(--linea);
-  border-radius:20px;padding:6px 9px}
-@media (max-width:380px){ .vista button{font-size:14px;padding:5px 7px} }
+  border-radius:20px;padding:6px 11px}
+.vista button:disabled{opacity:.45}
+@media (max-width:380px){ .vista button{font-size:14px;padding:5px 8px} }
 .cargando[hidden],.vista[hidden]{display:none}
+/* [Mueble | Pieza]: dos botones pegados, el activo es lo que está elegido */
+.segmento{display:flex}
+.segmento[hidden]{display:none}
+.segmento button{border-radius:0}
+.segmento button:first-child{border-radius:20px 0 0 20px}
+.segmento button:last-child{border-radius:0 20px 20px 0;margin-left:-1px}
+.segmento button[aria-pressed="true"],.abre.activo{background:var(--tiza);border-color:var(--tiza);color:#fff}
+/* desplegables Cotas y Vista */
+.grupo{position:relative}
+.abre::after{content:"";display:inline-block;margin-left:6px;vertical-align:2px;border:5px solid transparent;
+  border-top-color:currentColor;border-bottom:0}
+.desplegable{position:absolute;right:0;top:calc(100% + 6px);min-width:190px;padding:6px;background:var(--hoja);
+  border:1px solid var(--linea);border-radius:12px;box-shadow:0 8px 24px rgba(27,38,48,.16);display:flex;flex-direction:column;gap:2px}
+.desplegable[hidden]{display:none}
+.vista .desplegable button{border:0;border-radius:8px;text-align:left;padding:9px 10px 9px 32px;position:relative;background:none}
+.vista .desplegable button:hover{background:var(--fondo)}
+.vista .desplegable button[aria-pressed="true"]{color:var(--tiza);font-weight:600}
+.vista .desplegable button[aria-pressed="true"]::before{content:"✓";position:absolute;left:11px}
+.vista .desplegable button[hidden]{display:none}
+.desplegable hr{border:0;border-top:1px solid var(--linea);margin:4px 2px}
 
 /* modo cliente (?c=código): sin datos de taller, con cotas */
 body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:none!important}
 .h-proyecto{color:var(--tinta-2);font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .h-proyecto[hidden],.vista button[hidden]{display:none}
+/* menú de la app (solo taller) */
+.menu-app{position:relative;flex:none}
+.menu-app[hidden]{display:none}
+.btn-menu{display:grid;place-items:center;width:38px;height:38px;margin-left:-6px;color:var(--tinta);background:none;
+  border:1px solid transparent;border-radius:8px}
+.btn-menu[aria-expanded="true"]{background:var(--hoja);border-color:var(--linea)}
+.menu-lista{position:absolute;left:0;top:calc(100% + 6px);z-index:20;min-width:220px;padding:6px;background:var(--hoja);
+  border:1px solid var(--linea);border-radius:12px;box-shadow:0 8px 24px rgba(27,38,48,.18);display:flex;flex-direction:column}
+.menu-lista[hidden]{display:none}
+.menu-lista a,.menu-lista button{display:block;width:100%;padding:10px 12px;border-radius:8px;color:var(--tinta);
+  font:500 16px var(--sans);text-decoration:none;text-align:left;background:none;border:0}
+.menu-lista a:hover,.menu-lista button:hover{background:var(--fondo)}
+.menu-lista a[aria-current="page"]{color:var(--tiza);font-weight:600}
+.menu-lista .quien{padding:8px 12px 2px;font-size:13px;color:var(--tinta-2);border-top:1px solid var(--linea);margin-top:4px}
+/* camino: Proyecto › Mueble › Pieza */
+.camino{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;margin:0 0 8px;font-size:15px;color:var(--tinta-2)}
+.camino[hidden]{display:none}
+.camino button{font:500 15px var(--sans);color:var(--tiza);background:none;border:0;padding:4px 2px}
+.camino span[aria-current]{color:var(--tinta);font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:60vw}
+.cota.luz{font-size:14px;color:var(--tiza);border-color:var(--tiza);padding:0 5px}
+.cota.chica{font-size:13px;padding:0 4px;border-radius:4px}
 .cotas{position:absolute;inset:0;pointer-events:none;overflow:hidden}
 .cota{position:absolute;transform:translate(-50%,-50%);font:600 16px var(--cond);color:var(--tinta);background:var(--hoja);
   border:1px solid var(--linea);border-radius:6px;padding:1px 7px;white-space:nowrap;font-variant-numeric:tabular-nums;
@@ -158,8 +200,32 @@ body.modo-cliente .hoja{max-height:36vh}
 #cliente .lista button[aria-current="true"] .n,#cliente .lista button[aria-current="true"]{color:var(--tiza)}
 .cargando{position:absolute;inset:0;display:grid;place-items:center;color:var(--tinta-2)}
 
-.hoja{max-height:60vh;overflow-y:auto;background:var(--hoja);border-top:1px solid var(--linea);padding:14px 16px 16px;
-  border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(27,38,48,.08)}
+.hoja{position:relative;max-height:60vh;overflow-y:auto;background:var(--hoja);border-top:1px solid var(--linea);
+  padding:14px 16px 16px;border-radius:16px 16px 0 0;box-shadow:0 -6px 24px rgba(27,38,48,.08)}
+.hoja.con-alto,body.modo-cliente .hoja.con-alto{height:var(--alto-hoja);max-height:none}
+.hoja{display:flex;flex-direction:column}
+.hoja>*{flex:none}
+/* escanear siempre a mano, abajo del bloque */
+.hoja>.acciones{position:sticky;bottom:-16px;margin:auto -16px -16px;padding:10px 16px 16px;background:var(--hoja)}
+/* manija: arriba del bloque en el celular (queda fija al hacer scroll); en la PC, el borde izquierdo del panel */
+.manija{position:sticky;top:-14px;z-index:2;display:block;width:calc(100% + 32px);height:24px;margin:-14px -16px 2px;
+  padding:0;background:var(--hoja);border:0;border-radius:16px 16px 0 0;cursor:ns-resize;touch-action:none}
+.manija::before{content:"";display:block;width:44px;height:5px;margin:9px auto;border-radius:3px;background:var(--linea)}
+.borde-panel{display:none}
+/* PC: el bloque de información es un panel a la derecha, de arriba a abajo (se ensancha con su borde) */
+@media (min-width:900px){
+  .app{grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr) var(--ancho-panel,400px)}
+  header{grid-column:1/-1}
+  #escena{grid-column:1;grid-row:2}
+  .hoja{grid-column:2;grid-row:2;min-height:0;max-height:none!important;height:auto!important;border-top:0;
+    border-left:1px solid var(--linea);border-radius:0;box-shadow:-6px 0 24px rgba(27,38,48,.06)}
+  .manija{display:none}
+  .borde-panel{display:block;grid-column:2;grid-row:2;justify-self:start;z-index:4;width:10px;margin-left:-5px;padding:0;
+    background:none;border:0;cursor:ew-resize;touch-action:none}
+  .borde-panel::before{content:"";display:block;width:3px;height:44px;margin:auto;position:relative;top:50%;
+    transform:translateY(-50%);border-radius:2px;background:var(--linea)}
+  .borde-panel:hover::before{background:var(--tiza)}
+}
 .ficha{display:none;margin-bottom:14px}
 .ficha.visible{display:block}
 .ficha .fila{display:flex;align-items:center;gap:14px;width:100%;padding:0;margin:0;border:0;background:none;
@@ -236,16 +302,22 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
 <body>
 <div class="app">
   <header>
+    <div class="menu-app solo-taller" id="menuApp" hidden>
+      <button class="btn-menu" id="btnMenu" aria-expanded="false" aria-controls="menuLista" aria-label="Menú">
+        <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
+      </button>
+      <nav class="menu-lista" id="menuLista" hidden></nav>
+    </div>
     <img class="logo-marca solo-cliente" id="logoMarca" alt="" hidden>
     <h1 id="titulo">Armado</h1>
     <span class="h-proyecto" id="hProyecto" hidden></span>
-    <button class="btn-muebles solo-taller" id="btnMuebles" aria-controls="panelMuebles">
+    <button class="btn-muebles solo-taller" id="btnMuebles" aria-controls="panelMuebles" aria-label="Muebles">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><rect x="3" y="4" width="18" height="16" rx="1"/><path d="M12 4v16M3 12h9"/></svg>
-      Muebles
+      <span class="txt">Muebles</span>
     </button>
-    <button class="btn-muebles btn-trabajos solo-taller" id="btnTrabajos" aria-controls="panelTrabajos">
+    <button class="btn-muebles btn-trabajos solo-taller" id="btnTrabajos" aria-controls="panelTrabajos" aria-label="Trabajos">
       <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="4" width="14" height="17" rx="1.5"/><path d="M9 4V3h6v1M8.5 11l2 2 4-4M8.5 17h7"/></svg>
-      Trabajos<span class="insignia" id="tbInsignia" hidden></span>
+      <span class="txt">Trabajos</span><span class="insignia" id="tbInsignia" hidden></span>
     </button>
     <select id="proyecto" class="solo-taller" aria-label="Proyecto"></select>
   </header>
@@ -254,20 +326,38 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
     <div class="cargando" id="cargando">Cargando proyecto…</div>
     <div class="cotas" id="cotas" aria-hidden="true"></div>
     <div class="vista" hidden id="vista">
-      <button id="verPieza" class="solo-taller">Pieza</button>
-      <button id="verMueble" class="solo-taller">Mueble</button>
-      <button id="verDespiece" class="solo-taller" aria-pressed="false">Despiece</button>
-      <button id="verCotas" aria-pressed="false">Cotas</button>
-      <button id="verTransp" class="solo-cliente" aria-pressed="false">Transparente</button>
-      <button id="verAislar" aria-pressed="false">Aislar</button>
-      <button id="verTodo">Todo</button>
+      <div class="segmento solo-taller" id="nivel" role="group" aria-label="Qué está elegido" hidden>
+        <button id="verMueble" aria-pressed="false" title="Ver el mueble elegido">Mueble</button>
+        <button id="verPieza" aria-pressed="false" title="Poner la pieza de frente">Pieza</button>
+      </div>
+      <div class="grupo">
+        <button class="abre" id="abreCotas" aria-expanded="false" aria-controls="menuCotas">Cotas</button>
+        <div class="desplegable" id="menuCotas" hidden>
+          <button id="verCotas" aria-pressed="false" title="Ancho, alto y profundidad">Generales</button>
+          <button id="verInternas" aria-pressed="false" title="Luces entre piezas del mueble elegido">Internas</button>
+          <button id="verMecanizado" class="solo-taller" aria-pressed="false" title="Taladros de la pieza elegida">Mecanizado</button>
+        </div>
+      </div>
+      <div class="grupo">
+        <button class="abre" id="abreVista" aria-expanded="false" aria-controls="menuVista">Vista</button>
+        <div class="desplegable" id="menuVista" hidden>
+          <button id="verAislar" aria-pressed="false" title="Ocultar los demás muebles">Aislar</button>
+          <button id="verDespiece" class="solo-taller" aria-pressed="false" title="Separar las piezas del mueble">Despiece</button>
+          <button id="verTransp" aria-pressed="false" title="Tableros translúcidos para ver adentro">Transparente</button>
+          <hr>
+          <button id="verTodo">Ver todo</button>
+        </div>
+      </div>
     </div>
   </main>
 
-  <section class="hoja" aria-live="polite">
+  <button class="borde-panel" id="bordePanel" aria-label="Ensanchar o angostar el panel"></button>
+  <section class="hoja" id="hoja" aria-live="polite">
+    <button class="manija" id="manija" aria-label="Agrandar o achicar este panel"></button>
+    <nav class="camino solo-taller" id="camino" aria-label="Qué está elegido" hidden></nav>
     <div class="solo-cliente" id="cliente"></div>
     <p class="pie-marca solo-cliente" id="pieMarca" hidden></p>
-    <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada o tocá una pieza en el dibujo. Tocá de nuevo para llegar a la de atrás.</p>
+    <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada, o tocá un mueble en el dibujo y después una de sus piezas. Tocá donde no hay nada para volver un paso.</p>
     <div class="error solo-taller" id="error"></div>
     <div class="ficha solo-taller" id="ficha">
       <button class="fila" id="fCabecera" aria-expanded="false" aria-controls="fDetalle">
@@ -287,17 +377,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
         <div class="mat" id="fMat"></div>
         <div class="taladros" id="fTal"></div>
         <div class="nota" id="fNota"></div>
-        <button class="link" id="fVerMueble">Ver datos del mueble</button>
         <button class="link" id="fAnotar">Anotar trabajo en esta pieza</button>
       </div>
     </div>
     <div class="panel-trabajos solo-taller" id="panelTrabajos" hidden></div>
     <div class="panel-muebles solo-taller" id="panelMuebles" hidden>
       <div class="pm-cab">
-        <button class="volver" id="pmVolver" hidden>
-          <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M15 6l-6 6 6 6"/></svg>
-          Todos los muebles
-        </button>
         <button class="cerrar-pm" id="pmCerrar" aria-label="Cerrar lista de muebles">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
@@ -670,7 +755,7 @@ function construir(d){
   paneles = d.paneles.map(p => { const m = mallaPanel(p); grupo.add(m); return m; });
   destino.clear(); despiece = null; animDespiece = null; aislado = null; limpiarCotas();
   $('verAislar').setAttribute('aria-pressed', false);
-  $('verDespiece').textContent = 'Despiece'; $('verDespiece').setAttribute('aria-pressed', false);
+  $('verDespiece').setAttribute('aria-pressed', false);
   herrajes = d.herrajes.map(h => {
     const [x0,y0,z0,x1,y1,z1] = h.b;
     const m = new THREE.Mesh(new THREE.BoxGeometry(x1-x0||1, y1-y0||1, z1-z0||1),
@@ -714,7 +799,6 @@ function separar(mueble){
       if (seleccion && seleccion.mallas.length){ dibujarTaladros(seleccion.mallas); dibujarCantos(seleccion.mallas); }
     }
   };
-  $('verDespiece').textContent = mueble ? 'Armar' : 'Despiece';
   $('verDespiece').setAttribute('aria-pressed', !!mueble);
   pintar();
 }
@@ -728,24 +812,32 @@ function armarSiCambia(){
 const grupoCotas = new THREE.Group(); grupoCotas.renderOrder = 10; scene.add(grupoCotas);
 let etiquetas = [], claveCotas = '';
 // en el taller se recuerda si se dejaron prendidas; al cliente se le muestran de entrada
-let conCotas = true;
-try{ if (!CLIENTE) conCotas = localStorage.getItem('armado.cotas') === '1'; }catch(e){ conCotas = false; }
+/* tres juegos de cotas, cada uno se prende aparte: generales (ancho, alto y profundidad), internas (luces entre
+   piezas del mueble elegido) y mecanizado (taladros de la pieza elegida, solo en el taller).
+   En el taller se recuerda cuáles se dejaron prendidas; al cliente se le muestran las generales de entrada. */
+const COTAS = {generales: false, internas: false, mecanizado: false};
+const GUARDA_COTAS = {generales: 'armado.cotas', internas: 'armado.cotas.internas', mecanizado: 'armado.cotas.mecanizado'};
+if (CLIENTE) COTAS.generales = true;
+else try{ for (const k in COTAS) COTAS[k] = localStorage.getItem(GUARDA_COTAS[k]) === '1'; }catch(e){}
 // qué acotar según lo que se está mirando: la pieza elegida, el mueble o todo el proyecto
 function actualizarCotas(){
   const pieza = seleccion && seleccion.mallas.length ? seleccion.mallas[0] : null;
   const caja = pieza ? cajaDe([pieza]) : cajaDe(seleccion ? mallasDe(seleccion.mueble) : paneles, true);
-  const clave = conCotas + '|' + caja.min.toArray().concat(caja.max.toArray()).map(Math.round).join(',');
+  const clave = [COTAS.generales, COTAS.internas, COTAS.mecanizado, seleccion ? seleccion.mueble : '', pieza ? pieza.uuid : '', despiece || '']
+    .concat(caja.min.toArray(), caja.max.toArray()).map(x => typeof x === 'number' ? Math.round(x) : x).join('|');
   if (clave === claveCotas) return;   // pintar() se llama seguido: no rehacer si no cambió nada
+  limpiarCotas();
   claveCotas = clave;
-  cotas(caja);
+  if (caja.isEmpty()) return;
+  if (COTAS.generales) cotas(caja);
+  if (pieza){ if (COTAS.mecanizado && !CLIENTE) cotasTaladros(pieza); }                  // pieza elegida: sus taladros
+  else if (seleccion && !despiece && COTAS.internas) cotasLuces(mallasDe(seleccion.mueble));   // mueble elegido: sus huecos
 }
 const margenCotas = caja => { const s = caja.getSize(new THREE.Vector3()); return Math.max(60, Math.max(s.x, s.y, s.z) * .07); };
 // encuadre que deja lugar a las cotas cuando se muestran
 const marco = caja => etiquetas.length ? caja.clone().expandByScalar(margenCotas(caja) * 1.3) : caja;
 function limpiarCotas(){ grupoCotas.clear(); etiquetas.forEach(e => e.el.remove()); etiquetas = []; claveCotas = ''; }
 function cotas(caja){
-  limpiarCotas();
-  if (!conCotas || caja.isEmpty()) return;
   const a = caja.min, b = caja.max, s = caja.getSize(new THREE.Vector3()), off = margenCotas(caja);
   const mat = new THREE.LineBasicMaterial({color: new THREE.Color(css('--tinta') || '#1B2630'), depthTest: false, transparent: true, opacity: .85});
   const V = (x, y, z) => new THREE.Vector3(x, y, z);
@@ -766,6 +858,121 @@ function cotas(caja){
   cota(V(a.x, a.y, b.z), V(b.x, a.y, b.z), V(0, 0, 1), s.x);    // ancho, en el piso al frente
   cota(V(a.x, a.y, b.z), V(a.x, b.y, b.z), V(-1, 0, 0), s.y);   // alto, a la izquierda del frente
   cota(V(b.x, a.y, a.z), V(b.x, a.y, b.z), V(1, 0, 0), s.z);    // profundidad, en el piso a la derecha
+}
+/* ---------- cotas internas: se calculan acá con las piezas, así sirven los proyectos ya convertidos ---------- */
+const EJES = ['x', 'y', 'z'];
+const P = o => new THREE.Vector3(o.x, o.y, o.z);
+// línea de cota entre dos puntos, con marcas a 45° (perp: hacia dónde se inclinan) y el número en el medio
+// (o en la fracción donde, para que no se encimen los de líneas paralelas)
+function linea(p1, p2, perp, texto, tic, color, clase, donde = .5){
+  const u = p2.clone().sub(p1).normalize(), d = perp.clone().add(u).normalize().multiplyScalar(tic / 2);
+  const pts = [p1, p2, p1.clone().sub(d), p1.clone().add(d), p2.clone().sub(d), p2.clone().add(d)];
+  const l = new THREE.LineSegments(new THREE.BufferGeometry().setFromPoints(pts),
+    new THREE.LineBasicMaterial({color, depthTest: false, transparent: true, opacity: .9}));
+  l.renderOrder = 10; grupoCotas.add(l);
+  const el = document.createElement('div'); el.className = 'cota ' + clase; el.textContent = texto;
+  $('cotas').appendChild(el); etiquetas.push({el, pos: p1.clone().lerp(p2, donde)});
+}
+// piezas planas y derechas del mueble (armado): su caja y el eje del espesor
+function cajasPlanas(mallas){
+  return mallas.map(m => {
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const b = m.geometry.boundingBox, s = b.getSize(new THREE.Vector3());
+    const fino = EJES.reduce((a, c) => s[a] <= s[c] ? a : c);
+    return s[fino] < 45 && EJES.every(e => e === fino || s[e] > s[fino] * 3) ? {b, fino} : null;
+  }).filter(Boolean);
+}
+/* Luces: hueco libre entre dos piezas paralelas que se enfrentan sin otra en el medio.
+   Ancho entre laterales y divisiones, alto entre piso, estantes y techo. Se dibujan al frente del hueco. */
+function cotasLuces(mallas){
+  const cajas = cajasPlanas(mallas);
+  if (!cajas.length) return;
+  const tam = cajaDe(mallas, true).getSize(new THREE.Vector3());
+  const tic = Math.max(8, Math.max(tam.x, tam.y) * .012), color = colTiza();
+  const solape = (a, b, ejes) => ejes.map(e => [Math.max(a.min[e], b.min[e]), Math.min(a.max[e], b.max[e])]);
+  const vistos = new Set();
+  ['x', 'y'].forEach(eje => {
+    const otros = EJES.filter(e => e !== eje), lista = cajas.filter(c => c.fino === eje);
+    lista.forEach(a => lista.forEach(b => {
+      const luz = b.b.min[eje] - a.b.max[eje];
+      if (a === b || luz < 20) return;                       // b está después de a (y no es un canto pegado)
+      const sol = solape(a.b, b.b, otros);
+      // se enfrentan en al menos la mitad de la más chica (no rellenos o columnas que se tocan en una punta)
+      if (sol.some(([i, f], k) => f - i < Math.max(100, .5 * Math.min(a.b.max[otros[k]] - a.b.min[otros[k]], b.b.max[otros[k]] - b.b.min[otros[k]])))) return;
+      // otra pieza en el medio que tapa parte del hueco: el hueco es con esa
+      const medio = lista.some(c => c !== a && c !== b && c.b.min[eje] >= a.b.max[eje] - 1 && c.b.max[eje] <= b.b.min[eje] + 1
+        && otros.every((e, k) => Math.min(c.b.max[e], sol[k][1]) - Math.max(c.b.min[e], sol[k][0]) > 10));
+      if (medio) return;
+      const pos = {}, clave = [eje, Math.round(a.b.max[eje]), Math.round(luz)];
+      // al frente del hueco; el ancho a media altura y el alto a un cuarto del ancho, para no encimar los números
+      pos.z = sol[otros.indexOf('z')][1] - 5;
+      const o = otros.find(e => e !== 'z'), [i, f] = sol[otros.indexOf(o)];
+      pos[o] = eje === 'x' ? (i + f) / 2 : i + (f - i) / 4;
+      clave.push(Math.round(pos[o] / 50));
+      if (vistos.has(clave.join('|'))) return;
+      vistos.add(clave.join('|'));
+      const p1 = P({...pos, [eje]: a.b.max[eje]}), p2 = P({...pos, [eje]: b.b.min[eje]});
+      const perp = new THREE.Vector3(); perp[o] = 1;
+      linea(p1, p2, perp, Math.round(luz), tic, color, 'luz');
+    }));
+  });
+}
+/* Taladros de la pieza elegida: distancia a los bordes. Los que están en fila con el mismo paso
+   (sistema 32) se acotan una vez: del borde al primero y "n × paso" hasta el último. */
+function cotasTaladros(m){
+  const p = m.userData.p, tal = p.tal || [];
+  if (!tal.length) return;
+  if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+  const lugar = destino.get(m) || m.position;   // donde queda la pieza (el despiece puede estar en movimiento)
+  const b = m.geometry.boundingBox.clone().translate(lugar), s = b.getSize(new THREE.Vector3());
+  const fino = EJES.reduce((a, c) => s[a] <= s[c] ? a : c);
+  if (p.med && Math.abs(s[fino] - p.med[2]) > 1.5) return;   // pieza girada o con formas: no se acota
+  const [u, v] = EJES.filter(e => e !== fino);
+  const color = new THREE.Color(css('--tinta') || '#1B2630'), tic = 6;
+  const r = x => Math.round(x * 2) / 2;
+  const huecos = tal.map(t => ({c: new THREE.Vector3(t[0], t[1], t[2]).add(lugar), n: new THREE.Vector3(t[3], t[4], t[5]), canto: !!t[9]}));
+  const filas = [];
+  // fila: taladros de una misma cara (o canto) alineados a lo largo de A, a la altura k del eje B;
+  // los que caen en el mismo lugar (marca + pasante) cuentan una vez
+  const agrupar = (lista, A, B, perpendicular) => {
+    const g = new Map();
+    lista.forEach(h => { const k = r(h.c[B]); if (!g.has(k)) g.set(k, new Map()); g.get(k).set(r(h.c[A]), h); });
+    g.forEach((hs, k) => filas.push({A, B, k, hs: [...hs.values()].sort((x, y) => x.c[A] - y.c[A]), perpendicular}));
+  };
+  // en cada cara: filas a lo largo del eje que deja menos filas
+  [1, -1].forEach(signo => {
+    const cara = huecos.filter(h => !h.canto && h.n[fino] * signo > .9);
+    if (!cara.length) return;
+    const cuenta = e => new Set(cara.map(h => r(h.c[e]))).size;
+    cuenta(v) <= cuenta(u) ? agrupar(cara, u, v, true) : agrupar(cara, v, u, true);
+  });
+  // en cada canto: solo la posición a lo largo del canto (la profundidad es la mitad del espesor)
+  [u, v].forEach(e => [1, -1].forEach(signo => {
+    const hs = huecos.filter(h => h.canto && h.n[e] * signo > .9);
+    if (hs.length) agrupar(hs, e === u ? v : u, e, false);
+  }));
+  const borde = (e, x) => x - b.min[e] <= b.max[e] - x ? b.min[e] : b.max[e];
+  const dir = e => { const d = new THREE.Vector3(); d[e] = 1; return d; };
+  const vistos = new Set();
+  const cota = (h, eje, desde, hasta, texto, donde) => {
+    const clave = [eje, r(desde), r(hasta), texto].join('|');
+    if (vistos.has(clave) || Math.abs(hasta - desde) < .5) return;
+    vistos.add(clave);
+    const p1 = h.c.clone(), p2 = h.c.clone(); p1[eje] = desde; p2[eje] = hasta;
+    linea(p1, p2, dir(EJES.find(e => e !== eje && e !== fino)), texto, tic, color, 'chica', donde);
+  };
+  filas.forEach(({A, B, k, hs, perpendicular}, f) => {
+    if (perpendicular) cota(hs[0], B, borde(B, k), k, Math.round(Math.abs(k - borde(B, k))));   // del borde a la fila
+    // a lo largo de la fila, cotas encadenadas de borde a borde (no se enciman los números)
+    const xs = hs.map(h => h.c[A]), n = xs.length, pasos = xs.slice(1).map((x, i) => x - xs[i]);
+    const donde = [.5, .35, .65][f % 3];   // filas paralelas: los números del medio, corridos
+    const mm = (h, x1, x2) => cota(h, A, x1, x2, Math.round(x2 - x1), donde);
+    mm(hs[0], b.min[A], xs[0]);
+    if (n >= 3 && Math.max(...pasos) - Math.min(...pasos) < .6)
+      cota(hs[0], A, xs[0], xs[n - 1], `${n - 1} × ${r(pasos[0]).toString().replace('.', ',')}`, donde);
+    else pasos.forEach((_, i) => mm(hs[i], xs[i], xs[i + 1]));
+    mm(hs[n - 1], xs[n - 1], b.max[A]);
+  });
 }
 function moverEtiquetas(){
   if (!etiquetas.length) return;
@@ -966,6 +1173,7 @@ function pintar(){
     h.material.opacity = seleccion ? (vis && !modoPieza ? .35 : .04) : 1; h.material.depthWrite = !seleccion; });
   muros.forEach(m => { m.visible = !aislado; m.material.opacity = modoPieza ? .03 : .18; m.userData.borde.material.opacity = modoPieza ? .05 : .25; });
   actualizarCotas();
+  actualizarBarra();
 }
 
 function loop(t){
@@ -1008,7 +1216,7 @@ const esc = t => String(t).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':
 function abrirMuebles(){
   $('panelMuebles').hidden = false; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
   $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
-  $('pmVolver').hidden = true;
+  panelMueble = null;
   const lista = datosMuebles();
   const link = item && item.link !== undefined ? item.link || ''   // la app dice cuál es el link vigente
     : datos.cliente ? location.origin + location.pathname + '?c=' + encodeURIComponent(datos.cliente) : '';
@@ -1039,12 +1247,13 @@ function abrirMuebles(){
   }
   seleccion = null; modoPieza = false; armarSiCambia(); grupoTal.clear(); pintar(); encuadrar(cajaDe(paneles));
 }
-function verMueble(nombre){
+function verMueble(nombre, mover = true){
   const m = datosMuebles().find(x => x.nombre === nombre); if (!m) return;
+  if (panelMueble !== nombre) $('hoja').scrollTop = 0;
+  panelMueble = nombre;
   $('panelMuebles').hidden = false; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
   $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
   const pendM = TR.lista.filter(t => abierto(t) && (t.muebles.includes(nombre) || t.piezas.some(k => mallasDeClave(k).some(x => x.userData.p.mueble === nombre))));
-  $('pmVolver').hidden = false; $('vista').hidden = false;
   // agrupar piezas iguales (mismo nº de pieza)
   const grupos = {};
   m.mallas.forEach(x => { const p = x.userData.p; const k = (p.pieza || '') + '|' + p.nombre; (grupos[k] = grupos[k] || []).push(x); });
@@ -1072,35 +1281,33 @@ function verMueble(nombre){
   $('pmAnotar').onclick = () => abrirForm({muebles: [m.nombre]});
   if ($('pmTrab')) $('pmTrab').onclick = () => abrirTrabajos({mueble: m.nombre});
   seleccion = { mallas: [], mueble: m.nombre, soloMueble: true }; modoPieza = false;
-  armarSiCambia(); grupoTal.clear(); pintar(); encuadrar(cajaDe(m.mallas));
+  armarSiCambia(); grupoTal.clear(); pintar(); if (mover) encuadrar(cajaDe(m.mallas));
 }
-$('btnMuebles').onclick = () => $('panelMuebles').hidden || $('pmVolver').hidden === false ? abrirMuebles() : cerrarMuebles();
-$('pmVolver').onclick = abrirMuebles;
+let panelMueble = null;   // el panel de muebles muestra un mueble (su nombre) o la lista (null)
+$('btnMuebles').onclick = () => $('panelMuebles').hidden || panelMueble ? abrirMuebles() : cerrarMuebles();
 $('pmCerrar').onclick = () => cerrarMuebles();
 function cerrarMuebles(){
-  $('panelMuebles').hidden = true;
+  $('panelMuebles').hidden = true; panelMueble = null;
   if (seleccion && seleccion.soloMueble){ seleccion = null; pintar(); }
   if (!seleccion) $('ayuda').hidden = false; else $('ficha').classList.add('visible');
 }
 
-// Con despiece o aislado, el primer toque suelta la pieza y deja el mueble; el segundo, todo.
+// Sube un nivel (tocar donde no hay nada, Esc): de la pieza al mueble, del mueble a nada.
 function deseleccionar(){
   if (!seleccion) return;
   if (CLIENTE){ verCliente(null, false); return; }
-  if (seleccion.mallas.length && (despiece || aislado)){
-    seleccion = { mallas: [], mueble: seleccion.mueble, soloMueble: true };
-  } else {
-    seleccion = null; armarSiCambia();
-    $('vista').hidden = true; $('ayuda').hidden = false;
-  }
+  $('numManual').value = ''; $('error').classList.remove('visible');
+  if (seleccion.mallas.length){ verMueble(seleccion.mueble, modoPieza); return; }
+  seleccion = null; armarSiCambia(); panelMueble = null;
+  $('ayuda').hidden = false;
   modoPieza = false; grupoTal.clear();
-  $('ficha').classList.remove('visible'); $('panelMuebles').hidden = true; $('error').classList.remove('visible');
-  $('numManual').value = '';
+  $('ficha').classList.remove('visible'); $('panelMuebles').hidden = true;
   pintar();
 }
 
 function seleccionar(mallas){
   const p = mallas[0].userData.p;
+  $('hoja').scrollTop = 0;
   seleccion = { mallas, mueble: p.mueble }; modoPieza = false; armarSiCambia();
   $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null;
   $('ayuda').hidden = true; $('panelMuebles').hidden = true; $('error').classList.remove('visible');
@@ -1122,7 +1329,6 @@ function seleccionar(mallas){
   $('fTal').innerHTML = resumenTaladros(p);
   $('fMat').innerHTML = textoMaterial(p);
   $('ficha').classList.add('visible');
-  $('vista').hidden = false;
   avisoFicha();
   pintar();
   dibujarTaladros(mallas);
@@ -1157,6 +1363,8 @@ renderer.domElement.addEventListener('pointerup', e => {
     i = pos < 0 ? 0 : pos;
   }
   if (CLIENTE){ verCliente(unicos[0].userData.p.mueble, true); return; }   // el cliente elige muebles, no piezas
+  // primer toque en un mueble: el mueble; con el mueble elegido, el toque elige una de sus piezas
+  if (!seleccion || seleccion.mueble !== unicos[0].userData.p.mueble){ verMueble(unicos[0].userData.p.mueble); return; }
   const hit = {object: unicos[i]};
   const p = hit.object.userData.p;
   // tocar el dibujo elige esa pieza sola (al escanear sí se marcan todas las del mismo nº, no se sabe cuál es)
@@ -1180,8 +1388,7 @@ aplicarFicha();
 function limpiarNombre(s){ return s.replace(/\s*\[\d+\]/g,'').replace(/_(\d+)$/,' $1'); }
 
 $('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ mostrar(v); $('numManual').blur(); } });
-$('fVerMueble').onclick = () => seleccion && verMueble(seleccion.mueble);
-$('verPieza').onclick = () => { if (!seleccion || seleccion.soloMueble) return; modoPieza = true; pintar(); verPieza(); };
+$('verPieza').onclick = () => { if (!seleccion || !seleccion.mallas.length) return; modoPieza = true; pintar(); verPieza(); };
 function verPieza(){
   // mirar de frente la cara con más taladros
   const m = seleccion.mallas[0], p = m.userData.p;
@@ -1194,6 +1401,7 @@ function verPieza(){
   encuadrar(caja, false, dir);
 }
 $('verTodo').onclick = () => {
+  cerrarDesplegables();
   if (CLIENTE){ verCliente(null, true); return; }
   modoPieza = false; if (despiece) separar(null); if (aislado) aislar(null); pintar(); encuadrar(cajaDe(paneles));
 };
@@ -1202,12 +1410,14 @@ $('verAislar').onclick = () => {
   aislar(aislado ? null : seleccion.mueble);
   encuadrar(marco(cajaDe(mallasDe(seleccion.mueble))));
 };
-$('verCotas').onclick = () => {
-  conCotas = !conCotas; $('verCotas').setAttribute('aria-pressed', conCotas);
-  if (!CLIENTE) try{ localStorage.setItem('armado.cotas', conCotas ? '1' : '0'); }catch(e){}
-  actualizarCotas();
-};
-$('verCotas').setAttribute('aria-pressed', conCotas);
+[['verCotas', 'generales'], ['verInternas', 'internas'], ['verMecanizado', 'mecanizado']].forEach(([id, k]) => {
+  $(id).setAttribute('aria-pressed', COTAS[k]);
+  $(id).onclick = () => {
+    COTAS[k] = !COTAS[k]; $(id).setAttribute('aria-pressed', COTAS[k]);
+    if (!CLIENTE) try{ localStorage.setItem(GUARDA_COTAS[k], COTAS[k] ? '1' : '0'); }catch(e){}
+    actualizarCotas(); actualizarBarra();
+  };
+});
 $('verTransp').onclick = () => {
   transparente = !transparente; $('verTransp').setAttribute('aria-pressed', transparente); pintar();
 };
@@ -1217,7 +1427,117 @@ $('verDespiece').onclick = () => {
   separar(despiece === seleccion.mueble ? null : seleccion.mueble);
   encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === seleccion.mueble)));
 };
-$('verMueble').onclick = () => { if (!seleccion) return; modoPieza = false; pintar(); encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === seleccion.mueble))); };
+// "Mueble": con una pieza elegida, sube al mueble; con el mueble elegido, lo vuelve a encuadrar
+$('verMueble').onclick = () => { if (seleccion) verMueble(seleccion.mueble); };
+
+/* ---------- barra del dibujo: [Mueble | Pieza], Cotas y Vista; camino Proyecto › Mueble › Pieza ---------- */
+function actualizarBarra(){
+  const pieza = !!(seleccion && seleccion.mallas.length);
+  $('nivel').hidden = !seleccion;
+  $('verMueble').setAttribute('aria-pressed', !!seleccion && !pieza);
+  $('verPieza').setAttribute('aria-pressed', pieza);
+  $('verPieza').disabled = !pieza;
+  $('verPieza').title = pieza ? 'Poner la pieza de frente' : 'Tocá una pieza del mueble';
+  $('abreCotas').classList.toggle('activo', COTAS.generales || COTAS.internas || (COTAS.mecanizado && !CLIENTE));
+  $('abreVista').classList.toggle('activo', !!(aislado || despiece || transparente));
+  $('verAislar').disabled = $('verDespiece').disabled = !seleccion;
+  actualizarCamino();
+}
+function actualizarCamino(){
+  const el = $('camino');
+  if (CLIENTE || !seleccion || !datos){ el.hidden = true; return; }
+  const p = seleccion.mallas.length ? seleccion.mallas[0].userData.p : null;
+  const partes = [`<button data-ir="proyecto">${esc(datos.proyecto)}</button>`,
+    p ? `<button data-ir="mueble">${esc(seleccion.mueble)}</button>` : `<span aria-current="true">${esc(seleccion.mueble)}</span>`];
+  if (p) partes.push(`<span aria-current="true">${esc(p.num ? p.num + ' · ' + limpiarNombre(p.nombre) : limpiarNombre(p.nombre))}</span>`);
+  const html = partes.join('<span aria-hidden="true">›</span>');
+  if (el.innerHTML !== html) el.innerHTML = html;
+  el.hidden = false;
+}
+$('camino').onclick = e => {
+  const b = e.target.closest('button[data-ir]'); if (!b) return;
+  if (b.dataset.ir === 'mueble') verMueble(seleccion.mueble, modoPieza);
+  else abrirMuebles();
+};
+// desplegables: uno abierto a la vez; se cierran al tocar afuera o con Esc
+const DESPLEGABLES = [['abreCotas', 'menuCotas'], ['abreVista', 'menuVista'], ['btnMenu', 'menuLista']];
+function cerrarDesplegables(salvo){
+  DESPLEGABLES.forEach(([b, m]) => { if (m !== salvo){ $(m).hidden = true; $(b).setAttribute('aria-expanded', false); } });
+}
+DESPLEGABLES.forEach(([b, m]) => $(b).onclick = () => {
+  const abrir = $(m).hidden; cerrarDesplegables(m);
+  $(m).hidden = !abrir; $(b).setAttribute('aria-expanded', abrir);
+});
+document.addEventListener('pointerdown', e => {
+  if (!e.target.closest('.grupo, .menu-app')) cerrarDesplegables();
+});
+// Vista: las acciones cierran el desplegable; los interruptores lo dejan abierto
+['verAislar', 'verDespiece', 'verTransp'].forEach(id => $(id).addEventListener('click', () => actualizarBarra()));
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  const abierto = DESPLEGABLES.some(([, m]) => !$(m).hidden);
+  if (abierto){ cerrarDesplegables(); return; }
+  // escribiendo, con el escáner o la AR abiertos, o cargando un trabajo: Esc no toca la selección
+  if (e.target.closest('input, textarea, select') || $('scanner').classList.contains('visible') || !$('capaAR').hidden
+      || TR.marcando) return;
+  deseleccionar();
+});
+
+/* ---------- menú de la app (solo taller): las pantallas del servicio, según el rol ---------- */
+if (!CLIENTE && Array.isArray(VISOR.menu) && VISOR.menu.length){
+  $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.actual ? ' aria-current="page"' : ''}>${esc(x.nombre)}</a>`).join('')
+    + (VISOR.salir ? `<div class="quien">${esc((VISOR.yo && VISOR.yo.nombre) || '')}</div>
+      <form method="post" action="${esc(VISOR.salir)}"><input type="hidden" name="csrfmiddlewaretoken" value="${esc(VISOR.csrf || '')}">
+      <button type="submit">Salir</button></form>` : '');
+  $('menuApp').hidden = false;
+}
+
+/* ---------- tamaño del bloque de información: alto en el celular, ancho en la PC (se recuerda) ---------- */
+const enPC = matchMedia('(min-width:900px)');
+const leerTam = k => { try{ return parseFloat(localStorage.getItem(k)) || 0; }catch(e){ return 0; } };
+const guardarTam = (k, v) => { try{ localStorage.setItem(k, String(v)); }catch(e){} };
+const ALTO = {min: .15, max: .85, chico: .3, grande: .72};
+function aplicarAlto(fraccion){
+  const hoja = $('hoja');
+  if (!fraccion){ hoja.classList.remove('con-alto'); return; }
+  hoja.style.setProperty('--alto-hoja', Math.round(Math.min(ALTO.max, Math.max(ALTO.min, fraccion)) * innerHeight) + 'px');
+  hoja.classList.add('con-alto');
+}
+function aplicarAncho(px){
+  if (px) document.querySelector('.app').style.setProperty('--ancho-panel', Math.min(700, Math.max(300, px)) + 'px');
+}
+aplicarAlto(leerTam('armado.hoja.alto')); aplicarAncho(leerTam('armado.panel.ancho'));
+addEventListener('resize', () => aplicarAlto(leerTam('armado.hoja.alto')));
+[$('manija'), $('bordePanel')].forEach(manija => {
+  let arrastre = null;
+  manija.addEventListener('pointerdown', e => {
+    manija.setPointerCapture(e.pointerId);
+    const r = $('hoja').getBoundingClientRect();
+    arrastre = {x: e.clientX, y: e.clientY, alto: r.height, ancho: r.width, movio: false};
+  });
+  manija.addEventListener('pointermove', e => {
+    if (!arrastre) return;
+    const dx = arrastre.x - e.clientX, dy = arrastre.y - e.clientY;
+    if (Math.abs(dx) + Math.abs(dy) > 4) arrastre.movio = true;
+    if (!arrastre.movio) return;
+    if (enPC.matches) aplicarAncho(arrastre.ancho + dx);
+    else aplicarAlto((arrastre.alto + dy) / innerHeight);
+  });
+  const soltar = () => {
+    if (!arrastre) return;
+    if (enPC.matches){
+      if (arrastre.movio) guardarTam('armado.panel.ancho', Math.round($('hoja').getBoundingClientRect().width));
+    } else {
+      // tocar sin arrastrar: alterna chico y grande
+      const actual = $('hoja').getBoundingClientRect().height / innerHeight;
+      const f = arrastre.movio ? actual : (actual > (ALTO.chico + ALTO.grande) / 2 ? ALTO.chico : ALTO.grande);
+      aplicarAlto(f); guardarTam('armado.hoja.alto', f.toFixed(3));
+    }
+    arrastre = null;
+  };
+  manija.addEventListener('pointerup', soltar);
+  manija.addEventListener('pointercancel', soltar);
+});
 
 /* ---------- escáner ---------- */
 let flujo = null, detenido = true, zxing = null;
@@ -1621,8 +1941,8 @@ async function cargar(elegido){
   BASE = 'data/' + (item.archivo || '').replace(/[^/]*$/, '');
   if (!CLIENTE) guardar(item.archivo || datos.proyecto);
   MATS = datos.materiales || {}; CANTOS = datos.cantos || null; Object.keys(cacheColor).forEach(k => delete cacheColor[k]);
-  $('ficha').classList.remove('visible'); $('error').classList.remove('visible'); $('vista').hidden = true; $('ayuda').hidden = false; $('panelMuebles').hidden = true;
-  tamano(); construir(datos);
+  $('ficha').classList.remove('visible'); $('error').classList.remove('visible'); $('ayuda').hidden = false; $('panelMuebles').hidden = true;
+  panelMueble = null; tamano(); construir(datos); $('vista').hidden = false;
   $('cargando').hidden = true;
   TR.lista = []; TR.vista = null; TR.resaltar = null; TR.marcando = null; TR.filtro = null;
   $('panelTrabajos').hidden = true; $('tbInsignia').hidden = true; cargarTrabajos();
@@ -1633,7 +1953,7 @@ async function cargar(elegido){
     if (VISOR.pie){ $('pieMarca').innerHTML = 'hecho con ' + (VISOR.pie.url
       ? `<a href="${esc(VISOR.pie.url)}" target="_blank" rel="noopener">${esc(VISOR.pie.nombre)}</a>` : esc(VISOR.pie.nombre));
       $('pieMarca').hidden = false; }
-    $('vista').hidden = false; verCliente(null, false); encuadrar(marco(cajaDe(paneles)), true);
+    verCliente(null, false); encuadrar(marco(cajaDe(paneles)), true);
     return;
   }
   const q = new URLSearchParams(location.search).get('pieza'); if (q) mostrar(q);

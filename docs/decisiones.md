@@ -2,6 +2,15 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-10 · Pantalla del visor: selección en dos pasos, panel al costado en la PC, botones agrupados
+Pedido de Martín para la usabilidad. Primer toque elige el mueble y el siguiente una de sus piezas; tocar el vacío
+sube un nivel. Al elegir una pieza la cámara se queda en el mueble (se puede ir tocando piezas sin perderse); "Pieza"
+la pone de frente. En la PC el bloque de información es un panel a la derecha (aprovecha la pantalla apaisada); en el
+celular sigue abajo, con manija. `[Mueble | Pieza]` son dos botones pegados en vez de un desplegable de dos opciones
+(un toque en vez de dos y se ve qué está elegido); Cotas y Vista sí son desplegables. Las cotas internas y de
+mecanizado se calculan en el visor con las piezas, como en el NAS (sirven los proyectos ya convertidos y el link del
+cliente); descartado calcularlas en el conversor.
+
 ## 2026-10-07 · El programa llega al servidor como imagen que arma GitHub
 Decisión de Martín (ficha 07a). Con cada etiqueta `v*`, GitHub Actions corre las pruebas (SQLite y PostgreSQL) y,
 si pasan, arma la imagen y la guarda privada en `ghcr.io/caciquemar/visor-saas`. En el NAS (sin SSH) se actualiza
