@@ -62,16 +62,30 @@ def test_alta_con_usuario_elegido(client, t):
     assert not Usuario.objects.filter(nombre='Malo').exists()
 
 
-def test_cambiar_el_usuario_en_equipo(client, t):
+def test_cambiar_nombre_y_usuario_en_equipo(client, t):
     client.force_login(t.oficina_a)
-    client.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'usuario', 'usuario': 'arturo.g'})
+    html = client.get(f'/taller-a/equipo/{t.m_armador_a.pk}/').text
+    assert 'value="Arturo"' in html and 'value="arturo"' in html          # muestra los datos actuales
+    client.post(f'/taller-a/equipo/{t.m_armador_a.pk}/',
+                {'accion': 'datos', 'nombre': 'Arturo Gómez', 'usuario': 'arturo.g'})
     t.armador_a.refresh_from_db()
-    assert t.armador_a.usuario == 'arturo.g'
-    r = client.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'usuario', 'usuario': 'bruno'})
+    assert (t.armador_a.nombre, t.armador_a.usuario) == ('Arturo Gómez', 'arturo.g')
+    assert 'Arturo Gómez' in client.get('/taller-a/equipo/').text
+    r = client.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'datos', 'nombre': 'X', 'usuario': 'bruno'})
     assert 'ya existe' in r.text
+    t.armador_a.refresh_from_db()
+    assert t.armador_a.nombre == 'Arturo Gómez'
     client.logout()
     assert not entro(entrar(client, 'arturo', '1234'))
     assert entro(entrar(client, 'arturo.g', '1234'))
+
+
+def test_los_datos_de_quien_tiene_mail_no_se_cambian_en_equipo(client, t):
+    client.force_login(t.dueno_a)
+    assert 'Guardar datos' not in client.get(f'/taller-a/equipo/{t.m_oficina_a.pk}/').text
+    client.post(f'/taller-a/equipo/{t.m_oficina_a.pk}/', {'accion': 'datos', 'nombre': 'Otra', 'usuario': 'otra'})
+    t.oficina_a.refresh_from_db()
+    assert t.oficina_a.nombre == 'Olga'
 
 
 def test_mail_y_pin_en_la_misma_pantalla(client, t):

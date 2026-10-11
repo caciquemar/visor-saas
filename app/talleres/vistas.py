@@ -16,7 +16,7 @@ from django.views.decorators.http import require_POST
 
 from . import pin as pines
 from .archivos import abrir_de_taller
-from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, FormUsuarioPin,
+from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, FormDatosPin,
                           roles_que_puede_dar)
 from .mails import NO_SALIO
 from .mails import invitar as mandar_invitacion
@@ -115,8 +115,9 @@ def editar_miembro(request, taller, id):
         raise PermissionDenied('Solo un dueño puede cambiar a otro dueño.')
     form = FormMiembro(initial={'rol': otro.rol, 'activa': otro.activa}, membresia=request.membresia)
     form_pin = FormPin()
-    # El usuario para entrar se cambia acá solo si no tiene mail (los que tienen mail lo manejan ellos).
-    form_usuario = FormUsuarioPin(usuario=otro.usuario) if otro.usa_pin and not otro.usuario.email else None
+    # Nombre y usuario se cambian acá solo si no tiene mail (los que tienen mail ponen su nombre al aceptar la
+    # invitación).
+    form_datos = FormDatosPin(usuario=otro.usuario) if not otro.usuario.email else None
     if request.method == 'POST':
         accion = request.POST.get('accion')
         if accion == 'guardar':
@@ -136,19 +137,21 @@ def editar_miembro(request, taller, id):
                 pines.asignar_pin(otro, form_pin.cleaned_data['pin'])
                 messages.success(request, f'PIN de {otro.usuario} cambiado.')
                 return a_equipo(request)
-        elif accion == 'usuario' and form_usuario is not None:
-            form_usuario = FormUsuarioPin(request.POST, usuario=otro.usuario)
-            if form_usuario.is_valid():
-                otro.usuario.usuario = form_usuario.cleaned_data['usuario']
-                otro.usuario.save(update_fields=['usuario'])
-                messages.success(request, f'{otro.usuario} ahora entra con el usuario «{otro.usuario.usuario}».')
+        elif accion == 'datos' and form_datos is not None:
+            form_datos = FormDatosPin(request.POST, usuario=otro.usuario)
+            if form_datos.is_valid():
+                otro.usuario.nombre = form_datos.cleaned_data['nombre']
+                otro.usuario.usuario = form_datos.cleaned_data['usuario']
+                otro.usuario.save(update_fields=['nombre', 'usuario'])
+                messages.success(request, f'Se guardaron los datos de {otro.usuario} '
+                                          f'(entra con el usuario «{otro.usuario.usuario}»).')
                 return a_equipo(request)
         elif accion == 'desbloquear':
             pines.desbloquear(otro)
             messages.success(request, f'PIN de {otro.usuario} desbloqueado.')
             return a_equipo(request)
     return render(request, 'talleres/miembro.html', {'otro': otro, 'form': form, 'form_pin': form_pin,
-                                                     'form_usuario': form_usuario,
+                                                     'form_datos': form_datos,
                                                      'bloqueado': pines.bloqueado_del_todo(otro)})
 
 

@@ -66,7 +66,7 @@ def usuario_tomado(valor, excluir=None):
 
 
 class FormAltaConPin(forms.Form):
-    nombre = forms.CharField(label='Nombre', max_length=80)
+    nombre = forms.CharField(label='Nombre y apellido', max_length=80)
     usuario = CampoUsuario(required=False, help_text='Con esto y el PIN entra. Si lo dejás vacío, se arma con '
                                                      'el nombre (Ramón Pérez → ramon-perez).')
     rol = forms.ChoiceField(label='Rol', choices=[(r.value, r.label) for r in Membresia.ROLES_CON_PIN])
@@ -80,10 +80,14 @@ class FormAltaConPin(forms.Form):
         return valor
 
 
-class FormUsuarioPin(forms.Form):
-    usuario = CampoUsuario(label='Usuario nuevo')
+class FormDatosPin(forms.Form):
+    """Datos de quien entra con PIN: el nombre (lo que se ve en Equipo, en los trabajos y en las marcas) y el
+    usuario con el que entra."""
+    nombre = forms.CharField(label='Nombre y apellido', max_length=80)
+    usuario = CampoUsuario()
 
     def __init__(self, *args, usuario, **kwargs):
+        kwargs.setdefault('initial', {'nombre': usuario.nombre, 'usuario': usuario.usuario})
         super().__init__(*args, **kwargs)
         self.usuario = usuario
 

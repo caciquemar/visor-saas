@@ -6,6 +6,15 @@
 <p class="suave">{% if otro.usuario.email %}{{ otro.usuario.email }}{% else %}Entra con el usuario
   <strong>{{ otro.usuario.usuario }}</strong> y su PIN.{% endif %}</p>
 
+{% if form_datos %}
+<h2>Datos</h2>
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="datos">
+  {{ form_datos.as_div }}
+  <div class="acciones"><button type="submit">Guardar datos</button></div>
+</form>
+<h2>En el taller</h2>
+{% endif %}
 <form class="caja" method="post">{% csrf_token %}
   <input type="hidden" name="accion" value="guardar">
   {{ form.as_div }}
@@ -20,13 +29,6 @@
   {{ form_pin.as_div }}
   <div class="acciones"><button type="submit">Cambiar PIN</button></div>
 </form>
-{% if form_usuario %}
-<form class="caja" method="post" style="margin-top:1rem">{% csrf_token %}
-  <input type="hidden" name="accion" value="usuario">
-  {{ form_usuario.as_div }}
-  <div class="acciones"><button type="submit">Cambiar usuario</button></div>
-</form>
-{% endif %}
 {% if otro.pin_fallos or otro.pin_bloqueado_hasta %}
 <form class="caja" method="post" style="margin-top:1rem">{% csrf_token %}
   <input type="hidden" name="accion" value="desbloquear">
