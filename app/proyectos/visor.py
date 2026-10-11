@@ -90,6 +90,11 @@ def url_de_link(request, link):
 
 # ---------------------------------------------------------------- taller
 
+def url_de_etiquetas(request):
+    """Pantalla de etiquetas de un proyecto, con {id} para que el visor ponga el que se está viendo."""
+    return reverse('taller:etiquetas:imprimir', kwargs={'taller': request.taller.slug, 'id': 0}).replace('/0/', '/{id}/')
+
+
 def menu_de(request):
     """Las pantallas del servicio para el menú del visor, con la misma regla de roles que templates/base.html."""
     rol, slug = request.membresia.rol, request.taller.slug
@@ -101,9 +106,9 @@ def menu_de(request):
         pantallas.append(('Marca', 'taller:marca'))
     menu = [{'nombre': nombre, 'url': reverse(ruta, kwargs={'taller': slug}), 'actual': nombre == 'Visor'}
             for nombre, ruta in pantallas]
-    # las del proyecto que se está viendo: el visor pone el id en {id}
-    etiquetas = reverse('taller:etiquetas:imprimir', kwargs={'taller': slug, 'id': 0}).replace('/0/', '/{id}/')
-    menu.insert(3, {'nombre': 'Etiquetas del proyecto', 'url': etiquetas, 'actual': False, 'proyecto': True})
+    # la del proyecto que se está viendo: el visor pone el id en {id}
+    menu.insert(3, {'nombre': 'Etiquetas del proyecto', 'url': url_de_etiquetas(request), 'actual': False,
+                    'proyecto': True})
     return menu
 
 
@@ -122,6 +127,7 @@ def visor(request, taller):
         'sinCanto': request.taller.color_sin_canto,
         'marca': {'nombre': request.taller.nombre},
         'menu': menu_de(request),
+        'etiquetas': url_de_etiquetas(request),
         'salir': reverse('salir'),
     })
 

@@ -114,6 +114,13 @@ def imprimir(request, taller, id):
             r = HttpResponse(pdf.generar(etiquetas, formato, desde=desde), content_type='application/pdf')
             r['Content-Disposition'] = f'inline; filename="etiquetas-{proyecto.pk}.pdf"'
             return r
+    if request.method == 'GET':
+        # desde el visor ("Imprimir la etiqueta"): ?pz=<id del panel> (uno o varios) o ?m=<mueble>, ya marcados
+        pedidas = set(request.GET.getlist('pz'))
+        marcadas = [str(i) for i, x in enumerate(piezas) if x['panel']['id'] in pedidas]
+        marcados = [str(j) for j, nombre in enumerate(muebles) if nombre in request.GET.getlist('m')]
+    else:
+        marcadas, marcados = request.POST.getlist('pieza'), request.POST.getlist('mueble')
     indice = {nombre: j for j, nombre in enumerate(muebles)}
     grupos = {}
     for i, x in enumerate(piezas):
@@ -123,6 +130,7 @@ def imprimir(request, taller, id):
         'grupos': [{'indice': str(indice[nombre]), 'nombre': nombre, 'piezas': lista}
                    for nombre, lista in grupos.items()],
         'medida_hoja': FormatoEtiquetas.MEDIDA_HOJA, 'medida_rollo': FormatoEtiquetas.MEDIDA_ROLLO,
-        'elegidas': request.POST.getlist('pieza'), 'elegidos': request.POST.getlist('mueble'),
+        'elegidas': marcadas, 'elegidos': marcados,
+        'abiertos': {piezas[int(i)]['panel']['mueble'] for i in marcadas} | {muebles[int(j)] for j in marcados},
         'max_bultos': MAX_BULTOS,
     }, status=400 if request.method == 'POST' else 200)

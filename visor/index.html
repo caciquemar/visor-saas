@@ -372,6 +372,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
         <svg class="flecha" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
       </button>
       <button class="aviso-trab" id="fTrab" hidden></button>
+      <button class="link" id="fImprimir" hidden>Imprimir la etiqueta de esta pieza</button>
       <div class="detalle" id="fDetalle" hidden>
         <div class="datos" id="fDatos"></div>
         <div class="mat" id="fMat"></div>
@@ -1216,6 +1217,18 @@ function etiquetaDe(txt){
   const propio = u.host === location.host && location.pathname.split('/')[1] === m[1];
   return propio ? {codigo: m[2].toUpperCase(), bulto: m[3] ? +m[3] : null} : {ajena: true};
 }
+// "Imprimir la etiqueta": la pantalla de etiquetas del proyecto, en otra pestaña, con esa pieza o ese mueble marcado
+function imprimirEtiquetas(que){
+  if (!VISOR.etiquetas || !item || item.id == null) return;
+  const q = new URLSearchParams();
+  (que.pz || []).forEach(id => q.append('pz', id));
+  if (que.m) q.append('m', que.m);
+  window.open(VISOR.etiquetas.replace('{id}', item.id) + '?' + q, '_blank');
+}
+if (VISOR.etiquetas){
+  $('fImprimir').hidden = false;
+  $('fImprimir').onclick = () => seleccion && imprimirEtiquetas({pz: seleccion.mallas.map(x => x.userData.p.id)});
+}
 function avisar(texto){ $('error').textContent = texto; $('error').classList.add('visible'); }
 function buscar(txt){
   const e = etiquetaDe(txt);
@@ -1314,6 +1327,7 @@ function verMueble(nombre, mover = true){
     <div class="mat">${pl(m.mallas.length,'pieza','piezas')}, ${conMec} con mecanizado, ${pl(tal,'taladro','taladros')}<br>Tableros: ${mats.join(' ')}</div>
     ${pendM.length ? `<button class="aviso-trab" id="pmTrab">⚠ ${pendM.length === 1 ? '1 trabajo sin instalar' : pendM.length + ' trabajos sin instalar'} en este mueble</button>` : ''}
     <button class="link" id="pmAnotar">Anotar trabajo en este mueble</button>
+    ${VISOR.etiquetas ? '<button class="link" id="pmImprimir">Imprimir la etiqueta de este mueble</button>' : ''}
     <ul class="lista">${filas.map((g,i) => { const p = g[0].userData.p; return `<li><button data-i="${i}">
       <span class="n">${esc(p.pieza || '–')}</span>
       <span>${esc(limpiarNombre(p.nombre))}${g.length > 1 ? ` <span class="d">× ${g.length}</span>` : ''}<br>
@@ -1326,6 +1340,7 @@ function verMueble(nombre, mover = true){
     seleccionar(p.num ? paneles.filter(x => x.userData.p.num === p.num) : g);
   });
   $('pmAnotar').onclick = () => abrirForm({muebles: [m.nombre]});
+  if ($('pmImprimir')) $('pmImprimir').onclick = () => imprimirEtiquetas({m: m.nombre});
   if ($('pmTrab')) $('pmTrab').onclick = () => abrirTrabajos({mueble: m.nombre});
   seleccion = { mallas: [], mueble: m.nombre, soloMueble: true }; modoPieza = false;
   armarSiCambia(); grupoTal.clear(); pintar(); if (mover) encuadrar(cajaDe(m.mallas));

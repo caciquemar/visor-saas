@@ -330,3 +330,17 @@ def test_datos_de_la_obra(cliente_de, t, pa):
     cliente_de(t.oficina_a).post(f'/taller-a/proyectos/{pa.pk}/obra/', datos_obra)
     pa.refresh_from_db()
     assert (pa.cliente, pa.direccion) == ('Familia Pérez', 'Av. Siempreviva 742')
+
+
+def test_desde_el_visor_llega_marcada_la_pieza_o_el_mueble(cliente_de, t, pa):
+    x = una_pieza(lambda x: x['de'] == 2)
+    mueble = next(m for m in claves.muebles(GRONDONA) if m != x['panel']['mueble'])
+    r = cliente_de(t.armador_a).get(f'/taller-a/proyectos/{pa.pk}/etiquetas/',
+                                    {'pz': x['panel']['id'], 'm': mueble})
+    html = r.content.decode()
+    i = next(str(i) for i, y in enumerate(claves.piezas(GRONDONA)) if y['panel']['id'] == x['panel']['id'])
+    j = str(list(claves.muebles(GRONDONA)).index(mueble))
+    assert f'name="pieza" value="{i}" checked' in html
+    assert f'name="mueble" value="{j}" checked' in html
+    assert len(re.findall(r'value="\d+" checked', html)) == 2     # solo esa copia y ese mueble
+    assert html.count('<details class="mueble" open>') == 2  # abiertos: el mueble de la pieza y el pedido

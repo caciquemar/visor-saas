@@ -38,7 +38,7 @@
       <button type="button" class="secundario" data-marcar="">Nada</button>
     </div>
     {% for g in grupos %}
-    <details class="mueble">
+    <details class="mueble"{% if g.nombre in abiertos %} open{% endif %}>
       <summary>
         <strong>{{ g.nombre }}</strong>
         <label onclick="event.stopPropagation()"><input type="checkbox" name="mueble" value="{{ g.indice }}"{% if g.indice in elegidos %} checked{% endif %}> Etiqueta del mueble</label>
@@ -120,6 +120,12 @@
     }
   });
   cuenta();
+  // desde el visor: a la vista lo que llegó marcado
+  const marcado = f.querySelector('details.mueble[open] input:checked');
+  if (marcado){
+    history.scrollRestoration = 'manual';
+    addEventListener('load', () => marcado.closest('label').scrollIntoView({block: 'center'}));
+  }
 })();
 </script>
 {% endif %}
