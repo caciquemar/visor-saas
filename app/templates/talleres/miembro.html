@@ -1,5 +1,14 @@
 {% extends 'base.html' %}
-{% block titulo %}{{ otro.usuario }}{% endblock %}
+{% block titulo %}{{ otro.usuario }}{% if llaves %}
+<h2>Huellas</h2>
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="quitar_llaves">
+  <p>Entra con la huella en: {% for ll in llaves %}{{ ll.equipo|default:"un celular" }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Si perdió el celular, quitalas.</p>
+  <button type="submit" class="secundario">Quitar huellas</button>
+</form>
+{% endif %}
+{% endblock %}
 {% block contenido %}
 <p><a href="{% url 'taller:equipo' taller=request.taller.slug %}">← Equipo</a></p>
 <h1>{{ otro.usuario }}</h1>
@@ -22,6 +31,32 @@
 </form>
 
 {% if otro.usa_pin %}
+<h2 id="entrada">Link de entrada</h2>
+<div class="caja">
+  {% if link_entrada %}
+  <p>Mandale este link a {{ otro.usuario }}. Lo abre en su celular, toca <strong>Entrar</strong> y queda adentro (vale
+    24 horas, una sola vez).</p>
+  <p><input type="text" readonly value="{{ link_entrada }}" id="link-entrada" style="max-width:100%"></p>
+  <div class="acciones">
+    <a class="boton" href="{{ whatsapp }}" target="_blank" rel="noopener">Mandar por WhatsApp</a>
+    <button type="button" class="secundario" id="copiar-link">Copiar</button>
+  </div>
+  <script>
+    document.getElementById('copiar-link').addEventListener('click', function () {
+      const campo = document.getElementById('link-entrada');
+      campo.select();
+      (navigator.clipboard ? navigator.clipboard.writeText(campo.value) : Promise.reject())
+        .catch(() => document.execCommand('copy'));
+      this.textContent = 'Copiado';
+    });
+  </script>
+  {% else %}
+  <p class="suave">Un link para que entre desde su celular sin escribir usuario ni PIN. Después puede usar la huella.</p>
+  <form method="post" action="#entrada">{% csrf_token %}<input type="hidden" name="accion" value="link_entrada">
+    <button type="submit">Crear link de entrada</button></form>
+  {% endif %}
+</div>
+
 <h2>PIN</h2>
 <form class="caja" method="post">{% csrf_token %}
   <input type="hidden" name="accion" value="pin">
@@ -37,5 +72,14 @@
   <button type="submit">Desbloquear</button>
 </form>
 {% endif %}
+{% endif %}
+{% if llaves %}
+<h2>Huellas</h2>
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="quitar_llaves">
+  <p>Entra con la huella en: {% for ll in llaves %}{{ ll.equipo|default:"un celular" }}{% if not forloop.last %}, {% endif %}{% endfor %}.
+    Si perdió el celular, quitalas.</p>
+  <button type="submit" class="secundario">Quitar huellas</button>
+</form>
 {% endif %}
 {% endblock %}

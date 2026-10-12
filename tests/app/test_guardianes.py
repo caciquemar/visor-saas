@@ -14,14 +14,17 @@ APP = Path(__file__).resolve().parents[2] / 'app'
 
 # Modelos de la app que no son datos de un taller (agregar acá solo con una buena razón).
 MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario',
-                      'modulos.Modulo'}        # catálogo de módulos del servicio: es el mismo para todos
+                      'modulos.Modulo',        # catálogo de módulos del servicio: es el mismo para todos
+                      'usuarios.LlaveDeAcceso'}  # huella de un usuario: no da acceso a ningún taller por sí sola
 
 # Direcciones que se pueden ver sin sesión (regla 2). Las del link del cliente (/c/<código>/...) solo responden con un
 # link vigente: tests/app/test_visor.py.
 PUBLICAS = {'entrar', 'olvide', 'olvide_enviado', 'clave_nueva', 'clave_lista', 'invitacion', 'taller:pin',
             'admin:login', 'cliente:pagina', 'cliente:logo', 'cliente:dato', 'cliente:probador_ar',
             'cliente:probador_elegir',
-            'salud'}                 # /salud/: solo dice ok o qué falla, para UptimeRobot
+            'salud',                 # /salud/: solo dice ok o qué falla, para UptimeRobot
+            'entrada',               # link de entrada (WhatsApp): sin token vigente, 404
+            'llave_entrar_opciones'}  # desafío para entrar con la huella: no tiene datos
 
 
 def modelos_propios():

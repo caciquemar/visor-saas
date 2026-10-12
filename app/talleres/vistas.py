@@ -21,7 +21,8 @@ from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, F
 from .mails import NO_SALIO
 from .mails import invitar as mandar_invitacion
 from .mails import reenviar as mandar_de_nuevo
-from .models import Invitacion, Membresia
+from .mails import link_absoluto
+from .models import Invitacion, LinkDeEntrada, Membresia
 from .roles import Rol, con_rol, miembro
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
@@ -146,12 +147,27 @@ def editar_miembro(request, taller, id):
                 messages.success(request, f'Se guardaron los datos de {otro.usuario} '
                                           f'(entra con el usuario «{otro.usuario.usuario}»).')
                 return a_equipo(request)
+        elif accion == 'link_entrada' and otro.usa_pin:
+            # El token solo se muestra ahora: no queda guardado (en la base, su hash). Uno nuevo anula el anterior.
+            _, token = LinkDeEntrada.nuevo(otro, request.user)
+            link = link_absoluto(reverse('entrada', args=[token]))
+            texto = (f'Hola {otro.usuario.nombre or otro.usuario}, con este link entrás a {request.taller.nombre} '
+                     f'desde tu celular (vale {LinkDeEntrada.HORAS} horas, una sola vez): {link}')
+            return render(request, 'talleres/miembro.html', {
+                'otro': otro, 'form': form, 'form_pin': form_pin, 'form_datos': form_datos,
+                'bloqueado': pines.bloqueado_del_todo(otro), 'link_entrada': link,
+                'whatsapp': 'https://wa.me/?' + urlencode({'text': texto}), 'llaves': otro.usuario.llaves.all()})
+        elif accion == 'quitar_llaves':
+            cuantas, _ = otro.usuario.llaves.all().delete()
+            messages.success(request, f'Se quitaron las huellas de {otro.usuario} ({cuantas}). Ahora entra con su '
+                                      f'PIN o contraseña.')
+            return a_equipo(request)
         elif accion == 'desbloquear':
             pines.desbloquear(otro)
             messages.success(request, f'PIN de {otro.usuario} desbloqueado.')
             return a_equipo(request)
     return render(request, 'talleres/miembro.html', {'otro': otro, 'form': form, 'form_pin': form_pin,
-                                                     'form_datos': form_datos,
+                                                     'form_datos': form_datos, 'llaves': otro.usuario.llaves.all(),
                                                      'bloqueado': pines.bloqueado_del_todo(otro)})
 
 

@@ -16,7 +16,6 @@ from django.db.models import F
 from django.utils import timezone
 
 SESION_PIN = 'pin_taller'          # en la sesión: id del taller donde se entró con PIN
-HORAS_SESION_PIN = 12
 FALLOS_PAUSA = 5
 MINUTOS_PAUSA = 15
 FALLOS_BLOQUEO = 10

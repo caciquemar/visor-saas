@@ -134,6 +134,7 @@ def visor(request, taller):
         'etiquetas': {'pantalla': url_de_etiquetas(request), 'formato': formato_para_el_visor()},
         'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug})},
         'salir': reverse('salir'),
+        'cambiar': reverse('entrar') + '?cambiar=1',         # celular compartido: entra otro
     })
 
 

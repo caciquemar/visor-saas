@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block titulo %}¿De quién es este celular?{% endblock %}
+{% block cabeza %}
+<style>
+  .opciones { display:grid; gap:.75rem; max-width:26rem; }
+  .opciones button { width:100%; padding:1rem; text-align:left; font-size:1.05rem; }
+  .opciones button small { display:block; font-weight:400; font-size:.85rem; opacity:.85; margin-top:.2rem; }
+  .opciones button.secundario { border-width:2px; }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>¿De quién es este celular?</h1>
+<p class="suave">Se pregunta una sola vez.</p>
+<form method="post" class="opciones">{% csrf_token %}
+  <input type="hidden" name="next" value="{{ siguiente }}">
+  <button type="submit" name="tipo" value="propio">Es mío
+    <small>Quedás adentro y, si hace falta volver a entrar, usás la huella.</small></button>
+  <button type="submit" name="tipo" value="taller" class="secundario">Es del taller (lo usan varios)
+    <small>Cada uno toca su nombre y pone su PIN.</small></button>
+</form>
+{% endblock %}

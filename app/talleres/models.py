@@ -121,3 +121,37 @@ class Invitacion(DatoDeTaller):
     @property
     def vigente(self):
         return self.usada is None and timezone.now() < self.vence
+
+
+class LinkDeEntrada(DatoDeTaller):
+    """Link personal para que un armador o instalador entre desde su celular sin escribir nada (se manda por
+    WhatsApp desde Equipo). Vale 24 horas y una sola vez; uno nuevo anula el anterior. El token solo está en el
+    link; en la base, su hash."""
+    HORAS = 24
+
+    membresia = models.ForeignKey(Membresia, on_delete=models.CASCADE, related_name='+')
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
+    vence = models.DateTimeField('vence')
+    creado = models.DateTimeField('creado', auto_now_add=True)
+    creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                   related_name='+')
+    usado = models.DateTimeField('usado', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'link de entrada'
+        verbose_name_plural = 'links de entrada'
+        ordering = ['-creado']
+
+    @classmethod
+    def nuevo(cls, membresia, creado_por=None):
+        """En el taller actual. Anula los anteriores sin usar de esa persona. Devuelve (link, token)."""
+        ahora = timezone.now()
+        cls.objects.filter(membresia=membresia, usado__isnull=True, vence__gt=ahora).update(vence=ahora)
+        token = secrets.token_urlsafe(32)
+        link = cls.objects.create(membresia=membresia, token_hash=Invitacion.cifrar(token), creado_por=creado_por,
+                                  vence=ahora + timedelta(hours=cls.HORAS))
+        return link, token
+
+    @property
+    def vigente(self):
+        return self.usado is None and timezone.now() < self.vence

@@ -45,7 +45,7 @@ def test_alta_con_pin_y_entrar(client, t):
     assert r.status_code == 302 and r['Location'] == '/taller-a/'
     r = client.get('/taller-a/')
     assert r.status_code == 200 and r.wsgi_request.user == m.usuario
-    assert client.session.get_expiry_age() == pines.HORAS_SESION_PIN * 3600
+    assert client.session.get_expiry_age() == 30 * 24 * 3600              # como todas las sesiones
 
 
 def test_alta_con_usuario_elegido(client, t):
@@ -170,7 +170,7 @@ def test_entrar_con_mail_despues_de_pin_no_queda_atado(client, t):
     entrar(client, 'arturo', '1234')
     entrar(client, 'dueno@a.com', CLAVE)
     assert client.get('/taller-b/').status_code == 200
-    assert client.session.get_expiry_age() != pines.HORAS_SESION_PIN * 3600
+    assert client.session.get('pin_taller') is None
 
 
 def test_dueno_y_oficina_no_entran_con_pin(client, t):

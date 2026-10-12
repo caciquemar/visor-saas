@@ -104,3 +104,23 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
 
     def get_short_name(self):
         return str(self)
+
+
+class LlaveDeAcceso(models.Model):
+    """Llave de acceso (passkey, WebAuthn) de un celular propio: se entra con la huella, el patrón o el PIN de
+    pantalla del celular, que la app nunca ve. Es del usuario, no de un taller (ver usuarios/llaves.py)."""
+    usuario = models.ForeignKey(Usuario, on_delete=models.CASCADE, related_name='llaves')
+    credencial = models.CharField('id de la credencial', max_length=512, unique=True)   # base64url
+    clave_publica = models.BinaryField('clave pública')
+    contador = models.PositiveBigIntegerField(default=0)
+    equipo = models.CharField('equipo', max_length=80, blank=True)
+    creada = models.DateTimeField('creada', auto_now_add=True)
+    usada = models.DateTimeField('último uso', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'llave de acceso'
+        verbose_name_plural = 'llaves de acceso'
+        ordering = ['-creada']
+
+    def __str__(self):
+        return f'{self.usuario} · {self.equipo or "celular"}'

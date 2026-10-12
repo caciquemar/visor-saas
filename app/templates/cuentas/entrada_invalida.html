@@ -1,0 +1,8 @@
+{% extends 'base.html' %}
+{% block titulo %}Link de entrada{% endblock %}
+{% block contenido %}
+<h1>El link ya no sirve</h1>
+<p>Ya se usó o pasaron más de 24 horas. Pedile uno nuevo al dueño o a la oficina del taller, o entrá con tu usuario y
+  PIN.</p>
+<p><a class="boton" href="{% url 'entrar' %}">Entrar</a></p>
+{% endblock %}

@@ -47,6 +47,24 @@ def t(db, django_user_model):
     return d
 
 
+@pytest.fixture(autouse=True)
+def celular_del_taller(client):
+    """El cliente de las pruebas ya dijo que es un celular del taller: así entrar va directo al taller, sin la
+    pregunta "¿de quién es este celular?" (las pruebas de eso cambian la cookie: tests/app/test_entrar_simple.py)."""
+    from talleres.equipo_celular import COOKIE
+    from tests.app.ayudas import marcar_celular
+    marcar_celular(client, 'taller')
+    # client.logout() borra todas las cookies; Salir en la app borra solo la sesión: la del celular queda.
+    original = client.logout
+
+    def logout():
+        guardada = client.cookies.get(COOKIE)
+        original()
+        if guardada is not None:
+            client.cookies[COOKIE] = guardada.value
+    client.logout = logout
+
+
 @pytest.fixture
 def cliente_de(client):
     """cliente_de(usuario): cliente con la sesión de ese usuario (mail y contraseña, no PIN)."""

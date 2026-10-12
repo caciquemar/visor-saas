@@ -129,6 +129,13 @@ CACHES = {'default': {'BACKEND': 'django.core.cache.backends.redis.RedisCache', 
                       'KEY_PREFIX': 'visor'} if _redis else
           {'BACKEND': 'django.core.cache.backends.locmem.LocMemCache'}}
 
+# Sesión de 30 días que se renueva con el uso: quien usa la app seguido no vuelve a entrar (decisión 2026-10-12).
+# Se guarda en cada pedido; con Redis, en caché y base (cached_db) para no escribir la base cada vez.
+SESSION_COOKIE_AGE = 30 * 24 * 3600
+SESSION_SAVE_EVERY_REQUEST = True
+if _redis:
+    SESSION_ENGINE = 'django.contrib.sessions.backends.cached_db'
+
 # ---------------------------------------------------------------- conversión de proyectos
 # Ver proyectos/tareas.py. Cada conversión corre en un proceso aparte con estos límites.
 CONVERSION_SEGUNDOS = env.int('CONVERSION_SEGUNDOS', default=600)

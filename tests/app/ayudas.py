@@ -64,3 +64,20 @@ class CorrerFalso:
                        herrajes=0, muros=0)
         return dict(proyecto='Falso', archivo='Falso.json', avisos=list(self.avisos), resumen=resumen,
                     con_imagen=self.con_imagen)
+
+
+# ---------------------------------------------------------------- celular que recuerda
+
+def marcar_celular(client, tipo='taller', ids=()):
+    """Pone la cookie del celular (talleres/equipo_celular.py) como la pondría la app. tipo=None: celular nuevo."""
+    import json as _json
+
+    from django.core import signing
+
+    from talleres import equipo_celular
+    if tipo is None and not ids:
+        client.cookies.pop(equipo_celular.COOKIE, None)
+        return
+    valor = _json.dumps({'tipo': tipo, 'ids': list(ids)})
+    client.cookies[equipo_celular.COOKIE] = signing.get_cookie_signer(
+        salt=equipo_celular.COOKIE + equipo_celular.SAL).sign(valor)

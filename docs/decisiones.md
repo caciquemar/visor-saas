@@ -2,6 +2,26 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-12 · Entrar lo más simple posible
+Pedido de Martín: sacar barreras de uso.
+- **Sesión de 30 días que se renueva con el uso**, para todos (antes: PIN 12 horas, mail 2 semanas). La de PIN sigue
+  atada a su taller. En el menú, "Cambiar de persona" (`/entrar/?cambiar=1`) para el celular compartido.
+- **Celular que recuerda** (`talleres/equipo_celular.py`): cookie firmada de un año con si es propio o del taller
+  (se pregunta una vez, después de entrar) y los ids de quienes entraron ahí. En `/entrar/` aparecen como botones:
+  se toca el nombre y se pone el PIN o la contraseña. No guarda PIN ni contraseña, y los nombres solo aparecen en
+  un celular donde esa persona ya entró (no vuelve la lista pública).
+- **Huella o desbloqueo del celular** (llaves de acceso / passkeys, `talleres/llaves.py`, `usuarios.LlaveDeAcceso`,
+  dependencia `webauthn`): **solo en celulares propios**; en uno compartido, cualquiera que sepa desbloquearlo
+  entraría como cualquiera, así que ahí sigue el PIN. Pide verificación del usuario (huella, cara, patrón o PIN de
+  pantalla). La sesión que da no está atada a un taller (es más segura que el PIN). Necesita HTTPS y que
+  `DOMINIO_APP` sea el dominio con que se entra (en la PC, `localhost:8000`: con una IP el navegador no deja). En
+  Equipo, "Quitar huellas" si alguien pierde el celular.
+- **Link de entrada por WhatsApp** (`talleres.LinkDeEntrada`): desde la ficha de un armador o instalador en Equipo;
+  vale 24 horas y una vez, uno nuevo anula el anterior. Se entra con un botón (POST) porque la vista previa de
+  WhatsApp abre los links sola. Marca el celular como propio y ofrece la huella. Dueño y oficina siguen con la
+  invitación por mail. "Mandar por WhatsApp" abre WhatsApp con el texto (`wa.me`); el contacto lo elige quien manda.
+Descartado: recordar el PIN en el celular; entrar sin nada en un celular compartido.
+
 ## 2026-10-11 · Una sola pantalla para entrar: mail o usuario
 Pedido de Martín. `/entrar/` tiene "Mail o usuario" y "Contraseña o PIN": con @ es mail y contraseña; sin @, el
 usuario y el PIN de un armador o instalador. Cada usuario sin mail tiene un **usuario para entrar**

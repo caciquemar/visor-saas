@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% block titulo %}Entrar{% endblock %}
+{% block contenido %}
+<h1>Hola, {{ link.membresia.usuario }}</h1>
+<p>Este link es para que entres a <strong>{{ link.taller.nombre }}</strong> desde tu celular.</p>
+<form method="post">{% csrf_token %}
+  <div class="acciones"><button type="submit" style="padding:.9rem 1.5rem;font-size:1.1rem">Entrar</button></div>
+</form>
+<p class="suave">Si no sos {{ link.membresia.usuario }}, no toques Entrar.</p>
+{% endblock %}

@@ -1,14 +1,55 @@
 {% extends 'base.html' %}
+{% load static %}
 {% block titulo %}Entrar{% endblock %}
+{% block cabeza %}
+<style>
+  .personas { display:grid; gap:.5rem; grid-template-columns:repeat(auto-fill, minmax(10rem, 1fr)); margin-bottom:1rem; }
+  .persona { position:relative; }
+  .persona > button:first-child { width:100%; padding:1rem .75rem; text-align:center; background:var(--panel);
+              color:var(--texto); border:2px solid var(--borde); border-radius:10px; font-size:1.05rem; }
+  .persona > button:first-child small { display:block; font-weight:400; color:var(--suave); font-size:.8rem; }
+  .persona.elegida > button:first-child { border-color:var(--acento); }
+  .persona .quitar { position:absolute; top:2px; right:2px; padding:.1rem .45rem; font-size:.9rem; font-weight:400;
+                     background:none; color:var(--suave); border:0; }
+  #quien-es { display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; margin:.25rem 0; }
+  #quien-es[hidden] { display:none; }
+  .huella { width:100%; max-width:24rem; padding:.9rem 1rem; font-size:1.05rem; }
+  .o { color:var(--suave); margin:.75rem 0 .25rem; }
+</style>
+{% endblock %}
 {% block contenido %}
 <h1>Entrar</h1>
-<form class="caja" method="post">{% csrf_token %}
-  {% for e in form.non_field_errors %}<p class="error" role="alert">{{ e }}</p>{% endfor %}
-  <label for="id_username">Mail o usuario</label>
-  <input id="id_username" name="username" type="text" autocomplete="username" required autofocus
-         autocapitalize="off" autocorrect="off" spellcheck="false" value="{{ form.username.value|default:'' }}">
-  <span class="ayuda">Con mail, tu contraseña. Armadores e instaladores: tu usuario y tu PIN.</span>
-  <label for="id_password">Contraseña o PIN</label>
+{% for e in form.non_field_errors %}<p class="error" role="alert">{{ e }}</p>{% endfor %}
+<p class="error" role="alert" id="error-huella" hidden></p>
+
+{% if recordados %}
+<p class="suave" style="margin-top:0">¿Quién sos?</p>
+<div class="personas">
+  {% for p in recordados %}
+  <div class="persona" data-id="{{ p.id }}" data-entra="{{ p.entra_con }}" data-nombre="{{ p.nombre }}"
+       data-pin="{{ p.con_pin|yesno:'1,' }}" data-huella="{{ p.huella|yesno:'1,' }}">
+    <button type="button">{{ p.nombre }}<small>{% if p.huella %}con huella{% elif p.con_pin %}con PIN{% else %}con contraseña{% endif %}</small></button>
+    <button type="submit" class="quitar" form="quitar-{{ p.id }}" aria-label="Quitar a {{ p.nombre }} de este celular" title="Quitar de este celular">×</button>
+  </div>
+  {% endfor %}
+</div>
+{% for p in recordados %}<form id="quitar-{{ p.id }}" method="post" action="{% url 'olvidar_en_celular' %}" hidden>{% csrf_token %}<input type="hidden" name="usuario" value="{{ p.id }}"></form>{% endfor %}
+{% endif %}
+
+<form class="caja" method="post" id="form-entrar"{% if recordados and not form.errors %} hidden{% endif %}>{% csrf_token %}
+  <div id="quien-es" hidden><strong id="quien-nombre"></strong>
+    <button type="button" class="secundario" id="otra-persona">No soy yo</button></div>
+  <div id="campo-usuario">
+    <label for="id_username">Mail o usuario</label>
+    <input id="id_username" name="username" type="text" autocomplete="username" required
+           autocapitalize="off" autocorrect="off" spellcheck="false" value="{{ form.username.value|default:'' }}">
+    <span class="ayuda">Con mail, tu contraseña. Armadores e instaladores: tu usuario y tu PIN.</span>
+  </div>
+  <div id="con-huella" hidden>
+    <button type="button" class="huella" id="btn-huella">Entrar con la huella</button>
+    <p class="o">o con tu PIN o contraseña:</p>
+  </div>
+  <label for="id_password" id="label-clave">Contraseña o PIN</label>
   <div class="con-ojo">
     <input id="id_password" name="password" type="password" autocomplete="current-password" required
            autocapitalize="off" autocorrect="off" spellcheck="false">
@@ -19,28 +60,84 @@
   <p><a href="{% url 'olvide' %}">Me olvidé la contraseña</a>
     <span class="suave">· ¿Te olvidaste el PIN? Pedile uno nuevo al dueño o a la oficina.</span></p>
 </form>
+{% if recordados %}<p><button type="button" class="secundario" id="otra-persona-abajo">Otra persona</button></p>{% endif %}
+
+<script src="{% static 'cuentas/llaves.js' %}"></script>
 <script>
+(function () {
+  const form = document.getElementById('form-entrar'), quien = document.getElementById('id_username');
+  const clave = document.getElementById('id_password'), label = document.getElementById('label-clave');
+  const conHuella = document.getElementById('con-huella'), errorHuella = document.getElementById('error-huella');
+  const urls = {opciones: "{% url 'llave_entrar_opciones' %}", entrar: "{% url 'llave_entrar' %}"};
+  const siguiente = form.querySelector('[name=next]').value;
+  let elegida = null;
+
   // Sin @ es un usuario con PIN: en el celular, teclado de números para el segundo campo.
-  const quien = document.getElementById('id_username');
   const tecladoPin = () => {
-    const clave = document.getElementById('id_password');
     if (quien.value.trim() && !quien.value.includes('@')) clave.setAttribute('inputmode', 'numeric');
     else clave.removeAttribute('inputmode');
   };
   quien.addEventListener('input', tecladoPin);
   tecladoPin();
+
+  async function conLaHuella() {
+    errorHuella.hidden = true;
+    try {
+      const r = await llaves.entrar(urls, elegida && elegida.dataset.id, siguiente);
+      location.href = r.ir || '/';
+    } catch (e) {
+      errorHuella.textContent = llaves.mensaje(e) + ' Podés entrar con tu PIN o contraseña.';
+      errorHuella.hidden = false;
+      clave.focus();
+    }
+  }
+  document.getElementById('btn-huella').addEventListener('click', conLaHuella);
+
+  function elegir(p) {
+    elegida = p;
+    document.querySelectorAll('.persona').forEach(x => x.classList.toggle('elegida', x === p));
+    form.hidden = false;
+    quien.value = p.dataset.entra;
+    tecladoPin();
+    document.getElementById('campo-usuario').hidden = true;
+    document.getElementById('quien-es').hidden = false;
+    document.getElementById('quien-nombre').textContent = p.dataset.nombre;
+    label.textContent = p.dataset.pin ? 'PIN' : 'Contraseña';
+    clave.value = '';
+    const huella = p.dataset.huella && llaves.disponible();
+    conHuella.hidden = !huella;
+    if (huella) conLaHuella(); else clave.focus();
+  }
+  function otraPersona() {
+    elegida = null;
+    document.querySelectorAll('.persona').forEach(x => x.classList.remove('elegida'));
+    form.hidden = false;
+    quien.value = '';
+    document.getElementById('campo-usuario').hidden = false;
+    document.getElementById('quien-es').hidden = true;
+    conHuella.hidden = true;
+    label.textContent = 'Contraseña o PIN';
+    tecladoPin();
+    quien.focus();
+  }
+  document.querySelectorAll('.persona > button:first-child').forEach(b =>
+    b.addEventListener('click', () => elegir(b.parentElement)));
+  ['otra-persona', 'otra-persona-abajo'].forEach(id => {
+    const b = document.getElementById(id);
+    if (b) b.addEventListener('click', otraPersona);
+  });
+  if (form.hidden === false && !quien.value) quien.focus();
+
   // Ver la contraseña: en el celular es fácil que se cuele una mayúscula o un espacio.
   document.getElementById('ver-clave').addEventListener('click', function () {
-    const campo = document.getElementById('id_password');
-    const ver = campo.type === 'password';
-    campo.type = ver ? 'text' : 'password';
+    const ver = clave.type === 'password';
+    clave.type = ver ? 'text' : 'password';
     this.textContent = ver ? 'Ocultar' : 'Ver';
     this.setAttribute('aria-pressed', ver);
-    campo.focus();
+    clave.focus();
   });
   // Al entrar, que el navegador no guarde la contraseña como texto común.
-  document.querySelector('form.caja').addEventListener('submit', function () {
-    document.getElementById('id_password').type = 'password';
-  });
+  form.addEventListener('submit', () => { clave.type = 'password'; });
+})();
 </script>
 {% endblock %}

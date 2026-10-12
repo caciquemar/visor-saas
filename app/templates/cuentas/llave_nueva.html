@@ -1,0 +1,37 @@
+{% extends 'base.html' %}
+{% load static %}
+{% block titulo %}Entrar con la huella{% endblock %}
+{% block contenido %}
+<h1>Entrar con la huella</h1>
+<p>La próxima vez entrás con la huella, la cara o el patrón con que desbloqueás este celular, sin escribir nada.
+  La app no ve tu huella: la guarda el celular.</p>
+<p class="error" role="alert" id="error" hidden></p>
+<form method="post">{% csrf_token %}
+  <div class="acciones">
+    <button type="button" id="activar">{% if ya_tiene %}Sumar este celular{% else %}Usar la huella{% endif %}</button>
+    <a class="boton secundario" href="{{ siguiente }}" style="background:none;color:var(--texto);border:1px solid var(--borde)">Ahora no</a>
+  </div>
+</form>
+<p class="suave" id="no-se-puede" hidden>Este celular o navegador no permite entrar con la huella. Vas a entrar con tu
+  PIN o contraseña.</p>
+<script src="{% static 'cuentas/llaves.js' %}"></script>
+<script>
+(function () {
+  const boton = document.getElementById('activar'), error = document.getElementById('error');
+  if (!llaves.disponible()) { boton.hidden = true; document.getElementById('no-se-puede').hidden = false; return; }
+  const urls = {opciones: "{% url 'llave_nueva_opciones' %}", guardar: "{% url 'llave_nueva_guardar' %}"};
+  boton.addEventListener('click', async () => {
+    error.hidden = true;
+    boton.disabled = true;
+    try {
+      const r = await llaves.crear(urls, '{{ siguiente|escapejs }}');
+      location.href = r.ir || '/';
+    } catch (e) {
+      error.textContent = llaves.mensaje(e);
+      error.hidden = false;
+      boton.disabled = false;
+    }
+  });
+})();
+</script>
+{% endblock %}

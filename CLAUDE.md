@@ -285,9 +285,19 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   sin sesión; `/<taller>/pin/` lleva a `/entrar/` y Salir también. Límite de PIN por IP de todo el servicio.
   Ver `docs/decisiones.md`. **Al instalar en el NAS**, la migración les arma el usuario a los armadores que ya están:
   hay que decirles cuál es (Equipo lo muestra).
+- 2026-10-12: **entrar lo más simple posible (pedido de Martín).** Sesión de 30 días que se renueva; celular que
+  recuerda (propio o del taller, y los nombres de quienes entraron ahí, como botones en `/entrar/`); huella o
+  desbloqueo del celular con llaves de acceso, solo en celulares propios (`talleres/llaves.py`, `webauthn`); link de
+  entrada por WhatsApp desde la ficha del armador en Equipo (24 horas, una vez); "Cambiar de persona" en el menú y
+  en el visor. Ver `docs/decisiones.md`. Pruebas en `tests/app/test_entrar_simple.py` (con un autenticador WebAuthn
+  falso). **Falta probar la huella con un celular de verdad** (ver Pendientes).
 
 ## Pendientes
 
+- **Huella, probar con celulares de verdad** (Martín, en el NAS por HTTPS): con un Android y, si hay, un iPhone,
+  y con el visor instalado como app: link de entrada por WhatsApp → Entrar → "Usar la huella" → Salir → tocar el
+  nombre → huella. Revisar que `DOMINIO_APP` del NAS sea exactamente el dominio con que se entra (si no, el
+  navegador rechaza la llave). En el navegador integrado no se puede: no tiene huella.
 - **Ficha 14, probar con un celular de verdad** (en el NAS por HTTPS): abrir la AR de una combinación en Android
   (Scene Viewer) y en iPhone (Quick Look), y mirar cuánto tarda en prepararse con la cola de verdad (en la PC la cola
   es inmediata). Probar también pasar el límite de 20 (modelo del celular).

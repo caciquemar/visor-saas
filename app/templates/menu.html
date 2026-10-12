@@ -33,6 +33,7 @@
     {% for x in menu %}<a href="{{ x.url }}"{% if x.actual %} aria-current="page"{% endif %}>{{ x.nombre }}</a>
     {% empty %}<a href="{% url 'inicio' %}">Mis talleres</a>{% endfor %}
     <div class="quien">{{ user }}</div>
+    <a href="{% url 'entrar' %}?cambiar=1">Cambiar de persona</a>
     <form method="post" action="{% url 'salir' %}">{% csrf_token %}<button type="submit">Salir</button></form>
   </nav>
 </div>

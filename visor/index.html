@@ -1781,6 +1781,7 @@ document.addEventListener('keydown', e => {
 if (!CLIENTE && Array.isArray(VISOR.menu) && VISOR.menu.length){
   $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.actual ? ' aria-current="page"' : ''}${x.proyecto ? ` data-proyecto="${esc(x.url)}"` : ''}>${esc(x.nombre)}</a>`).join('')
     + (VISOR.salir ? `<div class="quien">${esc((VISOR.yo && VISOR.yo.nombre) || '')}</div>
+      ${VISOR.cambiar ? `<a href="${esc(VISOR.cambiar)}">Cambiar de persona</a>` : ''}
       <form method="post" action="${esc(VISOR.salir)}"><input type="hidden" name="csrfmiddlewaretoken" value="${esc(VISOR.csrf || '')}">
       <button type="submit">Salir</button></form>` : '');
   $('menuApp').hidden = false;
