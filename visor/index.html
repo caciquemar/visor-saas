@@ -222,7 +222,7 @@ body.modo-cliente .hoja{max-height:36vh}
 .capa-planos[hidden]{display:none}
 .planos-barra{position:sticky;top:0;z-index:1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
   padding:10px 12px;background:var(--hoja);border-bottom:1px solid var(--linea);font-size:15px;color:var(--tinta-2)}
-.capa-planos svg.hoja{display:block;margin:12px auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);
+.capa-planos svg.pl-hoja{display:block;margin:12px auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);
   width:min(297mm,calc(100vw - 16px));height:auto;font-family:Arial,Helvetica,sans-serif}
 .capa-planos .pl-marco{fill:none;stroke:#111;stroke-width:.35}
 .capa-planos path.pl-gral{fill:none;stroke:#111;stroke-width:.18}
@@ -238,8 +238,9 @@ body.modo-cliente .hoja{max-height:36vh}
   body.con-planos > *:not(#capaPlanos){display:none!important}
   body.con-planos .capa-planos{position:static;overflow:visible;background:none}
   body.con-planos .planos-barra{display:none}
-  body.con-planos svg.hoja{margin:0;box-shadow:none;width:297mm;height:210mm;break-after:page}
-  body.con-planos svg.hoja:last-child{break-after:auto}
+  /* apenas menos que A4: con la medida justa, el redondeo puede pasar a una hoja en blanco */
+  body.con-planos svg.pl-hoja{display:block;margin:0;box-shadow:none;width:296.5mm;height:209.5mm;max-width:none;break-after:page}
+  body.con-planos svg.pl-hoja:last-child{break-after:auto}
 }
 .capa-ar[hidden]{display:none}
 .capa-ar model-viewer{flex:1;width:100%;min-height:0;background:var(--fondo)}
@@ -1138,7 +1139,7 @@ function hojaPlano(mallas, vista, conLuces, n, total, titulo){
     + `<text class="${grande ? 'pl-rot-gr' : 'pl-rot-va'}" x="${x}" y="${R.y + 16}">${esc(corta(valor, ancho))}</text>`;
   const x0 = R.x + (logo ? 30 : 4), xVista = R.x + R.ancho - 98, ancho = (xVista - x0 - 6) / 3;
   const fecha = new Date().toLocaleDateString('es-AR');
-  return `<svg class="hoja" xmlns="http://www.w3.org/2000/svg" width="${HOJA.ancho}mm" height="${HOJA.alto}mm" viewBox="0 0 ${HOJA.ancho} ${HOJA.alto}">
+  return `<svg class="pl-hoja" xmlns="http://www.w3.org/2000/svg" width="${HOJA.ancho}mm" height="${HOJA.alto}mm" viewBox="0 0 ${HOJA.ancho} ${HOJA.alto}">
     <rect x="${HOJA.margen / 2}" y="${HOJA.margen / 2}" width="${HOJA.ancho - HOJA.margen}" height="${HOJA.alto - HOJA.margen}" class="pl-marco"/>
     ${svg}
     <rect x="${R.x}" y="${R.y}" width="${R.ancho}" height="${R.alto}" class="pl-marco"/>
