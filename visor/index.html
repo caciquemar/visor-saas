@@ -217,6 +217,30 @@ body.sin-trabajos #btnTrabajos,body.sin-trabajos #fAnotar,body.sin-trabajos #pmA
 body.modo-cliente .hoja{max-height:36vh}
 .btn-ar{margin:10px 0 4px;font-size:17px}
 .capa-ar{position:fixed;inset:0;z-index:12;background:var(--fondo);display:flex;flex-direction:column}
+/* planos para imprimir: capa a pantalla completa; al imprimir sale solo la capa, una hoja A4 apaisada por vista */
+.capa-planos{position:fixed;inset:0;z-index:13;overflow:auto;background:#9aa3aa}
+.capa-planos[hidden]{display:none}
+.planos-barra{position:sticky;top:0;z-index:1;display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+  padding:10px 12px;background:var(--hoja);border-bottom:1px solid var(--linea);font-size:15px;color:var(--tinta-2)}
+.capa-planos svg.hoja{display:block;margin:12px auto;background:#fff;box-shadow:0 2px 10px rgba(0,0,0,.25);
+  width:min(297mm,calc(100vw - 16px));height:auto;font-family:Arial,Helvetica,sans-serif}
+.capa-planos .pl-marco{fill:none;stroke:#111;stroke-width:.35}
+.capa-planos path.pl-gral{fill:none;stroke:#111;stroke-width:.18}
+.capa-planos text.pl-gral{font-size:3.2px;fill:#111;text-anchor:middle}
+.capa-planos path.pl-luz{fill:none;stroke:#1D5FE0;stroke-width:.18}
+.capa-planos text.pl-luz{font-size:2.8px;fill:#1D5FE0;text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:.8px}
+.capa-planos text.pl-nota{font-size:3px;fill:#555;text-anchor:middle}
+.capa-planos .pl-rot-et{font-size:2.6px;fill:#555}
+.capa-planos .pl-rot-va{font-size:4px;fill:#111}
+.capa-planos .pl-rot-gr{font-size:4.6px;fill:#111;font-weight:bold}
+@media print{
+  body.con-planos{background:#fff;height:auto;overflow:visible}
+  body.con-planos > *:not(#capaPlanos){display:none!important}
+  body.con-planos .capa-planos{position:static;overflow:visible;background:none}
+  body.con-planos .planos-barra{display:none}
+  body.con-planos svg.hoja{margin:0;box-shadow:none;width:297mm;height:210mm;break-after:page}
+  body.con-planos svg.hoja:last-child{break-after:auto}
+}
 .capa-ar[hidden]{display:none}
 .capa-ar model-viewer{flex:1;width:100%;min-height:0;background:var(--fondo)}
 .capa-ar model-viewer[hidden]{display:none}
@@ -400,6 +424,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
           <button id="verTransp" aria-pressed="false" title="Tableros translúcidos para ver adentro">Transparente</button>
           <hr>
           <button id="verTodo">Ver todo</button>
+          <button id="verPlanos" title="Frente, planta y lateral en hojas A4, con medidas">Planos para imprimir</button>
         </div>
       </div>
     </div>
@@ -459,6 +484,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
       </form>
     </div>
   </section>
+</div>
+
+<div class="capa-planos" id="capaPlanos" hidden role="dialog" aria-label="Planos para imprimir">
+  <div class="planos-barra">
+    <button class="btn-sec" id="planosVolver">Volver</button>
+    <span id="planosTitulo"></span>
+    <button class="btn-prim" id="planosImprimir">Imprimir o guardar PDF</button>
+  </div>
+  <div id="planosHojas"></div>
 </div>
 
 <div class="capa-ar" id="capaAR" hidden role="dialog" aria-label="Ver en tu espacio">
@@ -947,10 +981,16 @@ function cajasPlanas(mallas){
 /* Luces: hueco libre entre dos piezas paralelas que se enfrentan sin otra en el medio.
    Ancho entre laterales y divisiones, alto entre piso, estantes y techo. Se dibujan al frente del hueco. */
 function cotasLuces(mallas){
-  const cajas = cajasPlanas(mallas);
-  if (!cajas.length) return;
+  const luces = lucesDe(mallas);
+  if (!luces.length) return;
   const tam = cajaDe(mallas, true).getSize(new THREE.Vector3());
   const tic = Math.max(8, Math.max(tam.x, tam.y) * .012), color = colTiza();
+  luces.forEach(({p1, p2, perp, luz}) => linea(p1, p2, perp, Math.round(luz), tic, color, 'luz'));
+}
+// las luces del mueble: [{eje, p1, p2, perp, luz}], con p1 y p2 al frente del hueco
+function lucesDe(mallas){
+  const cajas = cajasPlanas(mallas), luces = [];
+  if (!cajas.length) return luces;
   const solape = (a, b, ejes) => ejes.map(e => [Math.max(a.min[e], b.min[e]), Math.min(a.max[e], b.max[e])]);
   const vistos = new Set();
   ['x', 'y'].forEach(eje => {
@@ -975,10 +1015,133 @@ function cotasLuces(mallas){
       vistos.add(clave.join('|'));
       const p1 = P({...pos, [eje]: a.b.max[eje]}), p2 = P({...pos, [eje]: b.b.min[eje]});
       const perp = new THREE.Vector3(); perp[o] = 1;
-      linea(p1, p2, perp, Math.round(luz), tic, color, 'luz');
+      luces.push({eje, p1, p2, perp, luz});
     }));
   });
+  return luces;
 }
+
+/* ---------- planos para imprimir: frente, planta y lateral, una hoja A4 apaisada por vista ----------
+   SVG en milímetros: para cada pieza, de atrás hacia adelante, sus triángulos en blanco (tapan lo de atrás) y encima
+   sus bordes (los mismos del 3D). Las piezas están armadas: la geometría ya está en coordenadas del proyecto.
+   u, w: ejes del dibujo (derecha, arriba); prof: más grande = más cerca de quien mira. */
+const VISTAS_PLANO = [
+  {nombre: 'Frente', u: v => v.x, w: v => v.y, prof: v => v.z, ejes: {x: 'u', y: 'w'}, cotas: ['ancho', 'alto']},
+  {nombre: 'Planta', u: v => v.x, w: v => -v.z, prof: v => v.y, ejes: {x: 'u'}, cotas: ['ancho', 'profundidad'],
+   frente: 'abajo'},
+  {nombre: 'Lateral derecho', u: v => -v.z, w: v => v.y, prof: v => v.x, ejes: {y: 'w'}, cotas: ['profundidad', 'alto'],
+   frente: 'izquierda'},
+];
+const ESCALAS = [1, 2, 5, 10, 20, 25, 50, 75, 100, 200, 250, 500];
+const HOJA = {ancho: 297, alto: 210, margen: 10, rotulo: 24, aire: 16};   // mm; aire: lugar para las cotas
+const n2 = x => (Math.round(x * 100) / 100).toString();
+function vistaPlano(mallas, vista, conLuces){
+  const caja = cajaDe(mallas, true), esquinas = [];
+  for (const x of [caja.min.x, caja.max.x]) for (const y of [caja.min.y, caja.max.y]) for (const z of [caja.min.z, caja.max.z])
+    esquinas.push({x, y, z});
+  const us = esquinas.map(vista.u), ws = esquinas.map(vista.w);
+  const u0 = Math.min(...us), u1 = Math.max(...us), w0 = Math.min(...ws), w1 = Math.max(...ws);
+  const A = {x: HOJA.margen, y: HOJA.margen, ancho: HOJA.ancho - 2 * HOJA.margen,
+             alto: HOJA.alto - 2 * HOJA.margen - HOJA.rotulo - 4};
+  const disp = {ancho: A.ancho - 2 * HOJA.aire, alto: A.alto - 2 * HOJA.aire};
+  const d = ESCALAS.find(e => (u1 - u0) / e <= disp.ancho && (w1 - w0) / e <= disp.alto) || ESCALAS[ESCALAS.length - 1];
+  const ox = A.x + (A.ancho - (u1 - u0) / d) / 2, oy = A.y + (A.alto - (w1 - w0) / d) / 2;
+  const X = u => ox + (u - u0) / d, Y = w => oy + (w1 - w) / d;
+  const v3 = new THREE.Vector3();
+  const orden = mallas.map(m => {
+    if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+    const b = m.geometry.boundingBox;
+    return {m, prof: Math.max(vista.prof(b.min), vista.prof(b.max))};
+  }).sort((a, b) => a.prof - b.prof);
+  let dibujo = '';
+  orden.forEach(({m}) => {
+    const pos = m.geometry.getAttribute('position'), relleno = [];
+    for (let i = 0; i < pos.count; i += 3){
+      const q = [0, 1, 2].map(k => { v3.fromBufferAttribute(pos, i + k); return [X(vista.u(v3)), Y(vista.w(v3))]; });
+      const area = (q[1][0] - q[0][0]) * (q[2][1] - q[0][1]) - (q[2][0] - q[0][0]) * (q[1][1] - q[0][1]);
+      if (Math.abs(area) <= 1e-4) continue;
+      if (area < 0) q.reverse();   // todos con el mismo giro: las dos caras de un tablero no se anulan en el relleno
+      relleno.push(`M${q.map(([x, y]) => n2(x) + ' ' + n2(y)).join('L')}Z`);
+    }
+    const bordes = [], e = m.userData.borde.geometry.getAttribute('position');
+    for (let i = 0; i < e.count; i += 2){
+      v3.fromBufferAttribute(e, i); const a = [X(vista.u(v3)), Y(vista.w(v3))];
+      v3.fromBufferAttribute(e, i + 1); const b = [X(vista.u(v3)), Y(vista.w(v3))];
+      if (Math.hypot(b[0] - a[0], b[1] - a[1]) > .05) bordes.push(`M${n2(a[0])} ${n2(a[1])}L${n2(b[0])} ${n2(b[1])}`);
+    }
+    if (relleno.length) dibujo += `<path d="${relleno.join('')}" fill="#fff" stroke="#fff" stroke-width=".06"/>`;
+    if (bordes.length) dibujo += `<path d="${bordes.join('')}" fill="none" stroke="#111" stroke-width=".22" stroke-linecap="round"/>`;
+  });
+  // cota: línea con marcas a 45°, líneas de referencia y el número en mm reales
+  const cota = (x1, y1, x2, y2, valor, lado, clase) => {
+    const L = Math.hypot(x2 - x1, y2 - y1); if (L < .5) return '';
+    const ux = (x2 - x1) / L, uy = (y2 - y1) / L, t = 1.1;
+    const tic = (x, y) => `M${n2(x - (ux - uy) * t)} ${n2(y - (uy + ux) * t)}L${n2(x + (ux - uy) * t)} ${n2(y + (uy + ux) * t)}`;
+    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, ang = Math.abs(uy) > Math.abs(ux) ? -90 : 0;
+    const dx = ang ? -1.2 : 0, dy = ang ? 0 : -1.2;
+    return `<path class="${clase}" d="M${n2(x1)} ${n2(y1)}L${n2(x2)} ${n2(y2)}${tic(x1, y1)}${tic(x2, y2)}${lado || ''}"/>`
+      + `<text class="${clase}" x="${n2(mx + dx)}" y="${n2(my + dy)}" transform="rotate(${ang} ${n2(mx + dx)} ${n2(my + dy)})">${Math.round(valor)}</text>`;
+  };
+  const xi = X(u0), xf = X(u1), ya = Y(w1), yb = Y(w0), sep = 8;
+  let cotas = '';
+  // generales: abajo (horizontal) y a la izquierda (vertical)
+  cotas += cota(xi, yb + sep, xf, yb + sep, u1 - u0, `M${n2(xi)} ${n2(yb + 1.5)}L${n2(xi)} ${n2(yb + sep + 1.5)}M${n2(xf)} ${n2(yb + 1.5)}L${n2(xf)} ${n2(yb + sep + 1.5)}`, 'pl-gral');
+  cotas += cota(xi - sep, yb, xi - sep, ya, w1 - w0, `M${n2(xi - 1.5)} ${n2(yb)}L${n2(xi - sep - 1.5)} ${n2(yb)}M${n2(xi - 1.5)} ${n2(ya)}L${n2(xi - sep - 1.5)} ${n2(ya)}`, 'pl-gral');
+  // internas (un mueble): las luces que se ven de este lado
+  // en el 3D van al frente del hueco; en la planta y el lateral el frente es un borde: a media profundidad
+  const medio = (caja.min.z + caja.max.z) / 2;
+  if (conLuces) lucesDe(mallas).forEach(({eje, p1, p2, luz}) => {
+    if (!vista.ejes[eje]) return;
+    if (vista.frente){ p1 = p1.clone(); p2 = p2.clone(); p1.z = p2.z = medio; }
+    cotas += cota(X(vista.u(p1)), Y(vista.w(p1)), X(vista.u(p2)), Y(vista.w(p2)), luz, '', 'pl-luz');
+  });
+  const orientacion = vista.frente === 'abajo' ? `<text class="pl-nota" x="${n2((xi + xf) / 2)}" y="${n2(yb + sep + 6)}">▼ frente</text>`
+    : vista.frente === 'izquierda' ? `<text class="pl-nota" x="${n2(xi - sep - 4)}" y="${n2(ya - 2)}">◀ frente</text>` : '';
+  return {svg: dibujo + cotas + orientacion, escala: d};
+}
+function hojaPlano(mallas, vista, conLuces, n, total, titulo){
+  const {svg, escala} = vistaPlano(mallas, vista, conLuces);
+  const R = {x: HOJA.margen, y: HOJA.alto - HOJA.margen - HOJA.rotulo, ancho: HOJA.ancho - 2 * HOJA.margen, alto: HOJA.rotulo};
+  const logo = MARCA.logo ? `<image href="${esc(new URL(MARCA.logo, location.href).href)}" x="${R.x + 3}" y="${R.y + 3}" width="24" height="${R.alto - 6}" preserveAspectRatio="xMinYMid meet"/>` : '';
+  // cada columna con su ancho: los nombres largos se cortan para no pisar la siguiente (unos 1,8 mm por letra)
+  const corta = (t, mm) => { t = String(t || ''); const n = Math.floor(mm / 1.8); return t.length > n ? t.slice(0, n - 1) + '…' : t; };
+  const col = (x, rotulo, valor, ancho, grande) => `<text class="pl-rot-et" x="${x}" y="${R.y + 7}">${rotulo}</text>`
+    + `<text class="${grande ? 'pl-rot-gr' : 'pl-rot-va'}" x="${x}" y="${R.y + 16}">${esc(corta(valor, ancho))}</text>`;
+  const x0 = R.x + (logo ? 30 : 4), xVista = R.x + R.ancho - 98, ancho = (xVista - x0 - 6) / 3;
+  const fecha = new Date().toLocaleDateString('es-AR');
+  return `<svg class="hoja" xmlns="http://www.w3.org/2000/svg" width="${HOJA.ancho}mm" height="${HOJA.alto}mm" viewBox="0 0 ${HOJA.ancho} ${HOJA.alto}">
+    <rect x="${HOJA.margen / 2}" y="${HOJA.margen / 2}" width="${HOJA.ancho - HOJA.margen}" height="${HOJA.alto - HOJA.margen}" class="pl-marco"/>
+    ${svg}
+    <rect x="${R.x}" y="${R.y}" width="${R.ancho}" height="${R.alto}" class="pl-marco"/>
+    ${logo}
+    ${col(x0, 'Taller', NOMBRE, ancho - 4, true)}
+    ${col(x0 + ancho, 'Proyecto', datos.proyecto, ancho - 2)}
+    ${col(x0 + 2 * ancho, titulo.mueble ? 'Mueble' : 'Planos de', titulo.mueble || 'Proyecto completo', ancho - 2)}
+    ${col(xVista, 'Vista', vista.nombre, 44, true)}
+    ${col(R.x + R.ancho - 52, 'Escala', '1:' + escala, 20)}
+    ${col(R.x + R.ancho - 30, 'Hoja', `${n} de ${total}`, 28)}
+    <text class="pl-rot-et" x="${R.x + R.ancho - 3}" y="${R.y + R.alto - 2.5}" text-anchor="end">Medidas en mm · ${esc(fecha)}</text>
+  </svg>`;
+}
+function abrirPlanos(){
+  if (!datos || !paneles.length) return;
+  const mueble = seleccion ? seleccion.mueble : null, mallas = mueble ? mallasDe(mueble) : paneles;
+  const titulo = {mueble: mueble && limpiarNombre(mueble)};
+  const hojas = VISTAS_PLANO.map((v, i) => hojaPlano(mallas, v, !!mueble, i + 1, VISTAS_PLANO.length, titulo)).join('\n');
+  $('planosHojas').innerHTML = hojas;
+  $('planosTitulo').textContent = `${mueble ? titulo.mueble : 'Proyecto completo'} · ${VISTAS_PLANO.length} hojas A4`;
+  // la hoja apaisada solo mientras se ven los planos (no cambia otras impresiones del visor)
+  if (!$('planosPagina')) document.head.insertAdjacentHTML('beforeend', '<style id="planosPagina">@page{size:A4 landscape;margin:0}</style>');
+  document.body.classList.add('con-planos');
+  $('capaPlanos').hidden = false; $('capaPlanos').scrollTop = 0;
+}
+function cerrarPlanos(){
+  $('capaPlanos').hidden = true; $('planosHojas').innerHTML = '';
+  document.body.classList.remove('con-planos');
+  if ($('planosPagina')) $('planosPagina').remove();
+}
+$('planosImprimir').onclick = () => print();
+$('planosVolver').onclick = cerrarPlanos;
 /* Taladros de la pieza elegida: distancia a los bordes. Los que están en fila con el mismo paso
    (sistema 32) se acotan una vez: del borde al primero y "n × paso" hasta el último. */
 function cotasTaladros(m){
@@ -1712,6 +1875,7 @@ $('verAislar').onclick = () => {
     actualizarCotas(); actualizarBarra();
   };
 });
+$('verPlanos').onclick = () => { cerrarDesplegables(); abrirPlanos(); };
 $('verTransp').onclick = () => {
   transparente = !transparente; $('verTransp').setAttribute('aria-pressed', transparente); pintar();
 };
@@ -1769,6 +1933,7 @@ document.addEventListener('pointerdown', e => {
 ['verAislar', 'verDespiece', 'verTransp'].forEach(id => $(id).addEventListener('click', () => actualizarBarra()));
 document.addEventListener('keydown', e => {
   if (e.key !== 'Escape') return;
+  if (!$('capaPlanos').hidden){ cerrarPlanos(); return; }
   const abierto = DESPLEGABLES.some(([, m]) => !$(m).hidden);
   if (abierto){ cerrarDesplegables(); return; }
   // escribiendo, con el escáner o la AR abiertos, o cargando un trabajo: Esc no toca la selección

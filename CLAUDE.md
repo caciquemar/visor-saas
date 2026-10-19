@@ -291,9 +291,22 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   entrada por WhatsApp desde la ficha del armador en Equipo (24 horas, una vez); "Cambiar de persona" en el menú y
   en el visor. Ver `docs/decisiones.md`. Pruebas en `tests/app/test_entrar_simple.py` (con un autenticador WebAuthn
   falso). **Falta probar la huella con un celular de verdad** (ver Pendientes).
+- 2026-10-19: **ficha 16 hecha: planos para imprimir** (pedido de Martín). En Vista ▾, "Planos para imprimir" (taller
+  y link del cliente): tres hojas A4 apaisadas, Frente, Planta y Lateral derecho, del mueble elegido o del proyecto
+  entero. Se arman en el visor (`vistaPlano`, `hojaPlano`, `abrirPlanos` en `index.html`) como SVG en milímetros: por
+  pieza, de atrás hacia adelante, sus triángulos en blanco (todos con el mismo giro, si no las dos caras de un tablero
+  se anulan y queda un agujero) y sus bordes del 3D. Escala normalizada, cotas generales e internas (solo con un
+  mueble; el cálculo de las luces quedó aparte en `lucesDe`, que usa también el 3D) y rótulo con la marca. Se abren
+  en una capa dentro del visor (una ventana nueva la bloquean el navegador integrado y algunos celulares); al
+  imprimir sale solo la capa, con `@page` A4 apaisada mientras está abierta. Clases `pl-…` (había una `.marco` del
+  escáner que cortaba el marco de la hoja). También en el visor del NAS. Probado en el navegador integrado: proyecto y
+  mueble, las tres vistas, link del cliente con logo. **Falta ver la vista previa de impresión** (el navegador
+  integrado no la muestra).
 
 ## Pendientes
 
+- **Planos (ficha 16), imprimir de verdad** (Martín): Imprimir o guardar PDF desde la PC y desde el celular, que salgan
+  tres hojas A4 apaisadas sin la barra, y medir con escalímetro una cota sobre el papel.
 - **Huella, probar con celulares de verdad** (Martín, en el NAS por HTTPS): con un Android y, si hay, un iPhone,
   y con el visor instalado como app: link de entrada por WhatsApp → Entrar → "Usar la huella" → Salir → tocar el
   nombre → huella. Revisar que `DOMINIO_APP` del NAS sea exactamente el dominio con que se entra (si no, el

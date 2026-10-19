@@ -2,6 +2,15 @@
 
 Una entrada por decisión, la más nueva arriba. Qué se decidió, por qué y qué se descartó.
 
+## 2026-10-19 · Planos: en el visor, SVG en mm, una hoja A4 por vista
+Martín eligió Frente, Planta y Lateral, también para el cliente, cotas internas solo en el plano de un mueble, y A4.
+Se arman en el navegador con lo que ya tiene el visor (piezas en mm, bordes, luces): andan igual en la app, en el link
+del cliente y en el visor del NAS, sin servidor. SVG en milímetros (líneas nítidas a cualquier tamaño) con las piezas
+pintadas de atrás hacia adelante para tapar lo oculto. Una hoja por vista para que entre a una escala legible. Se
+muestran en una capa del mismo visor, no en una ventana nueva (la bloquean algunos navegadores y el visor instalado
+como app). Descartado: PDF armado en el servidor (no existe en el NAS ni para el cliente sin más trabajo) y una imagen
+del 3D (se ve borrosa al imprimir).
+
 ## 2026-10-12 · Entrar lo más simple posible
 Pedido de Martín: sacar barreras de uso.
 - **Sesión de 30 días que se renueva con el uso**, para todos (antes: PIN 12 horas, mail 2 semanas). La de PIN sigue

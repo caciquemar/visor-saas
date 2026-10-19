@@ -23,6 +23,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [13](13-avance-carga.md) | Avance por etapas, fin de fabricación por mueble y control de carga | 05 + 12 | antes de pilotos | hecha (2026-10-11) |
 | [14](14-probador-colores.md) | Probador de colores en el link del cliente | 04 | antes de pilotos | hecha (2026-10-11) |
 | [15](15-cotas-internas.md) | Cotas internas: luces entre piezas, taladros y herrajes | 04 | después de pilotos | hecha (2026-10-10) |
+| [16](16-planos.md) | Planos para imprimir: frente, planta y lateral | 15 | — | hecha (2026-10-19) |
 
 Orden sugerido desde acá: 06 → 12 → 13 → 14 → 07a → 11 (pilotos) → 07b → 08 → 09 → 10 → 15. Las fichas 12 a 14 se sumaron el
 2026-10-06: son las tres funcionalidades nuevas que Martín eligió para tener antes de los pilotos. La 15 (cotas
