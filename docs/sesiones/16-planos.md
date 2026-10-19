@@ -11,7 +11,8 @@ para el taller y para el cliente.
 - Cotas **generales** siempre; **internas** (luces entre piezas) solo en el plano de un mueble.
 - Escala normalizada (1:5, 1:10, 1:20, 1:25, 1:50…), la mayor que entra, escrita en el rótulo.
 - Rótulo: taller (logo si tiene), proyecto, mueble, vista, escala, fecha, hoja.
-- Sin herrajes, muros ni números de mecanizado (sirve igual para el cliente).
+- Muros de la obra en gris, de contexto (agregado el mismo día). Sin herrajes ni números de mecanizado (sirve
+  igual para el cliente).
 - También en el visor del NAS.
 
 ## Fuera de alcance

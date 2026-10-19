@@ -301,7 +301,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   imprimir sale solo la capa, con `@page` A4 apaisada mientras está abierta. Clases `pl-…` (había una `.marco` del
   escáner que cortaba el marco de la hoja). También en el visor del NAS. Probado en el navegador integrado: proyecto y
   mueble, las tres vistas, link del cliente con logo. **Falta ver la vista previa de impresión** (el navegador
-  integrado no la muestra).
+  integrado no la muestra). Agregado (pedido de Martín): los **muros de la obra** en gris detrás de los muebles
+  (`cajaEnVista`, `trazo`): sin los que quedan entre quien mira y los muebles, recortados a 40 cm alrededor en el
+  proyecto y 15 cm en un mueble; las cotas siguen siendo las de los muebles.
 
 ## Pendientes
 
