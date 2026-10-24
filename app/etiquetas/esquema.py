@@ -22,6 +22,18 @@ TRASERA = re.compile(r'^(trasera|fondo\b|espalda)', re.I)
 FRENTES = re.compile(r'^(puerta|frente|caj[oó]n|tapa caj)', re.I)
 
 
+def puntos(p):
+    """Los vértices (x, y, z, x, y, z…) de una pieza: sus triángulos (`t`, en el proyecto.json completo) o las 8
+    esquinas de su caja (`caja`: x0, y0, z0, x1, y1, z1, en el liviano de etiquetas/datos.py)."""
+    t = p.get('t') or []
+    if len(t) >= 9:
+        return t
+    c = p.get('caja')
+    if not c:
+        return []
+    return [v for x in (c[0], c[3]) for y in (c[1], c[4]) for z in (c[2], c[5]) for v in (x, y, z)]
+
+
 def _centro(t):
     """Centro de la caja de los vértices (x, y, z) de una pieza."""
     return [(min(t[i::3]) + max(t[i::3])) / 2 for i in range(3)]
@@ -35,15 +47,15 @@ def _unitario(x, z):
 def frente_del_mueble(proyecto, mueble):
     """(fx, fz): hacia dónde mira el frente del mueble en el plano horizontal, siempre a lo largo de un eje (los
     muebles van a escuadra; en un esquinero en L las señales dan en diagonal y se toma el eje más cercano)."""
-    piezas = [p for p in proyecto.get('paneles', []) if p.get('mueble') == mueble and len(p.get('t') or []) >= 9]
+    piezas = [p for p in proyecto.get('paneles', []) if p.get('mueble') == mueble and puntos(p)]
     if not piezas:
         return FRENTE_DEL_PROYECTO
-    todo = [v for p in piezas for v in p['t']]
+    todo = [v for p in piezas for v in puntos(p)]
     cx, _, cz = _centro(todo)
     sx = sz = 0.0
     # 1. la derecha de quien mira: del Lateral Izquierdo al Derecho; el frente queda girado 90° (f = (-r.z, r.x))
-    der = [_centro(p['t']) for p in piezas if DERECHO.search(p.get('nombre', ''))]
-    izq = [_centro(p['t']) for p in piezas if IZQUIERDO.search(p.get('nombre', ''))]
+    der = [_centro(puntos(p)) for p in piezas if DERECHO.search(p.get('nombre', ''))]
+    izq = [_centro(puntos(p)) for p in piezas if IZQUIERDO.search(p.get('nombre', ''))]
     if der and izq:
         rx = sum(c[0] for c in der) / len(der) - sum(c[0] for c in izq) / len(izq)
         rz = sum(c[2] for c in der) / len(der) - sum(c[2] for c in izq) / len(izq)
@@ -51,7 +63,7 @@ def frente_del_mueble(proyecto, mueble):
         sx, sz = sx - uz, sz + ux
     # 2. la trasera queda atrás y 3. las puertas y frentes adelante, respecto del centro del mueble
     for patron, signo in ((TRASERA, -1), (FRENTES, 1)):
-        cs = [_centro(p['t']) for p in piezas if patron.search(p.get('nombre', ''))]
+        cs = [_centro(puntos(p)) for p in piezas if patron.search(p.get('nombre', ''))]
         if cs:
             ux, uz = _unitario(sum(c[0] for c in cs) / len(cs) - cx, sum(c[2] for c in cs) / len(cs) - cz)
             sx, sz = sx + signo * ux, sz + signo * uz
@@ -74,8 +86,8 @@ def esquema(proyecto, mueble, todo=False):
         propio = p.get('mueble') == mueble
         if not (propio or todo):
             continue
-        t = p.get('t') or []
-        if len(t) < 9:
+        t = puntos(p)
+        if not t:
             continue
         us, vs, ds = [], [], []
         for i in range(0, len(t) - 2, 3):

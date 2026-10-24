@@ -53,3 +53,20 @@ def test_la_opcion_queda_guardada_y_llega_al_pdf(cliente_de, t):
         assert f.para_pdf().esquema == 'proyecto'
     r = c.get('/taller-a/visor/api/etiquetas/pdf', {'proyecto': pa.pk, 'm': PARED, 'bultos': 2})
     assert r.status_code == 200 and r['Content-Type'] == 'application/pdf'
+
+
+def test_el_esquema_sale_del_proyecto_que_guarda_la_app(t):
+    """Lo que vio Martín: las etiquetas salían sin dibujo porque la app lee una versión liviana del proyecto (sin los
+    triángulos). Ahora esa versión trae la caja de cada pieza y alcanza para el esquema."""
+    from etiquetas import datos
+    from etiquetas.datos import proyecto_de as liviano, version_actual
+    datos._leer.cache_clear()
+    pa = proyecto_de(t.A)
+    with con_taller(t.A):
+        d = liviano(version_actual(pa))
+    assert all('t' not in p for p in d['paneles']) and all(p.get('caja') for p in d['paneles'])
+    assert frente_del_mueble(d, COSTADO) == (1.0, 0.0)
+    assert len(esquema(d, PARED)) == len(esquema(GRONDONA, PARED))
+    cajas = sorted(x['caja'] for x in esquema(d, COSTADO))
+    assert cajas == sorted(x['caja'] for x in esquema(GRONDONA, COSTADO))
+    datos._leer.cache_clear()

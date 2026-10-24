@@ -22,6 +22,9 @@ def _leer(ruta, marca):
     for p in d.get('paneles', []):
         q = {k: p[k] for k in CAMPOS if k in p}
         q['cantos'] = [{k: c[k] for k in ('mat', 'lado', 'pos', 'largo') if k in c} for c in p.get('cantos', [])]
+        t = p.get('t') or []
+        if len(t) >= 9:                  # la caja de la pieza (lo único de la geometría que usa el esquema del mueble)
+            q['caja'] = [min(t[0::3]), min(t[1::3]), min(t[2::3]), max(t[0::3]), max(t[1::3]), max(t[2::3])]
         paneles.append(q)
     return {'proyecto': d.get('proyecto', ''), 'paneles': paneles}
 
