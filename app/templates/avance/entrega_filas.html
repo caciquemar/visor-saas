@@ -1,4 +1,18 @@
 {# Las filas de la Lista de entrega (avance/entrega.html): también se piden solas para actualizarla (?filas=1). #}
+{% if elegido %}
+<div class="barra-pasos" role="img" aria-label="{% for p in totales_avance %}{{ p.nombre }} {{ p.n }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+  {% for p in totales_avance %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}
+</div>
+<div class="leyenda">{% for p in totales_avance %}<span><i style="background:{{ p.color }}"></i>{{ p.nombre }} <b>{{ p.n }}</b></span>{% endfor %}</div>
+<ul class="muebles">
+{% for m in muebles %}
+  <li class="mueble" id="{{ m.ancla }}" style="--c:{{ m.av.color }}">
+    <div class="cabeza"><strong>{{ m.nombre }}</strong><span class="paso">{{ m.av.nombre }}{% if m.av.de %} · {{ m.av.hechas }}/{{ m.av.de }}{% endif %}</span></div>
+    {% if m.av.cuando %}<div class="meta">{{ elegido.nombre }}: {{ m.av.por|default:"—" }}, {{ m.av.cuando }}</div>{% endif %}
+  </li>
+{% endfor %}
+</ul>
+{% else %}
 <div class="barra-pasos" role="img" aria-label="{% for p in pasos %}{{ p.nombre }} {{ p.n }}{% if not forloop.last %}, {% endif %}{% endfor %}">
   {% for p in pasos %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}
 </div>
@@ -39,3 +53,4 @@
   </li>
 {% endfor %}
 </ul>
+{% endif %}

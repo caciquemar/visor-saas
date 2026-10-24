@@ -21,7 +21,8 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     POST puesto/api/anotar                 {proyecto, mueble, panel?, proceso?, texto, tarea?}   anotación
     POST puesto/api/anotaciones/<id>/fotos cuerpo = la imagen
     GET  puesto/api/fotos-de-anotacion/<id>
-    GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (Lista y 3D de entrega), con sus anotaciones
+    GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (bloque del mueble en el visor), con sus anotaciones
+    GET  visor/api/avance-proceso?proyecto=<id>&proceso=<id>   qué muebles y piezas cumplieron un proceso (3D)
     POST puesto/api/reabrir                {proyecto, mueble}
     GET  puesto/api/cargas/<id>
     POST puesto/api/cargas/<id>/bulto      {texto}
@@ -38,8 +39,8 @@ from trabajos.api import (EXTENSION, MAX_FOTO, TIPOS_FOTO, UN_ANIO, Rechazo, api
 
 from . import acciones, entrega
 from .calculo import avance, piezas_de, piezas_nuevas, ubicaciones
-from .models import FotoDeAnotacion, FotoDeInstalacion, Marca, Ubicacion
-from .pasos import pasos
+from .models import FotoDeAnotacion, FotoDeInstalacion, Marca, Ubicacion, procesos as procesos_del_taller
+from .pasos import COLORES_AVANCE, NOMBRES_AVANCE, avance_de_proceso, pasos
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
@@ -332,3 +333,21 @@ def foto_de_anotacion(request, taller, id):
     r = abrir_de_taller(request, f.archivo.name)
     r['Cache-Control'] = f'private, max-age={UN_ANIO}, immutable'
     return r
+
+
+# ---------------------------------------------------------------- ficha 20: avance de un proceso (3D de Mi puesto)
+
+@api
+def avance_proceso(request, taller):
+    """Qué muebles (y piezas, en un proceso por pieza) cumplieron un proceso: lo que pinta el 3D de Mi puesto."""
+    solo(request, 'GET')
+    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+    etapa = next((e for e in procesos_del_taller() if e.pk == entero(request.GET.get('proceso'))), None)
+    if etapa is None:
+        raise Rechazo(404, 'Ese proceso no existe.')
+    piezas = piezas_de(p)
+    if not piezas:
+        raise Http404()
+    d = avance_de_proceso(p, etapa, piezas)
+    return responder(200, {'proyecto': acciones.proyecto_a_dic(p), 'proceso': {'id': etapa.pk, 'nombre': etapa.nombre},
+                           **d, 'colores': COLORES_AVANCE, 'nombres': NOMBRES_AVANCE})

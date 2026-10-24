@@ -122,3 +122,71 @@ def pasos(proyecto, piezas=None, a=None):
         }
     return {'muebles': muebles, 'totales': totales, 'controles': controles_, 'pasos': activos,
             'con_control': 'controlado' in hay}
+
+
+# ---------------------------------------------------------------- avance de un proceso (ficha 20)
+
+COLORES_AVANCE = {'hecho': '#27AE60', 'parcial': '#F2994A', 'obs': '#EB5757', 'falta': '#CFD8DC'}
+NOMBRES_AVANCE = {'hecho': 'Hecho', 'parcial': 'A medias', 'obs': 'Con observaciones', 'falta': 'Falta'}
+
+
+def avance_de_proceso(proyecto, etapa, piezas=None):
+    """Para la Lista y el 3D de Mi puesto: qué muebles (y, en un proceso por pieza, qué piezas) cumplieron ese
+    proceso. {'muebles': {nombre: {estado, por, cuando, hechas, de}}, 'paneles': {id del panel: bool} (solo en los
+    procesos que marcan piezas), 'totales': {estado: cuántos muebles}, 'por_pieza': bool}. Estado: 'hecho',
+    'parcial' (algunas piezas o algunos bultos), 'obs' (control con observaciones) o 'falta'."""
+    from .calculo import marcas_vigentes
+    piezas = piezas_de(proyecto) if piezas is None else piezas
+    por_mueble_ = {}
+    for x in piezas:
+        por_mueble_.setdefault(x['panel']['mueble'], []).append(x)
+    muebles, paneles = {}, {}
+
+    def poner(n, estado, por=None, cuando=None, hechas=None, de=None):
+        muebles[n] = {'estado': estado, **quien_cuando(por, cuando), 'hechas': hechas, 'de': de}
+
+    if etapa.marca_piezas:
+        ultima = {}
+        for m in marcas_vigentes(proyecto, [etapa]).select_related('por').order_by('cuando', 'pk'):
+            ultima[m.huella] = m
+        for n, xs in por_mueble_.items():
+            hechas = [ultima[x['huella']] for x in xs if x['huella'] in ultima]
+            for x in xs:
+                paneles[x['panel']['id']] = x['huella'] in ultima
+            u = max(hechas, key=lambda m: m.cuando) if hechas else None
+            estado = 'hecho' if len(hechas) == len(xs) else 'parcial' if hechas else 'falta'
+            poner(n, estado, u.por if u else None, u.cuando if u else None, len(hechas), len(xs))
+    elif etapa.tipo == Etapa.Tipo.CONTROL:
+        ultimo = {c.mueble: c for c in Control.objects.filter(proyecto=proyecto).select_related('por')
+                  .order_by('cuando', 'pk')}
+        for n in por_mueble_:
+            c = ultimo.get(n)
+            poner(n, 'falta' if c is None else 'hecho' if c.ok else 'obs', c and c.por, c and c.cuando)
+    elif etapa.tipo == Etapa.Tipo.EMBALAJE:
+        from .models import FinDeMueble
+        fines = {f.mueble: f for f in FinDeMueble.objects.filter(proyecto=proyecto, anulado_en__isnull=True)
+                 .select_related('por')}
+        for n in por_mueble_:
+            f = fines.get(n)
+            poner(n, 'hecho' if f else 'falta', f and f.por, f and f.cuando, f.bultos if f else None)
+    elif etapa.tipo == Etapa.Tipo.CARGA:
+        bultos = {}
+        for b in Bulto.objects.filter(proyecto=proyecto, fin__anulado_en__isnull=True).select_related('cargado_por'):
+            bultos.setdefault(b.mueble, []).append(b)
+        for n in por_mueble_:
+            bs = bultos.get(n, [])
+            cargados = [b for b in bs if b.estado != Bulto.Estado.EMBALADO]
+            u = max(cargados, key=lambda b: b.cargado_en or b.embalado_en) if cargados else None
+            estado = 'hecho' if bs and len(cargados) == len(bs) else 'parcial' if cargados else 'falta'
+            poner(n, estado, u and u.cargado_por, u and u.cargado_en, len(cargados), len(bs))
+    else:                                                  # instalación
+        inst = {i.mueble: i for i in Instalacion.objects.filter(proyecto=proyecto, anulado_en__isnull=True)
+                .select_related('por')}
+        for n in por_mueble_:
+            i = inst.get(n)
+            poner(n, 'hecho' if i else 'falta', i and i.por, i and i.cuando)
+    totales = {k: 0 for k in COLORES_AVANCE}
+    for m in muebles.values():
+        totales[m['estado']] += 1
+    return {'muebles': dict(sorted(muebles.items(), key=lambda kv: kv[0].lower())), 'paneles': paneles,
+            'totales': totales, 'por_pieza': etapa.tipo == Etapa.Tipo.PIEZA and not etapa.por_mueble}

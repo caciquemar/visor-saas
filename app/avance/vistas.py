@@ -27,7 +27,7 @@ from trabajos.api import Rechazo
 from . import acciones
 from . import entrega as entrega_
 from .calculo import piezas_de
-from .pasos import pasos
+from .pasos import COLORES_AVANCE, NOMBRES_AVANCE, avance_de_proceso, pasos
 from .tablero import tablero as armar_tablero
 from .models import (Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, fijo,
                      procesos as procesos_del_taller, puntos_de_control)
@@ -206,8 +206,10 @@ def tablero(request, taller):
 
 @miembro
 def entrega(request, taller, id):
-    """Lista de entrega del proyecto (ficha 18): cada mueble con sus pasos, del armado a la instalación. Se actualiza
-    sola (`?filas=1` devuelve solo las filas). El dueño y la oficina marcan instalado o lo deshacen desde acá."""
+    """Lista del proyecto (ficha 18): cada mueble con sus pasos, del armado a la instalación. Con `?proceso=<id>`
+    (ficha 20: el botón Lista de Mi puesto), el avance de ese proceso: qué muebles lo cumplieron, cuáles van a medias
+    y cuáles faltan. Se actualiza sola (`?filas=1` devuelve solo las filas). El dueño y la oficina marcan instalado o
+    lo deshacen desde acá."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
     gestiona = request.membresia.rol in (Rol.DUENO, Rol.OFICINA)
     if request.method == 'POST':
@@ -230,17 +232,27 @@ def entrega(request, taller, id):
         raise Http404()
     d = pasos(proyecto, piezas)
     total = len(d['muebles']) or 1
+    prendidos = [e for e in procesos_del_taller() if e.activa]
+    elegido = next((e for e in prendidos if str(e.pk) == request.GET.get('proceso')), None)
+    av = avance_de_proceso(proyecto, elegido, piezas) if elegido else None
     colores, nombres = {k: c for k, _, c in d['pasos']}, {k: n for k, n, _ in d['pasos']}
     contexto = {
         'proyecto': proyecto, 'gestiona': gestiona,
-        'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']])
+        'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']],
+                         av=dict(av['muebles'][n], color=COLORES_AVANCE[av['muebles'][n]['estado']],
+                                 nombre=NOMBRES_AVANCE[av['muebles'][n]['estado']]) if av else None)
                     for n, m in d['muebles'].items()],
+        'procesos': prendidos, 'elegido': elegido,
+        'totales_avance': [{'clave': k, 'nombre': NOMBRES_AVANCE[k], 'color': c, 'n': av['totales'][k],
+                            'pct': f"{av['totales'][k] * 100 / total:.2f}"}
+                           for k, c in COLORES_AVANCE.items() if k != 'obs' or av['totales'][k]] if av else [],
         'pasos': [{'clave': k, 'nombre': nombre_, 'color': c, 'n': d['totales'][k],
                    'pct': f"{d['totales'][k] * 100 / total:.2f}"}       # texto con punto: va a CSS
                   for k, nombre_, c in d['pasos']],
         'con_control': d['con_control'], 'con_carga': 'cargado' in colores, 'con_embalaje': 'embalado' in colores,
         'con_instalacion': 'instalado' in colores, 'con_armado': 'armado' in colores,
-        'visor': reverse('taller:proyectos:visor', kwargs={'taller': taller}) + f'?p={proyecto.pk}&entrega=1',
+        'visor': reverse('taller:proyectos:visor', kwargs={'taller': taller}) + f'?p={proyecto.pk}'
+                 + (f'&avance={elegido.pk}' if elegido else ''),
     }
     plantilla = 'avance/entrega_filas.html' if request.GET.get('filas') == '1' else 'avance/entrega.html'
     return render(request, plantilla, contexto)

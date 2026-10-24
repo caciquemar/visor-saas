@@ -247,3 +247,21 @@ def test_anotaciones_con_y_sin_tarea_y_fotos(cliente_de, t, pa):
     assert post(cb, '/taller-b/puesto/api/anotar', {'proyecto': pa.pk, 'mueble': m, 'texto': 'x'}).status_code == 404
     with con_taller(t.B):
         assert not Anotacion.objects.exists()
+
+
+# ---------------------------------------------------------------- ficha 20: avance de un proceso (Lista y 3D)
+
+def test_avance_de_un_proceso(cliente_de, t, pa):
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    i = ids(t.A)
+    post(c, '/taller-a/puesto/api/armar', {'texto': qr(etiqueta(t.A, pa, mueble=m)), 'etapa': i['Armado']})
+    d = c.get(f'/taller-a/visor/api/avance-proceso?proyecto={pa.pk}&proceso={i["Armado"]}').json()
+    assert d['muebles'][m]['estado'] == 'hecho' and d['totales']['hecho'] == 1 and not d['por_pieza']
+    corte = i['Cortada']
+    post(c, '/taller-a/puesto/api/marcar', {'texto': etiqueta(t.A, pa, piezas_del(m)[0]).codigo, 'etapa': corte})
+    d = c.get(f'/taller-a/visor/api/avance-proceso?proyecto={pa.pk}&proceso={corte}').json()
+    assert d['por_pieza'] and d['muebles'][m]['estado'] == 'parcial' and sum(d['paneles'].values()) == 1
+    html = c.get(f'/taller-a/proyectos/{pa.pk}/entrega/?proceso={i["Armado"]}').content.decode()
+    assert 'Avance: Armado' in html and f'avance={i["Armado"]}' in html
+    assert cliente_de(t.dueno_b).get(f'/taller-b/visor/api/avance-proceso?proyecto={pa.pk}&proceso={corte}').status_code == 404

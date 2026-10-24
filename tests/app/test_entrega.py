@@ -245,7 +245,7 @@ def test_lista_de_entrega(cliente_de, t, pa):
     assert paso(t.A, pa, otro)['paso'] == 'instalado'
     # la pantalla del proyecto lleva a la Lista y al 3D
     html = o.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
-    assert f'/taller-a/proyectos/{pa.pk}/entrega/' in html and 'entrega=1' in html
+    assert f'/taller-a/proyectos/{pa.pk}/entrega/' in html
     # desde B, nada
     assert cliente_de(t.dueno_b).get(f'/taller-b/proyectos/{pa.pk}/entrega/').status_code == 404
 

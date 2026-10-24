@@ -33,12 +33,19 @@
 {% endblock %}
 {% block contenido %}
 <p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=proyecto.pk %}">{{ proyecto.nombre }}</a></p>
-<h1>Entrega</h1>
+<h1>{% if elegido %}Avance: {{ elegido.nombre }}{% else %}Entrega{% endif %}</h1>
+<form method="get" class="acciones" style="margin:0 0 .5rem">
+  <label for="selProceso" style="margin:0;align-self:center">Proceso</label>
+  <select id="selProceso" name="proceso" style="width:auto" onchange="this.form.submit()">
+    <option value="">Todos los pasos</option>
+    {% for e in procesos %}<option value="{{ e.pk }}"{% if e == elegido %} selected{% endif %}>{{ e.nombre }}</option>{% endfor %}
+  </select>
+</form>
 <div class="acciones" style="margin:0 0 .5rem">
-  <a class="boton" href="{{ visor }}">Ver en 3D</a>
+  {% if elegido %}<a class="boton" href="{{ visor }}">Ver en 3D</a>{% endif %}
   <a class="boton secundario-enlace" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=instalar&amp;p={{ proyecto.pk }}">Mi puesto</a>
 </div>
-<p class="suave" style="margin:0">Del armado a la instalación, mueble por mueble. Se actualiza sola.</p>
+<p class="suave" style="margin:0">{% if elegido %}Qué muebles cumplieron {{ elegido.nombre|lower }}.{% else %}Del armado a la instalación, mueble por mueble.{% endif %} Se actualiza sola.</p>
 <div id="filas">{% include 'avance/entrega_filas.html' %}</div>
 <script>
 (() => {
@@ -47,7 +54,8 @@
   setInterval(async () => {
     if (document.hidden || filas.querySelector('details[open]') || filas.contains(document.activeElement)) return;
     try {
-      const r = await fetch(location.pathname + '?filas=1', {credentials: 'same-origin'});
+      const q = new URLSearchParams(location.search); q.set('filas', '1');
+      const r = await fetch(location.pathname + '?' + q, {credentials: 'same-origin'});
       if (r.ok) filas.innerHTML = await r.text();
     } catch (e) {}
   }, 15000);

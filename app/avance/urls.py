@@ -23,6 +23,7 @@ urlpatterns = [
     path('puesto/api/instalaciones/<int:id>/fotos', api.fotos_de_instalacion, name='fotos_de_instalacion'),
     path('puesto/api/fotos-de-instalacion/<int:id>', api.foto_de_instalacion, name='foto_de_instalacion'),
     path('visor/api/entrega', api.entrega_visor, name='entrega_visor'),
+    path('visor/api/avance-proceso', api.avance_proceso, name='avance_proceso'),
     path('puesto/api/anotar', api.anotar, name='anotar'),
     path('puesto/api/anotaciones/<int:id>/fotos', api.fotos_de_anotacion, name='fotos_de_anotacion'),
     path('puesto/api/fotos-de-anotacion/<int:id>', api.foto_de_anotacion, name='foto_de_anotacion'),

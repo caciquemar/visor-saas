@@ -252,12 +252,13 @@ function usarProyecto(p){                // el de la última pieza leída, para 
   estado.proyecto = p.id; $('selProyecto').value = p.id; $('pedirProyecto').hidden = true;
   links();
 }
-// Lista y 3D de entrega del proyecto que se está trabajando (cargar, entregar, instalar)
+// Lista y 3D: el avance del proceso que se está trabajando en el proyecto de la última lectura (qué muebles, o
+// piezas, ya lo cumplieron), para mirar; no es el visor de armado
 function links(){
-  const ver = ['carga', 'instalar'].includes(estado.modo) && !!estado.proyecto;
+  const p = procesoActual(), ver = !!p && !!estado.proyecto;
   $('verLista').hidden = $('ver3D').hidden = !ver;
-  if (ver){ $('verLista').href = C.entrega.replace('{id}', estado.proyecto);
-            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&entrega=1`; }
+  if (ver){ $('verLista').href = `${C.entrega.replace('{id}', estado.proyecto)}?proceso=${p.id}`;
+            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&avance=${p.id}`; }
 }
 function faltaProyecto(d, txt){
   if (!d.falta_proyecto) return false;
