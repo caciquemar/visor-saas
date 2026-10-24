@@ -190,6 +190,9 @@ body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:no
   font:500 16px var(--sans);text-decoration:none;text-align:left;background:none;border:0}
 .menu-lista a:hover,.menu-lista button:hover{background:var(--fondo)}
 .menu-lista a[aria-current="page"]{color:var(--tiza);font-weight:600}
+.menu-lista a.seccion{font-weight:600}
+.menu-lista a.seccion:not(:first-child){margin-top:4px}
+.menu-lista a.sub{padding:7px 12px 7px 26px;font-size:15px}
 .menu-lista .quien{padding:8px 12px 2px;font-size:13px;color:var(--tinta-2);border-top:1px solid var(--linea);margin-top:4px}
 /* camino: Proyecto › Mueble › Pieza */
 .camino{display:flex;flex-wrap:wrap;align-items:center;gap:2px 4px;margin:0 0 8px;font-size:15px;color:var(--tinta-2)}
@@ -1974,7 +1977,7 @@ document.addEventListener('keydown', e => {
 
 /* ---------- menú de la app (solo taller): las pantallas del servicio, según el rol ---------- */
 if (!CLIENTE && Array.isArray(VISOR.menu) && VISOR.menu.length){
-  $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.actual ? ' aria-current="page"' : ''}${x.proyecto ? ` data-proyecto="${esc(x.url)}"` : ''}>${esc(x.nombre)}</a>`).join('')
+  $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.seccion ? ' class="seccion"' : x.sub ? ' class="sub"' : ''}${x.actual ? ' aria-current="page"' : ''}${x.proyecto ? ` data-proyecto="${esc(x.url)}"` : ''}>${esc(x.nombre)}</a>`).join('')
     + (VISOR.salir ? `<div class="quien">${esc((VISOR.yo && VISOR.yo.nombre) || '')}</div>
       ${VISOR.cambiar ? `<a href="${esc(VISOR.cambiar)}">Cambiar de persona</a>` : ''}
       <form method="post" action="${esc(VISOR.salir)}"><input type="hidden" name="csrfmiddlewaretoken" value="${esc(VISOR.csrf || '')}">

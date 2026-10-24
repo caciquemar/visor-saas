@@ -304,6 +304,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   integrado no la muestra). Agregado (pedido de Martín): los **muros de la obra** en gris detrás de los muebles
   (`cajaEnVista`, `trazo`): sin los que quedan entre quien mira y los muebles, recortados a 40 cm alrededor en el
   proyecto y 15 cm en un mueble; las cotas siguen siendo las de los muebles.
+- 2026-10-24: **Inicio por secciones (pedido de Martín, con su dibujo).** El Inicio tiene un botón grande con ícono
+  por sección: Armado (Visor y Trabajos), Proyectos (va directo a la lista), Producción (Puesto y Trabajos) y, separada
+  por una línea, Configuración (Materiales y Equipo para dueño y oficina; Marca y Etapas solo dueño). Cada sección
+  tiene su pantalla (`/<taller>/armado/`, `produccion/`, `configuracion/`, `talleres/seccion.html`). Trabajos va en
+  Armado y en Producción a propósito. El menú ☰ de las páginas y el del visor tienen los mismos grupos; todo sale de
+  `SECCIONES` en `talleres/menu.py`. Probado en el navegador integrado en formato celular.
 
 ## Pendientes
 

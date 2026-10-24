@@ -105,9 +105,10 @@ def url_de_etiquetas(request):
 def menu_de(request):
     """Las pantallas del servicio para el menú del visor: las mismas que el menú ☰ de las demás páginas."""
     menu = [dict(x, actual=x['nombre'] == 'Visor') for x in pantallas(request)]
-    # la del proyecto que se está viendo: el visor pone el id en {id}
-    menu.insert(3, {'nombre': 'Etiquetas del proyecto', 'url': url_de_etiquetas(request), 'actual': False,
-                    'proyecto': True})
+    # debajo de Proyectos, la del proyecto que se está viendo: el visor pone el id en {id}
+    despues = next(i for i, x in enumerate(menu) if x['nombre'] == 'Proyectos') + 1
+    menu.insert(despues, {'nombre': 'Etiquetas del proyecto', 'url': url_de_etiquetas(request), 'actual': False,
+                          'proyecto': True, 'sub': True})
     return menu
 
 

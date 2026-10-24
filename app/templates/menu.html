@@ -21,6 +21,9 @@
               background:none; border:0; cursor:pointer; }
   .menu-lista a:hover, .menu-lista button:hover { background:var(--fondo); }
   .menu-lista a[aria-current="page"] { color:var(--acento); font-weight:600; }
+  .menu-lista a.seccion { font-weight:600; }
+  .menu-lista a.seccion:not(:first-child) { margin-top:4px; }
+  .menu-lista a.sub { padding:7px 12px 7px 26px; font-size:15px; }
   .menu-lista .quien { padding:8px 12px 2px; font-size:13px; color:var(--suave); border-top:1px solid var(--borde);
                        margin-top:4px; }
   .menu-lista form { margin:0; }
@@ -30,7 +33,7 @@
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <nav class="menu-lista" id="menuLista" hidden>
-    {% for x in menu %}<a href="{{ x.url }}"{% if x.actual %} aria-current="page"{% endif %}>{{ x.nombre }}</a>
+    {% for x in menu %}<a href="{{ x.url }}"{% if x.seccion %} class="seccion"{% elif x.sub %} class="sub"{% endif %}{% if x.actual %} aria-current="page"{% endif %}>{{ x.nombre }}</a>
     {% empty %}<a href="{% url 'inicio' %}">Mis talleres</a>{% endfor %}
     <div class="quien">{{ user }}</div>
     <a href="{% url 'entrar' %}?cambiar=1">Cambiar de persona</a>

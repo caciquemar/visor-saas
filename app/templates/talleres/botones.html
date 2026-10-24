@@ -1,0 +1,12 @@
+{# Botones grandes del Inicio y de cada sección (talleres/inicio.html, talleres/seccion.html). #}
+<style>
+  .botones { display:flex; flex-direction:column; gap:.75rem; max-width:34rem; }
+  .boton-grande { display:flex; align-items:center; gap:1rem; min-height:4.5rem; padding:1rem 1.1rem;
+                  background:var(--panel); border:1px solid var(--borde); border-radius:12px; color:var(--texto);
+                  text-decoration:none; }
+  .boton-grande:hover, .boton-grande:focus-visible { border-color:var(--acento); }
+  .boton-grande .icono { width:2.5rem; height:2.5rem; flex:none; color:var(--acento); }
+  .boton-grande strong { display:block; font-size:1.15rem; }
+  .boton-grande .suave { display:block; font-size:.9rem; }
+  .separador { width:100%; border:0; border-top:1px solid var(--borde); margin:.5rem 0; }
+</style>

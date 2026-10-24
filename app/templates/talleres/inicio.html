@@ -1,27 +1,16 @@
 {% extends 'base.html' %}
 {% block titulo %}Inicio{% endblock %}
+{% block cabeza %}{% include 'talleres/botones.html' %}{% endblock %}
 {% block contenido %}
 <h1>{{ request.taller.nombre }}</h1>
-<p class="suave">Entraste como {{ request.membresia.get_rol_display|lower }}.</p>
-<div class="caja" style="margin-bottom:1rem">
-  <h2 style="margin-top:0">Visor</h2>
-  <p class="suave">Escaneá una pieza o tocala en el dibujo para ver dónde va. En el celular, agregalo a la pantalla de inicio.</p>
-  <div class="acciones">
-    <a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}">Abrir el visor</a>
-  </div>
-</div>
-<div class="caja" style="margin-bottom:1rem">
-  <h2 style="margin-top:0">Trabajos</h2>
-  <p class="suave">Lo que falta hacer o instalar en todos los proyectos. Se anotan desde el visor, en la pieza o el mueble.</p>
-  <div class="acciones">
-    <a class="boton" href="{% url 'taller:trabajos:lista' taller=request.taller.slug %}">Ver trabajos</a>
-  </div>
-</div>
-<div class="caja">
-  <h2 style="margin-top:0">Proyectos</h2>
-  <p class="suave">Subí los proyectos de Polyboard (DXF 3D y lista de OptiCut) y seguí cómo se convierten.</p>
-  <div class="acciones">
-    <a class="boton" href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Ver proyectos</a>
-  </div>
-</div>
+<p class="suave">Entraste como {{ request.membresia.get_rol_display|lower }}. En el celular, agregá el visor a la pantalla de inicio.</p>
+<nav class="botones" aria-label="Secciones">
+  {% for s in secciones %}
+  {% if s.clave == 'configuracion' %}<hr class="separador">{% endif %}
+  <a class="boton-grande" href="{{ s.url }}">
+    {% include 'talleres/icono.html' with clave=s.clave %}
+    <span><strong>{{ s.nombre }}</strong><span class="suave">{{ s.descripcion }}</span></span>
+  </a>
+  {% endfor %}
+</nav>
 {% endblock %}

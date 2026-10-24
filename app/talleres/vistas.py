@@ -19,6 +19,7 @@ from .archivos import abrir_de_taller
 from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, FormDatosPin,
                           roles_que_puede_dar)
 from .mails import NO_SALIO
+from .menu import secciones
 from .mails import invitar as mandar_invitacion
 from .mails import reenviar as mandar_de_nuevo
 from .mails import link_absoluto
@@ -35,7 +36,16 @@ def a_equipo(request):
 
 @miembro
 def inicio(request, taller):
-    return render(request, 'talleres/inicio.html')
+    return render(request, 'talleres/inicio.html', {'secciones': secciones(request)})
+
+
+@miembro
+def seccion(request, taller, seccion):
+    """La pantalla de una sección del Inicio (Armado, Producción, Configuración): sus pantallas, según el rol."""
+    esta = next((s for s in secciones(request) if s['clave'] == seccion and not s['directa']), None)
+    if esta is None:
+        raise PermissionDenied('Tu rol no tiene acceso a esta pantalla.')
+    return render(request, 'talleres/seccion.html', {'seccion': esta})
 
 
 def invitaciones_sin_usar():

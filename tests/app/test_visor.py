@@ -94,9 +94,10 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert config.pop('avance') == {'puesto': '/taller-a/puesto/'}
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
-        ('Inicio', '/taller-a/'), ('Visor', '/taller-a/visor/'), ('Proyectos', '/taller-a/proyectos/'),
-        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Trabajos', '/taller-a/trabajos/'),
-        ('Puesto', '/taller-a/puesto/')]
+        ('Inicio', '/taller-a/'), ('Armado', '/taller-a/armado/'), ('Visor', '/taller-a/visor/'),
+        ('Trabajos', '/taller-a/trabajos/'), ('Proyectos', '/taller-a/proyectos/'),
+        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Producción', '/taller-a/produccion/'),
+        ('Puesto', '/taller-a/puesto/'), ('Trabajos', '/taller-a/trabajos/')]
     assert [x['nombre'] for x in menu if x['actual']] == ['Visor']
     # equipo: la gente activa de A (no la de B), para "Para quién" en los trabajos
     assert config == {'trabajos': True, 'fotos': True, 'yo': {'id': t.armador_a.pk, 'nombre': 'Arturo'},
@@ -398,10 +399,10 @@ def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Puesto', 'Materiales',
-                 'Equipo', 'Marca', 'Etapas']),
-    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Etiquetas del proyecto', 'Trabajos', 'Puesto', 'Materiales',
-                   'Equipo']),
+    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Trabajos', 'Proyectos', 'Etiquetas del proyecto', 'Producción',
+                 'Puesto', 'Trabajos', 'Configuración', 'Materiales', 'Equipo', 'Marca', 'Etapas']),
+    ('oficina_a', ['Inicio', 'Armado', 'Visor', 'Trabajos', 'Proyectos', 'Etiquetas del proyecto', 'Producción',
+                   'Puesto', 'Trabajos', 'Configuración', 'Materiales', 'Equipo']),
 ])
 def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
     menu = config_de(cliente_de(getattr(t, quien)).get('/taller-a/visor/'))['menu']
@@ -412,8 +413,9 @@ def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Puesto', 'Materiales', 'Equipo', 'Marca', 'Etapas']),
-    ('armador_a', ['Inicio', 'Visor', 'Proyectos', 'Trabajos', 'Puesto']),
+    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Trabajos', 'Proyectos', 'Producción', 'Puesto', 'Trabajos',
+                 'Configuración', 'Materiales', 'Equipo', 'Marca', 'Etapas']),
+    ('armador_a', ['Inicio', 'Armado', 'Visor', 'Trabajos', 'Proyectos', 'Producción', 'Puesto', 'Trabajos']),
 ])
 def test_menu_de_las_paginas_igual_al_del_visor(cliente_de, t, quien, pantallas):
     """El menú ☰ de las demás pantallas (templates/menu.html) tiene las mismas que el del visor y marca la actual."""
@@ -424,3 +426,34 @@ def test_menu_de_las_paginas_igual_al_del_visor(cliente_de, t, quien, pantallas)
         assert [x['nombre'] for x in r.context['menu']] == pantallas
         assert [x['nombre'] for x in r.context['menu'] if x['actual']] == [actual]
         assert 'id="btnMenu"' in r.content.decode()
+
+
+@pytest.mark.parametrize('quien,botones', [
+    ('dueno_a', ['Armado', 'Proyectos', 'Producción', 'Configuración']),
+    ('oficina_a', ['Armado', 'Proyectos', 'Producción', 'Configuración']),
+    ('armador_a', ['Armado', 'Proyectos', 'Producción']),
+])
+def test_inicio_con_un_boton_por_seccion(cliente_de, t, quien, botones):
+    """El Inicio tiene un botón grande por sección; Proyectos va directo a la lista y las demás a su pantalla, que
+    solo trae lo que el rol puede abrir. Trabajos está en Armado y en Producción."""
+    c = cliente_de(getattr(t, quien))
+    secciones = c.get('/taller-a/').context['secciones']
+    assert [s['nombre'] for s in secciones] == botones
+    assert secciones[1]['url'] == '/taller-a/proyectos/'
+    for s in secciones:
+        if s['directa']:
+            continue
+        r = c.get(s['url'])
+        assert r.status_code == 200
+        assert all(p['url'] in r.content.decode() for p in s['pantallas'])
+    nombres = lambda clave: [p['nombre'] for p in next(s for s in secciones if s['clave'] == clave)['pantallas']]
+    assert nombres('armado') == ['Visor', 'Trabajos'] and nombres('produccion') == ['Puesto', 'Trabajos']
+    if quien == 'oficina_a':
+        assert nombres('configuracion') == ['Materiales', 'Equipo']
+
+
+def test_configuracion_no_es_para_el_armador(cliente_de, t):
+    c = cliente_de(t.armador_a)
+    assert c.get('/taller-a/configuracion/').status_code == 403
+    assert c.get('/taller-a/produccion/').status_code == 200
+    assert c.get('/taller-a/otra-cosa/').status_code == 404
