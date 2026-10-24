@@ -139,6 +139,7 @@
       <span class="cuenta" id="cuenta"></span>
       <a class="boton-chico" id="verLista" hidden>Lista</a>
       <a class="boton-chico" id="ver3D" hidden>3D</a>
+      <button type="button" id="btnCerrarCarga" hidden>Cerrar la carga</button>
       <button type="button" id="btnCambiar">Cambiar</button>
     </div>
     <div class="camara" id="camara">
@@ -205,7 +206,13 @@ function opciones(sel, items, valor, vacio){
 }
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 opciones($('selProyecto'), C.proyectos, estado.proyecto, 'Elegí el proyecto');
-opciones($('selCarga'), C.cargas, estado.carga, C.cargas.length ? 'Elegí la carga' : 'No hay cargas abiertas');
+// la carga: una de las que se están cargando o "Nueva": la crea el primer bulto escaneado (lleva solo lo que se escanee)
+function opcionesCarga(){
+  opciones($('selCarga'), C.cargas, estado.carga, null);
+  $('selCarga').insertAdjacentHTML('afterbegin', '<option value="nueva">Nueva carga (se crea al escanear)</option>');
+  if (!C.cargas.some(c => c.id === estado.carga)) $('selCarga').value = 'nueva';
+}
+opcionesCarga();
 opciones($('selUbicacion'), C.ubicaciones, estado.ubicacion, 'No cambiar');
 // los procesos prendidos del taller, en orden (Procesos): por pieza → modo etapa; por mueble (y Armado) → modo mueble;
 // los fijos de después del armado tienen su modo. "Tareas" va aparte, al final.
@@ -258,7 +265,8 @@ function links(){
   const p = procesoActual(), ver = !!p && !!estado.proyecto;
   $('verLista').hidden = $('ver3D').hidden = !ver;
   if (ver){ $('verLista').href = `${C.entrega.replace('{id}', estado.proyecto)}?proceso=${p.id}`;
-            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&avance=${p.id}`; }
+            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&avance=${p.id}`
+              + (estado.modo === 'carga' && estado.carga !== 'nueva' ? `&carga=${estado.carga}` : ''); }
 }
 function faltaProyecto(d, txt){
   if (!d.falta_proyecto) return false;
@@ -268,11 +276,9 @@ function faltaProyecto(d, txt){
 }
 
 function validarEleccion(){
-  estado.carga = +$('selCarga').value || null;
+  estado.carga = $('selCarga').value === 'nueva' ? 'nueva' : +$('selCarga').value || 'nueva';
   estado.ubicacion = ['etapa', 'mueble', 'fin'].includes(estado.modo) ? (+$('selUbicacion').value || null) : null;
   if (!$('selModo').value || !estado.modo) return 'Elegí el proceso.';
-  if (estado.modo === 'carga' && !estado.carga)
-    return 'Elegí la carga. Se arma en la pantalla del proyecto.';
   return null;
 }
 $('btnEmpezar').onclick = () => {
@@ -330,10 +336,8 @@ function empezar(){
     : estado.modo === 'instalar' ? 'Escaneá el mueble o un bulto' : 'Escaneá cada bulto');
   if (carga) usarProyecto({id: carga.proyecto});
   links();
-  if (estado.modo === 'carga'){
-    $('verCarga').href = C.carga.replace('{id}', estado.carga);
-    pedir('GET', `cargas/${estado.carga}`).then(r => r.ok && dibujarCarga(r.datos));
-  }
+  $('btnCerrarCarga').hidden = true;
+  if (estado.modo === 'carga') usarCarga(estado.carga);
   if (estado.modo === 'fin' && q.get('m') && estado.proyecto)            // desde el proyecto: ver ese mueble
     pedir('GET', `mueble?proyecto=${estado.proyecto}&mueble=${encodeURIComponent(q.get('m'))}`)
       .then(r => r.ok ? tarjetaMueble(r.datos) : null);
@@ -716,13 +720,33 @@ $('btnGuardarAnot').onclick = async () => {
 };
 
 /* ---------- carga: cada bulto al camión (un mueble sin embalar se embala con 1 bulto) ---------- */
+// la carga en uso: su título, su link y lo que falta; "nueva" mientras no se escaneó el primer bulto
+function usarCarga(id){
+  estado.carga = id;
+  const c = C.cargas.find(x => x.id === id);
+  $('titulo').textContent = c ? c.nombre : 'Carga nueva';
+  $('verCarga').hidden = $('btnCerrarCarga').hidden = id === 'nueva';
+  $('faltanCarga').hidden = id === 'nueva';
+  if (id === 'nueva'){ $('cuenta').textContent = ''; return; }
+  $('verCarga').href = C.carga.replace('{id}', id);
+  if (c) usarProyecto({id: c.proyecto});
+  links();
+  pedir('GET', `cargas/${id}`).then(r => r.ok && dibujarCarga(r.datos));
+}
 async function leerBulto(txt){
-  const r = await pedir('POST', `cargas/${estado.carga}/bulto`, {texto: txt});
+  const nueva = estado.carga === 'nueva';
+  const r = await pedir('POST', nueva ? 'cargas/nueva/bulto' : `cargas/${estado.carga}/bulto`, {texto: txt, proyecto: estado.proyecto});
   const d = r.datos;
+  if (r.ok && faltaProyecto(d, txt)) return;
   if (!r.ok || d.resultado === 'error') return mostrar('mal', d.error || 'No se pudo', '', d.mueble ? `${d.mueble} · bulto ${d.numero}` : '');
+  if (nueva){                              // la carga se creó con este bulto: queda elegida para los siguientes
+    C.cargas.unshift({id: d.carga.id, proyecto: d.carga.proyecto.id, nombre: `${d.carga.proyecto.nombre} · carga ${d.carga.id}`,
+                      estado: d.carga.estado});
+    opcionesCarga(); usarCarga(d.carga.id);
+    try { localStorage.setItem('puesto.eleccion', JSON.stringify({modo: 'carga', carga: d.carga.id})); } catch (e) {}
+  }
   const verbo = 'Cargado';
-  const cargaElegida = C.cargas.find(c => c.id === estado.carga);
-  if (cargaElegida) anotable({proyecto: cargaElegida.proyecto, mueble: d.mueble, nombre: d.mueble});
+  anotable({proyecto: d.carga.proyecto.id, mueble: d.mueble, nombre: d.mueble});
   const texto = `${d.mueble} · bulto ${d.numero} de ${d.de}`;
   if (d.resultado === 'ya') mostrar('ya', `Ya estaba ${verbo.toLowerCase()}`, `${d.numero}/${d.de}`, d.mueble,
                                     `${d.ya.por || '—'}, ${cuandoCorto(d.ya.cuando)}`);
@@ -730,6 +754,18 @@ async function leerBulto(txt){
     ultimas.unshift({bulto: d.bulto, corto: `bulto ${d.numero}/${d.de}`, texto}); ultimas = ultimas.slice(0, 10); dibujarUltimas(); }
   dibujarCarga(d.carga);
 }
+$('btnCerrarCarga').onclick = async () => {
+  const c = cargaActual;
+  if (!c) return;
+  const falta = c.faltantes.length ? `\n\nFaltan ${c.faltantes.length}: quedan para otro envío.\n${c.faltantes.slice(0, 8).join('\n')}` : '';
+  if (!confirm(`¿Cerrar la carga ${c.id} (salió a obra) con ${c.cargados} bulto${c.cargados === 1 ? '' : 's'}?${falta}`)) return;
+  const motivo = c.faltantes.length ? (prompt('Motivo de lo que falta (opcional):') || '') : '';
+  const r = await pedir('POST', `cargas/${c.id}/salir`, {motivo});
+  if (!r.ok) return mostrar('mal', r.datos.error || 'No se pudo cerrar');
+  C.cargas = C.cargas.filter(x => x.id !== c.id);
+  opcionesCarga(); usarCarga('nueva'); cargaActual = null; ultimas = []; dibujarUltimas();
+  mostrar('ok', 'Carga cerrada', '', `Carga ${c.id}: salió a obra`, c.faltantes.length ? 'Lo que faltó queda para otro envío' : '');
+};
 function dibujarCarga(c){
   cargaActual = c;
   $('cuenta').textContent = `${c.cargados} / ${c.total}`;

@@ -99,3 +99,33 @@ def test_lo_que_falta_queda_para_otro_envio(cliente_de, t, pa):
     segunda = la_carga(t)
     d = c.get(f'/taller-a/puesto/api/cargas/{segunda.pk}').json()
     assert d['faltantes'] == [f'{m} · bulto 2 de 2'] and d['total'] == 1
+
+
+def test_carga_nueva_al_escanear_y_cerrarla_con_faltantes(cliente_de, t, pa):
+    m, otro = dos_muebles()
+    c = cliente_de(t.armador_a)
+    terminar(c, pa, m, 2, 'x')
+    terminar(c, pa, otro, 1, 'x')
+    d = post(c, '/taller-a/puesto/api/cargas/nueva/bulto', {'texto': qr(etiqueta(t.A, pa, mueble=m), 1)}).json()
+    assert d['resultado'] == 'ok' and d['carga']['libre']
+    carga = la_carga(t)
+    assert carga.libre and carga.muebles == [m] and carga.proyecto == pa
+    # la libre suma cada mueble que se carga; sus faltantes son solo los otros bultos de lo empezado
+    post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/bulto', {'texto': qr(etiqueta(t.A, pa, mueble=otro), 1)})
+    d = c.get(f'/taller-a/puesto/api/cargas/{carga.pk}').json()
+    assert set(d['muebles']) == {m, otro} and d['faltantes'] == [f'{m} · bulto 2 de 2']
+    # una lectura que no carga nada no deja una carga vacía
+    with con_taller(t.A):
+        antes = Carga.objects.count()
+    assert post(c, '/taller-a/puesto/api/cargas/nueva/bulto', {'texto': 'ZZZZZZZZ'}).json()['resultado'] == 'error'
+    with con_taller(t.A):
+        assert Carga.objects.count() == antes
+    # cerrar desde el puesto con faltantes: sale, y lo que falta queda para otro envío
+    d = post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/salir', {'motivo': ''}).json()
+    assert d['carga']['estado'] in ('salio', 'entregada')
+    with con_taller(t.A):
+        assert m in pendientes_de_envio(pa)
+    # desde B, nada
+    cb = cliente_de(t.dueno_b)
+    assert post(cb, f'/taller-b/puesto/api/cargas/{carga.pk}/salir', {}).status_code == 404
+    assert post(cb, '/taller-b/puesto/api/cargas/nueva/bulto', {'texto': qr(etiqueta(t.A, pa, mueble=m), 2)}).json()['resultado'] == 'error'

@@ -27,6 +27,8 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     GET  puesto/api/cargas/<id>
     POST puesto/api/cargas/<id>/bulto      {texto}
     POST puesto/api/cargas/<id>/deshacer   {bulto}
+    POST puesto/api/cargas/nueva/bulto     {texto}                     crea una carga libre con ese bulto
+    POST puesto/api/cargas/<id>/salir      {motivo?}                   cerrar la carga (sale aunque falte algo)
     GET  visor/api/avance?proyecto=<id>
 """
 from django.http import Http404
@@ -351,3 +353,22 @@ def avance_proceso(request, taller):
     d = avance_de_proceso(p, etapa, piezas)
     return responder(200, {'proyecto': acciones.proyecto_a_dic(p), 'proceso': {'id': etapa.pk, 'nombre': etapa.nombre},
                            **d, 'colores': COLORES_AVANCE, 'nombres': NOMBRES_AVANCE})
+
+
+# ---------------------------------------------------------------- ficha 21: carga nueva al escanear y cerrarla
+
+@api
+def bulto_carga_nueva(request, taller):
+    """El primer bulto de una carga que se crea al escanear (libre: lleva solo lo que se escanee)."""
+    solo(request, 'POST')
+    return responder(200, acciones.bulto_leido(request.user, request.taller.slug, None, texto_de(leer_json(request))))
+
+
+@api
+def salir_carga(request, taller, id):
+    """"Cerrar la carga" en Mi puesto: sale a obra aunque falte algo (queda para otro envío)."""
+    solo(request, 'POST')
+    d = leer_json(request)
+    c = acciones.carga_o_rechazo(id)
+    acciones.salir(request.user, c, d.get('motivo'))
+    return responder(200, {'resultado': 'ok', 'carga': acciones.carga_a_dic(c)})
