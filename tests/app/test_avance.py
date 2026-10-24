@@ -9,7 +9,8 @@ from django.conf import settings
 
 from avance import calculo
 from avance.estado import estado_del_pedido
-from avance.models import Bulto, Carga, Etapa, FinDeMueble, Marca, Movimiento, etapas_activas, etapas_del_taller
+from avance.models import (Bulto, Carga, Etapa, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas,
+                           etapas_del_taller)
 from etiquetas import claves, datos
 from talleres.separacion import OtroTaller, con_taller
 from tests.app.test_etiquetas import GRONDONA, etiqueta, guardar_version, proyecto_de, una_pieza
@@ -71,15 +72,39 @@ def test_etapas_por_defecto_por_taller(t):
 
 
 def test_solo_el_dueno_cambia_las_etapas(cliente_de, t):
+    """Las etapas están en Procesos: el dueño las cambia; la oficina entra (ubicaciones) pero no las ve ni las
+    cambia; el armador no entra. /etapas/ lleva a Procesos."""
     e = etapas(t.A)
-    assert cliente_de(t.armador_a).get('/taller-a/etapas/').status_code == 403
+    assert cliente_de(t.armador_a).get('/taller-a/procesos/').status_code == 403
+    oficina = cliente_de(t.oficina_a)
+    assert 'Etapas de las piezas' not in oficina.get('/taller-a/procesos/').content.decode()
+    assert oficina.post('/taller-a/procesos/', {'accion': 'agregar-etapas', 'nombre': 'X'}).status_code == 403
     c = cliente_de(t.dueno_a)
-    assert c.get('/taller-a/etapas/').status_code == 200
-    datos_ = {'accion': 'guardar', **{f'nombre-{i}': n for n, i in e.items()},
+    assert c.get('/taller-a/etapas/')['Location'] == '/taller-a/procesos/'
+    assert 'Etapas de las piezas' in c.get('/taller-a/procesos/').content.decode()
+    datos_ = {'accion': 'guardar-etapas', **{f'nombre-{i}': n for n, i in e.items()},
               **{f'activa-{i}': '1' for n, i in e.items() if n != 'Mecanizada'}, f'nombre-{e["Cortada"]}': 'Corte'}
-    c.post('/taller-a/etapas/', datos_)
+    c.post('/taller-a/procesos/', datos_)
     with con_taller(t.A):
         assert [x.nombre for x in etapas_activas()] == ['Corte', 'Canteada', 'Armada']
+
+
+def test_ubicaciones_las_cargan_dueno_y_oficina(cliente_de, t):
+    oficina = cliente_de(t.oficina_a)
+    oficina.post('/taller-a/procesos/', {'accion': 'agregar-ubicaciones', 'nombre': 'Estante A'})
+    oficina.post('/taller-a/procesos/', {'accion': 'agregar-ubicaciones', 'nombre': 'Depósito'})
+    with con_taller(t.A):
+        a, d = Ubicacion.objects.all()
+    assert (a.nombre, d.nombre) == ('Estante A', 'Depósito')
+    oficina.post('/taller-a/procesos/', {'accion': 'guardar-ubicaciones', 'orden': f'{d.pk},{a.pk}',
+                                         f'nombre-{a.pk}': 'Estante 1', f'activa-{a.pk}': '1', f'nombre-{d.pk}': 'Depósito'})
+    with con_taller(t.A):
+        assert [(x.nombre, x.activa) for x in Ubicacion.objects.all()] == [('Depósito', False), ('Estante 1', True)]
+    oficina.post('/taller-a/procesos/', {'accion': f'borrar-ubicaciones-{d.pk}'})
+    with con_taller(t.A):
+        assert list(Ubicacion.objects.values_list('nombre', flat=True)) == ['Estante 1']
+    with con_taller(t.B):
+        assert not Ubicacion.objects.exists()                           # las de A no se ven desde B
 
 
 # ---------------------------------------------------------------- marcar piezas
@@ -339,12 +364,12 @@ def test_avance_de_a_no_se_ve_ni_se_toca_desde_b(cliente_de, t, pa):
 def test_ordenar_las_etapas_arrastrando(cliente_de, t):
     e = etapas(t.A)
     nuevo = [e['Canteada'], e['Cortada'], e['Armada'], e['Mecanizada']]
-    datos_ = {'accion': 'guardar', 'orden': ','.join(map(str, nuevo)), **{f'nombre-{i}': n for n, i in e.items()},
+    datos_ = {'accion': 'guardar-etapas', 'orden': ','.join(map(str, nuevo)), **{f'nombre-{i}': n for n, i in e.items()},
               **{f'activa-{i}': '1' for i in e.values()}}
     c = cliente_de(t.dueno_a)
-    c.post('/taller-a/etapas/', datos_)
+    c.post('/taller-a/procesos/', datos_)
     with con_taller(t.A):
         assert [x.pk for x in etapas_activas()] == nuevo
         assert etapas_activas()[-1].nombre == 'Mecanizada'        # la última es la que mira "Fabricación terminada"
-    pagina = c.get('/taller-a/etapas/').content.decode()            # y la pantalla las muestra en ese orden
+    pagina = c.get('/taller-a/procesos/').content.decode()            # y la pantalla las muestra en ese orden
     assert [pagina.index(f'name="nombre-{i}"') for i in nuevo] == sorted(pagina.index(f'name="nombre-{i}"') for i in nuevo)

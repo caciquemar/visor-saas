@@ -3,11 +3,14 @@
     /<taller>/puesto/                          modo puesto: escanear piezas, terminar muebles, cargar y entregar
     /<taller>/proyectos/<id>/cargas/nueva/     armar una carga (POST)
     /<taller>/cargas/<id>/                     lo cargado y lo que falta; "Salió a obra"
-    /<taller>/etapas/                          las etapas del taller (solo el dueño)
+    /<taller>/procesos/                        etapas (solo el dueño) y ubicaciones (dueño y oficina)
+    /<taller>/tablero/                         tablero de control de Producción
+    /<taller>/etapas/                          lleva a Procesos
 """
 import json
 
 from django.contrib import messages
+from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.middleware.csrf import get_token
 from django.shortcuts import get_object_or_404, redirect, render
@@ -19,7 +22,7 @@ from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
 
 from . import acciones
-from .models import Carga, Etapa, etapas_del_taller
+from .models import Carga, Etapa, Ubicacion, etapas_del_taller
 
 
 def url(request, nombre, **kwargs):
@@ -81,43 +84,70 @@ def carga(request, taller, id):
     }, status=400 if error else 200)
 
 
-@con_rol(Rol.DUENO)
-def etapas(request, taller):
-    lista = etapas_del_taller()
+def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
+    """Lo que manda la tabla de Procesos para una lista ordenada (etapas o ubicaciones): agregar, guardar nombres,
+    tildes y el orden en que quedaron las filas, o borrar una que nunca se usó. `nombre` es el prefijo de los
+    campos y de las acciones; `sin_ninguna`, el aviso si no puede quedar ninguna prendida."""
+    accion = request.POST.get('accion', '')
+    if accion == f'agregar-{nombre}':
+        texto = request.POST.get('nombre', '').strip()[:40]
+        if texto:
+            modelo.objects.create(nombre=texto, orden=max((e.orden for e in lista), default=0) + 1)
+    elif accion == f'guardar-{nombre}':
+        for e in lista:
+            texto = request.POST.get(f'nombre-{e.pk}', '').strip()[:40]
+            e.nombre = texto or e.nombre
+            e.activa = request.POST.get(f'activa-{e.pk}') == '1'
+            e.save(update_fields=['nombre', 'activa'])
+        if sin_ninguna and lista and not any(e.activa for e in lista):
+            messages.error(request, sin_ninguna)
+            lista[-1].activa = True
+            lista[-1].save(update_fields=['activa'])
+        # el orden en que quedaron las filas al arrastrarlas (ids separados por coma); las que falten, al final
+        pedido = [i for i in request.POST.get('orden', '').split(',') if i.isdigit()]
+        if pedido:
+            lugar = {int(i): n for n, i in enumerate(pedido)}
+            lista.sort(key=lambda e: lugar.get(e.pk, len(lugar)))
+            for n, e in enumerate(lista, 1):
+                if e.orden != n:
+                    e.orden = n
+                    e.save(update_fields=['orden'])
+    elif accion.startswith(f'borrar-{nombre}-'):
+        e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1]), None)
+        usada = e is not None and (e.marcas.exists() if modelo is Etapa else e.ubicados.exists())
+        if e is not None and not usada and (modelo is not Etapa or len(lista) > 1):
+            e.delete()
+        elif e is not None:
+            messages.error(request, f'{e.nombre} ya se usó: apagala en vez de borrarla.')
+
+
+@con_rol(Rol.DUENO, Rol.OFICINA)
+def procesos(request, taller):
+    """Procesos de Producción: las etapas de las piezas (solo el dueño) y las ubicaciones del taller (dueño y
+    oficina)."""
+    dueno = request.membresia.rol == Rol.DUENO
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
-        if accion == 'agregar':
-            nombre = request.POST.get('nombre', '').strip()[:40]
-            if nombre:
-                Etapa.objects.create(nombre=nombre, orden=max((e.orden for e in lista), default=0) + 1)
-        elif accion == 'guardar':
-            for e in lista:
-                nombre = request.POST.get(f'nombre-{e.pk}', '').strip()[:40]
-                e.nombre = nombre or e.nombre
-                e.activa = request.POST.get(f'activa-{e.pk}') == '1'
-                e.save(update_fields=['nombre', 'activa'])
-            if not any(e.activa for e in lista):
-                messages.error(request, 'Dejá al menos una etapa prendida.')
-                lista[-1].activa = True
-                lista[-1].save(update_fields=['activa'])
-            # el orden en que quedaron las filas al arrastrarlas (ids separados por coma); las que falten, al final
-            pedido = [i for i in request.POST.get('orden', '').split(',') if i.isdigit()]
-            if pedido:
-                lugar = {int(i): n for n, i in enumerate(pedido)}
-                lista.sort(key=lambda e: lugar.get(e.pk, len(lugar)))
-                for n, e in enumerate(lista, 1):
-                    if e.orden != n:
-                        e.orden = n
-                        e.save(update_fields=['orden'])
-        elif accion.startswith('borrar-'):
-            e = next((e for e in lista if str(e.pk) == accion[7:]), None)
-            if e is not None and not e.marcas.exists() and len(lista) > 1:
-                e.delete()
-            elif e is not None:
-                messages.error(request, f'{e.nombre} ya tiene piezas marcadas: apagala en vez de borrarla.')
-        return redirect(url(request, 'etapas'))
-    # order_by explícito: con annotate (GROUP BY), Django no aplica el orden de Meta
-    lista = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
-                 .order_by('orden', 'pk'))
-    return render(request, 'avance/etapas.html', {'etapas': lista,
-                                                  'armado': next((e for e in reversed(lista) if e.activa), None)})
+        if accion.endswith('-etapas') or '-etapas-' in accion:
+            if not dueno:
+                raise PermissionDenied('Las etapas las cambia el dueño.')
+            editar_lista(request, Etapa, etapas_del_taller(), 'etapas', 'Dejá al menos una etapa prendida.')
+        else:
+            editar_lista(request, Ubicacion, list(Ubicacion.objects.all()), 'ubicaciones')
+        return redirect(url(request, 'procesos'))
+    etapas = None
+    if dueno:
+        etapas_del_taller()
+        # order_by explícito: con annotate (GROUP BY), Django no aplica el orden de Meta
+        etapas = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
+                      .order_by('orden', 'pk'))
+    ubicaciones = list(Ubicacion.objects.annotate(usadas=Count('ubicados')).order_by('orden', 'pk'))
+    return render(request, 'avance/procesos.html', {
+        'etapas': etapas, 'ubicaciones': ubicaciones,
+        'armado': next((e for e in reversed(etapas or []) if e.activa), None)})
+
+
+@con_rol(Rol.DUENO, Rol.OFICINA)
+def etapas(request, taller):
+    """La pantalla vieja de Etapas: ahora está en Procesos."""
+    return redirect(url(request, 'procesos'))

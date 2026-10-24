@@ -1,0 +1,24 @@
+{# Tabla de una lista ordenada de Procesos (etapas o ubicaciones): nombre, prendida, cuántas veces se usó, borrar #}
+{# si nunca se usó y arrastrar para ordenar. Recibe `filas`, `lista` (prefijo de las acciones), `que` (para los #}
+{# textos) y `usadas` (encabezado de la columna). #}
+<form method="post" class="caja lista-ordenada">{% csrf_token %}
+  <input type="hidden" name="orden">
+  <div class="tabla"><table>
+    <thead><tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>{{ usadas }}</th><th></th></tr></thead>
+    <tbody>
+    {% for e in filas %}
+    <tr data-id="{{ e.pk }}">
+      <td><button type="button" class="pad" aria-label="Mover {{ e.nombre }} (arrastrá, o flechas arriba y abajo)">
+        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg></button></td>
+      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre de la {{ que }}"></td>
+      <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendida"></td>
+      <td>{{ e.usadas }}</td>
+      <td>{% if not e.usadas %}<button class="secundario" name="accion" value="borrar-{{ lista }}-{{ e.pk }}">Borrar</button>{% endif %}</td>
+    </tr>
+    {% empty %}
+    <tr><td colspan="5" class="suave">Todavía no hay ninguna.</td></tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {% if filas %}<div class="acciones"><button name="accion" value="guardar-{{ lista }}" class="guardar">Guardar</button></div>{% endif %}
+</form>

@@ -10,7 +10,7 @@ GESTION = (Rol.DUENO, Rol.OFICINA)
 DUENO = (Rol.DUENO,)
 
 # (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Proyectos) va directo a ella; las
-# demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado y en Producción a propósito (Martín).
+# demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado; en Producción es un modo de Mi puesto.
 # Cada pantalla: (nombre, ruta, para qué sirve, roles que la ven).
 SECCIONES = [
     ('armado', 'Armado', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
@@ -20,16 +20,16 @@ SECCIONES = [
     ('proyectos', 'Proyectos', 'Subí los proyectos de Polyboard, mandale el link al cliente e imprimí etiquetas.', [
         ('Proyectos', 'taller:proyectos:lista', '', TODOS),
     ]),
-    ('produccion', 'Producción', 'Avance por etapas, fin de fabricación, cargas y tareas pendientes.', [
-        ('Puesto', 'taller:avance:puesto',
-         'Escaneá las etiquetas para marcar cada etapa, terminar un mueble o cargar el camión.', TODOS),
-        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
+    ('produccion', 'Producción', 'Mi puesto para escanear, el tablero de control y los procesos del taller.', [
+        ('Mi puesto', 'taller:avance:puesto',
+         'Escaneá las etiquetas para marcar cada etapa, dejar las piezas en su lugar, terminar un mueble o cargar.',
+         TODOS),
+        ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.', GESTION),
     ]),
-    ('configuracion', 'Configuración', 'Materiales, equipo, marca y etapas del taller.', [
+    ('configuracion', 'Configuración', 'Materiales, equipo y marca del taller.', [
         ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', GESTION),
         ('Equipo', 'taller:equipo', 'Quién entra al taller, con qué rol, invitaciones y PIN.', GESTION),
         ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', DUENO),
-        ('Etapas', 'taller:avance:etapas', 'Las etapas de fabricación que se marcan en el puesto.', DUENO),
     ]),
 ]
 
@@ -70,8 +70,8 @@ def pantallas(request):
 
 def menu(request):
     """Procesador de contexto: `menu` para templates/menu.html, con la pantalla actual marcada (la de dirección
-    más larga que empieza igual; Inicio solo si es exactamente esa). Tareas, que está en dos secciones, se marca
-    en las dos."""
+    más larga que empieza igual; Inicio solo si es exactamente esa). Si una pantalla
+    está en dos secciones, se marca en las dos."""
     lista = pantallas(request)
     if not lista:
         return {'menu': []}

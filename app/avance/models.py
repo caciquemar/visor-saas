@@ -2,7 +2,10 @@
 
 Las marcas van por la clave de la pieza (etiquetas/claves.py), no por la versión: al subir una versión nueva, el
 avance sigue en las piezas que siguen iguales. Nada se borra: deshacer una marca, reabrir un mueble o volver atrás un
-bulto deja quién y cuándo."""
+bulto deja quién y cuándo.
+
+Ubicaciones (ficha 17): dónde queda cada pieza o bulto en el taller (estante, depósito…). `Ubicado` es el historial;
+dónde está algo es su último `Ubicado` vigente."""
 from django.conf import settings
 from django.db import models
 
@@ -165,3 +168,42 @@ class Movimiento(DatoDeTaller):
         verbose_name = 'movimiento de bulto'
         verbose_name_plural = 'movimientos de bultos'
         ordering = ['cuando', 'pk']
+
+
+class Ubicacion(DatoDeTaller):
+    """Lugares del taller donde quedan las piezas y los bultos (ficha 17). Se eligen en Mi puesto."""
+    nombre = models.CharField('nombre', max_length=40)
+    orden = models.PositiveSmallIntegerField('orden', default=0)
+    activa = models.BooleanField('activa', default=True)
+
+    class Meta:
+        verbose_name = 'ubicación'
+        verbose_name_plural = 'ubicaciones'
+        ordering = ['orden', 'pk']
+
+    def __str__(self):
+        return self.nombre
+
+
+class Ubicado(DatoDeTaller):
+    """Una pieza (por su huella) o un bulto quedó en una ubicación; sin ubicación = salió del taller (cargado).
+    Solo se agregan filas; deshacer la lectura del puesto la deja con `deshecho_en`."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='ubicados')
+    huella = models.CharField(max_length=64, blank=True)
+    clave = models.JSONField('pieza', null=True, blank=True)
+    bulto = models.ForeignKey(Bulto, on_delete=models.CASCADE, null=True, blank=True, related_name='ubicados')
+    ubicacion = models.ForeignKey(Ubicacion, on_delete=models.PROTECT, null=True, blank=True,
+                                  related_name='ubicados', verbose_name='ubicación')
+    marca = models.ForeignKey(Marca, on_delete=models.SET_NULL, null=True, blank=True, related_name='ubicados')
+    por = quien()
+    cuando = models.DateTimeField('cuándo')
+    deshecho_en = models.DateTimeField('deshecho', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'lugar de una pieza o bulto'
+        verbose_name_plural = 'lugares de piezas y bultos'
+        ordering = ['cuando', 'pk']
+        indexes = [models.Index(fields=['taller', 'proyecto', 'huella'])]
+
+    def __str__(self):
+        return f'{self.bulto or (self.clave or {}).get("nombre")} en {self.ubicacion or "camión"}'

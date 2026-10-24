@@ -19,4 +19,5 @@ urlpatterns = [
     path('proyectos/<int:id>/cargas/nueva/', vistas.nueva_carga, name='nueva_carga'),
     path('cargas/<int:id>/', vistas.carga, name='carga'),
     path('etapas/', vistas.etapas, name='etapas'),
+    path('procesos/', vistas.procesos, name='procesos'),
 ]

@@ -1,5 +1,5 @@
 {% extends 'base.html' %}
-{% block titulo %}Etapas{% endblock %}
+{% block titulo %}Procesos{% endblock %}
 {% block cabeza %}
 <style>
   .pad { touch-action:none; cursor:grab; background:transparent; color:var(--suave); border:1px solid var(--borde);
@@ -10,43 +10,37 @@
 </style>
 {% endblock %}
 {% block contenido %}
-<h1>Etapas de las piezas</h1>
-<p class="suave">Cada puesto del taller elige una etapa y marca las piezas que pasan por ahí. El avance de un mueble es el
+<p class="suave" style="margin:0"><a href="{% url 'taller:seccion' taller=request.taller.slug seccion='produccion' %}">Producción</a></p>
+<h1>Procesos</h1>
+{% if etapas is not None %}
+<h2>Etapas de las piezas</h2>
+<p class="suave">En Mi puesto se elige una etapa y se marcan las piezas que pasan por ahí. El avance de un mueble es el
   promedio de todas las etapas prendidas. La última prendida{% if armado %} (<strong>{{ armado.nombre }}</strong>){% endif %}
   es la que se mira al tocar "Fabricación terminada".</p>
-<form method="post" class="caja" id="formEtapas">{% csrf_token %}
-  <input type="hidden" name="orden" id="orden">
-  <div class="tabla"><table>
-    <thead><tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>Piezas marcadas</th><th></th></tr></thead>
-    <tbody id="filas">
-    {% for e in etapas %}
-    <tr data-id="{{ e.pk }}">
-      <td><button type="button" class="pad" aria-label="Mover {{ e.nombre }} (arrastrá, o flechas arriba y abajo)">
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg></button></td>
-      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre de la etapa"></td>
-      <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendida"></td>
-      <td>{{ e.usadas }}</td>
-      <td>{% if not e.usadas %}<button class="secundario" name="accion" value="borrar-{{ e.pk }}">Borrar</button>{% endif %}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-  </table></div>
-  <div class="acciones"><button name="accion" value="guardar" id="btnGuardar">Guardar</button></div>
-</form>
-<h2>Agregar una etapa</h2>
+{% include 'avance/lista_ordenada.html' with filas=etapas lista='etapas' que='etapa' usadas='Piezas marcadas' %}
 <form method="post" class="acciones">{% csrf_token %}
   <input name="nombre" maxlength="40" placeholder="Pintada" aria-label="Nombre de la etapa nueva" style="width:auto">
-  <button name="accion" value="agregar">Agregar</button>
+  <button name="accion" value="agregar-etapas">Agregar etapa</button>
 </form>
-<p class="suave">Para cambiar el orden, arrastrá cada etapa desde su manija. Apagar una etapa no borra lo que ya se marcó:
-  deja de contar y de aparecer en los puestos.</p>
+{% endif %}
+<h2>Ubicaciones</h2>
+<p class="suave">Dónde quedan las piezas y los bultos en el taller (un estante, el depósito, la playa de carga). En Mi
+  puesto se elige la ubicación y cada pieza que se escanea queda ahí; en el visor se ve dónde está cada una.</p>
+{% include 'avance/lista_ordenada.html' with filas=ubicaciones lista='ubicaciones' que='ubicación' usadas='Lecturas' %}
+<form method="post" class="acciones">{% csrf_token %}
+  <input name="nombre" maxlength="40" placeholder="Estante A" aria-label="Nombre de la ubicación nueva" style="width:auto">
+  <button name="accion" value="agregar-ubicaciones">Agregar ubicación</button>
+</form>
+<p class="suave">Para cambiar el orden, arrastrá cada fila desde su manija. Apagar no borra lo que ya se marcó: deja de
+  aparecer en Mi puesto{% if etapas is not None %} (y una etapa apagada deja de contar en el avance){% endif %}.</p>
 <script>
 (() => {
   // arrastrar la manija mueve la fila; al soltar se guarda (con los nombres y las tildes como estén)
-  const filas = document.getElementById('filas');
+  document.querySelectorAll('form.lista-ordenada').forEach(form => {
+  const filas = form.querySelector('tbody');
   const guardar = () => {
-    document.getElementById('orden').value = [...filas.children].map(f => f.dataset.id).join(',');
-    document.getElementById('formEtapas').requestSubmit(document.getElementById('btnGuardar'));
+    form.querySelector('[name=orden]').value = [...filas.children].map(f => f.dataset.id).join(',');
+    form.requestSubmit(form.querySelector('.guardar'));
   };
   filas.querySelectorAll('.pad').forEach(pad => {
     const fila = pad.closest('tr');
@@ -78,6 +72,7 @@
       else return;
       e.preventDefault(); pad.focus(); guardar();
     });
+  });
   });
 })();
 </script>
