@@ -26,6 +26,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [16](16-planos.md) | Planos para imprimir: frente, planta y lateral | 15 | — | hecha (2026-10-19) |
 | [17](17-produccion.md) | Producción: Mi puesto, Tablero de control, Procesos y ubicaciones | 13 | — | hecha (2026-10-24) |
 | [18](18-entrega.md) | Del armado a la instalación: control de calidad, Lista y 3D de entrega | 17 | — | hecha (2026-10-24) |
+| [19](19-procesos-fijos.md) | Procesos fijos que se apagan, escanear es el registro, anotaciones, esquema en la etiqueta | 18 | — | hecha (2026-10-24) |
 
 Orden sugerido desde acá: 06 → 12 → 13 → 14 → 07a → 11 (pilotos) → 07b → 08 → 09 → 10 → 15. Las fichas 12 a 14 se sumaron el
 2026-10-06: son las tres funcionalidades nuevas que Martín eligió para tener antes de los pilotos. La 15 (cotas

@@ -325,6 +325,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   (`avance/entrega.py`), Lista de entrega (`/<taller>/proyectos/<id>/entrega/`) y "Colorear por entrega" en el
   visor. Tablero con Entrega e instalados. Ver `docs/sesiones/18-entrega.md`. Probado en el navegador integrado
   (sin cámara: códigos escritos, sin fotos de verdad).
+- 2026-10-24: **ficha 19 hecha** (pedidos de Martín al probar la v0.7.15). Procesos en una lista con cinco fijos que se
+  apagan (`Etapa.tipo`, `por_mueble`; migración `avance 0004` convierte la etapa de armado), sin "Entregar en obra",
+  escanear es el registro con duplicados, sin correlatividad, anotaciones (`Anotacion`, `0005`), control aparte en el
+  tablero y esquema en la etiqueta del mueble (`etiquetas/esquema.py`, `FormatoEtiquetas.esquema`). Ver
+  `docs/sesiones/19-procesos-fijos.md`. Probado en el navegador integrado (sin cámara) y las etiquetas dibujadas a
+  imagen con Pillow (no hay con qué pasar el PDF a imagen en la PC).
 
 ## Pendientes
 
@@ -340,6 +346,8 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Materiales: un tablero cargado solo con color (sin imagen) cuenta como "sin textura" y sale en rojo; para los que
   se agregan a mano para el probador quizás no corresponda avisar.
 
+- **Ficha 19, probar con celular de verdad** (en el NAS): fotos de anotaciones con la cámara, y la etiqueta del mueble
+  impresa con esquema: que el QR (más chico) se lea y que el dibujo se entienda en térmica.
 - **Ficha 18, probar con celular de verdad** (en el NAS): sacar fotos con la cámara en el control de calidad y al
   instalar, y escanear en la obra.
 

@@ -341,3 +341,14 @@ una de sus piezas lo deja entero en la etapa de armado). El control de calidad e
 crea una tarea del mueble y **no frena** el embalaje. "Fin de fabricación" se llama **Embalaje**. La instalación es
 por mueble; con bultos sin entregar o tareas abiertas pide motivo; deshacerla es del dueño o la oficina. En el tablero,
 un proyecto está **en curso hasta que todos sus muebles están instalados** (reemplaza la regla de la ficha 17).
+
+## 2026-10-24 · Procesos fijos, sin correlatividad, anotaciones y esquema (ficha 19)
+Todos los procesos están en una lista (`Etapa`): los del taller (por pieza o por mueble) y cinco fijos que se
+renombran y se apagan pero no se borran ni se mueven (Armado → Control de calidad → Embalaje → Carga → Instalar en
+obra). **Ya no hay "Entregar en obra"**: instalar un mueble entrega sus bultos; sin el proceso de instalación, salir a
+obra entrega. En Mi puesto **escanear es el registro** (Embalaje e Instalar también; Control sigue con Ok/Mal), con
+chequeo de duplicado. **Sin correlatividad** por ahora: ningún proceso exige el anterior ni pide motivo (cargar un
+mueble sin embalar lo embala con 1 bulto). Anotaciones con fotos pegadas a lo escaneado; con "Hay que arreglarlo"
+crean una tarea. En el tablero, un proyecto está en curso hasta que todos sus muebles llegan al último paso prendido
+(reemplaza la regla de la ficha 18). Etiqueta del mueble con esquema (elige el taller), visto desde el frente del
+mueble, que sale de los nombres de Polyboard porque los cantos "frente/atrás" son de cada pieza.
