@@ -58,7 +58,8 @@ def lista(request, taller):
         if f['estado'] == 'vencido' and not t.es_vencido:
             continue
         t.grupo = 'vencido' if t.es_vencido else t.estado
-        t.proximo = t.siguiente()
+        siguiente = t.siguiente()
+        t.proximo = Trabajo.Estado(siguiente).label.lower() if siguiente else None
         trabajos.append(t)
     # vencidos primero; después por estado, fecha límite (las que no tienen, al final) y el más nuevo arriba
     trabajos.sort(key=lambda t: (ORDEN[t.grupo], t.limite is None, t.limite or hoy, -t.pk))
@@ -92,5 +93,5 @@ def avanzar(request, taller, id):
             t.save()
             messages.success(request, f'«{t.texto[:60]}» pasó a {t.get_estado_display().lower()}.')
         else:
-            messages.error(request, 'Ese trabajo ya había cambiado: fijate cómo está ahora.')
+            messages.error(request, 'Esa tarea ya había cambiado: fijate cómo está ahora.')
     return redirect(volver)

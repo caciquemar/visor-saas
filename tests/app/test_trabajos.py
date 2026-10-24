@@ -407,7 +407,7 @@ def test_pantalla_lista_todo_el_taller_en_orden(ana, varios):
     assert textos(r) == ['vencido', 'pendiente', 'en proceso']       # vencidos primero, sin los instalados
     html = r.content.decode()
     assert f'/taller-a/visor/?p={varios.pa.pk}&amp;t={varios.ids["vencido"]}' in html
-    assert 'Placard' in html and 'Vencido' in html
+    assert 'Placard' in html and 'Vencida' in html
 
 
 def test_pantalla_filtros(ana, varios):

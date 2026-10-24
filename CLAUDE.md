@@ -310,6 +310,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   tiene su pantalla (`/<taller>/armado/`, `produccion/`, `configuracion/`, `talleres/seccion.html`). Trabajos va en
   Armado y en Producción a propósito. El menú ☰ de las páginas y el del visor tienen los mismos grupos; todo sale de
   `SECCIONES` en `talleres/menu.py`. Probado en el navegador integrado en formato celular.
+- 2026-10-24: **"Trabajos" pasa a llamarse "Tareas" (pedido de Martín).** Solo lo que se ve: menú, Inicio, pantalla,
+  visor, mensajes y administración, con los estados en femenino (Hecha, Instalada, Vencida; migración 0002 sin cambios
+  en la base). El código, la API y las direcciones siguen con `trabajo`/`trabajos` (`/<taller>/trabajos/`).
 
 ## Pendientes
 

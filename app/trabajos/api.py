@@ -206,7 +206,7 @@ def trabajo(request, taller, id):
         t = get_object_or_404(Trabajo.objects.select_for_update(), pk=id)
         if request.method == 'DELETE':
             if not puede_editar(request, t):
-                raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden borrar este trabajo.')
+                raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden borrar esta tarea.')
             archivos = [f.archivo.name for f in t.fotos.all()]
             t.delete()
             transaction.on_commit(lambda: [default_storage.delete(a) for a in archivos])
@@ -223,7 +223,7 @@ def trabajo(request, taller, id):
             if k in d and d[k] == getattr(t, k):
                 cambios.discard(k)
         if cambios and not puede_editar(request, t):
-            raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden cambiar este trabajo.')
+            raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden cambiar esta tarea.')
         if 'texto' in cambios:
             t.texto = d['texto']
         if 'asignado' in cambios:
@@ -286,7 +286,7 @@ def foto(request, taller, id, foto_id):
     with transaction.atomic():
         f = get_object_or_404(Foto.objects.select_related('trabajo'), pk=foto_id, trabajo_id=id)
         if f.subida_por_id != request.user.pk and not puede_editar(request, f.trabajo):
-            raise Rechazo(403, 'Solo quien la subió, quien anotó el trabajo, el dueño o la oficina pueden quitarla.')
+            raise Rechazo(403, 'Solo quien la subió, quien anotó la tarea, el dueño o la oficina pueden quitarla.')
         archivo = f.archivo.name
         f.delete()
         transaction.on_commit(lambda: default_storage.delete(archivo))

@@ -17,8 +17,8 @@ class Trabajo(DatoDeTaller):
     class Estado(models.TextChoices):
         PENDIENTE = 'pendiente', 'Pendiente'
         EN_PROCESO = 'en proceso', 'En proceso'
-        HECHO = 'hecho', 'Hecho'
-        INSTALADO = 'instalado', 'Instalado'
+        HECHO = 'hecho', 'Hecha'
+        INSTALADO = 'instalado', 'Instalada'
 
     # (quién, cuándo) de cada paso, en orden: pendiente 0 pasos cumplidos, en proceso 1, hecho 2, instalado 3
     PASOS = (('iniciado_por', 'iniciado_en'), ('hecho_por', 'hecho_en'), ('instalado_por', 'instalado_en'))
@@ -45,8 +45,8 @@ class Trabajo(DatoDeTaller):
     instalado_en = models.DateTimeField('instalado', null=True, blank=True)
 
     class Meta:
-        verbose_name = 'trabajo'
-        verbose_name_plural = 'trabajos'
+        verbose_name = 'tarea'
+        verbose_name_plural = 'tareas'
         ordering = ['-pk']
         indexes = [models.Index(fields=['taller', 'proyecto'])]
 

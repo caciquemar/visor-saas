@@ -10,20 +10,20 @@ GESTION = (Rol.DUENO, Rol.OFICINA)
 DUENO = (Rol.DUENO,)
 
 # (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Proyectos) va directo a ella; las
-# demás tienen su pantalla en /<taller>/<clave>/. Trabajos está en Armado y en Producción a propósito (Martín).
+# demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado y en Producción a propósito (Martín).
 # Cada pantalla: (nombre, ruta, para qué sirve, roles que la ven).
 SECCIONES = [
     ('armado', 'Armado', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
         ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', TODOS),
-        ('Trabajos', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
+        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
     ]),
     ('proyectos', 'Proyectos', 'Subí los proyectos de Polyboard, mandale el link al cliente e imprimí etiquetas.', [
         ('Proyectos', 'taller:proyectos:lista', '', TODOS),
     ]),
-    ('produccion', 'Producción', 'Avance por etapas, fin de fabricación, cargas y trabajos pendientes.', [
+    ('produccion', 'Producción', 'Avance por etapas, fin de fabricación, cargas y tareas pendientes.', [
         ('Puesto', 'taller:avance:puesto',
          'Escaneá las etiquetas para marcar cada etapa, terminar un mueble o cargar el camión.', TODOS),
-        ('Trabajos', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
+        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
     ]),
     ('configuracion', 'Configuración', 'Materiales, equipo, marca y etapas del taller.', [
         ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', GESTION),
@@ -70,7 +70,7 @@ def pantallas(request):
 
 def menu(request):
     """Procesador de contexto: `menu` para templates/menu.html, con la pantalla actual marcada (la de dirección
-    más larga que empieza igual; Inicio solo si es exactamente esa). Trabajos, que está en dos secciones, se marca
+    más larga que empieza igual; Inicio solo si es exactamente esa). Tareas, que está en dos secciones, se marca
     en las dos."""
     lista = pantallas(request)
     if not lista:

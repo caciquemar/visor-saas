@@ -8,8 +8,8 @@ Funciones:
 FUNCIONES = ('trabajos', 'fotos_de_trabajos')
 
 MENSAJES = {
-    'trabajos': 'Tu plan no incluye anotar trabajos.',
-    'fotos_de_trabajos': 'Tu plan no incluye fotos en los trabajos.',
+    'trabajos': 'Tu plan no incluye anotar tareas.',
+    'fotos_de_trabajos': 'Tu plan no incluye fotos en las tareas.',
 }
 
 
