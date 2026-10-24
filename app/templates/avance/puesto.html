@@ -372,6 +372,7 @@ async function pedir(metodo, ruta, cuerpo){
 
 function mostrar(clase, k, n, s, s2){
   const a = $('aviso');
+  a.hidden = false; $('tarjeta').hidden = true;     // el aviso reemplaza la tarjeta de la lectura anterior
   a.className = 'aviso' + (clase ? ' ' + clase : '');
   void a.offsetWidth; if (clase) a.classList.add('pulso');
   $('a1').textContent = k || ''; $('a2').textContent = n || ''; $('a3').textContent = s || ''; $('a4').textContent = s2 || '';
