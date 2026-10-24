@@ -67,7 +67,7 @@ def marcar_todas(taller, proyecto, mueble, etapa_id, usuario=None):
 # ---------------------------------------------------------------- etapas
 
 def test_etapas_por_defecto_por_taller(t):
-    assert list(etapas(t.A)) == ['Cortada', 'Canteada', 'Mecanizada', 'Armada']
+    assert list(etapas(t.A)) == ['Cortada', 'Canteada', 'Mecanizada', 'Armado']
     assert set(etapas(t.A).values()).isdisjoint(etapas(t.B).values())
 
 
@@ -77,16 +77,16 @@ def test_solo_el_dueno_cambia_las_etapas(cliente_de, t):
     e = etapas(t.A)
     assert cliente_de(t.armador_a).get('/taller-a/procesos/').status_code == 403
     oficina = cliente_de(t.oficina_a)
-    assert 'Etapas de las piezas' not in oficina.get('/taller-a/procesos/').content.decode()
+    assert 'Agregar proceso' not in oficina.get('/taller-a/procesos/').content.decode()
     assert oficina.post('/taller-a/procesos/', {'accion': 'agregar-etapas', 'nombre': 'X'}).status_code == 403
     c = cliente_de(t.dueno_a)
     assert c.get('/taller-a/etapas/')['Location'] == '/taller-a/procesos/'
-    assert 'Etapas de las piezas' in c.get('/taller-a/procesos/').content.decode()
+    assert 'Agregar proceso' in c.get('/taller-a/procesos/').content.decode()
     datos_ = {'accion': 'guardar-etapas', **{f'nombre-{i}': n for n, i in e.items()},
               **{f'activa-{i}': '1' for n, i in e.items() if n != 'Mecanizada'}, f'nombre-{e["Cortada"]}': 'Corte'}
     c.post('/taller-a/procesos/', datos_)
     with con_taller(t.A):
-        assert [x.nombre for x in etapas_activas()] == ['Corte', 'Canteada', 'Armada']
+        assert [x.nombre for x in etapas_activas()] == ['Corte', 'Canteada', 'Armado']
 
 
 def test_ubicaciones_las_cargan_dueno_y_oficina(cliente_de, t):
@@ -183,7 +183,7 @@ def test_porcentaje_es_el_promedio_de_etapas(t, pa):
         assert a['total']['hechos'] == 2 * len(piezas_del(m))
         Etapa.objects.filter(pk=e['Mecanizada']).update(activa=False)
         assert calculo.avance(pa)['muebles'][m]['pct'] == 66          # 2 de 3, para abajo
-        marcar_todas(t.A, pa, m, e['Armada'])
+        marcar_todas(t.A, pa, m, e['Armado'])
         assert calculo.avance(pa)['muebles'][m]['pct'] == 100
 
 
@@ -218,7 +218,7 @@ def test_fin_de_fabricacion_con_faltantes_pide_motivo(cliente_de, t, pa):
     c = cliente_de(t.armador_a)
     e = etiqueta(t.A, pa, mueble=m)
     d = post(c, '/taller-a/puesto/api/mueble', {'texto': qr(e, 1)}).json()
-    assert d['mueble'] == m and d['etapa'] == 'Armada' and len(d['faltan']) == len(piezas_del(m)) and d['fin'] is None
+    assert d['mueble'] == m and d['etapa'] == 'Armado' and len(d['faltan']) == len(piezas_del(m)) and d['fin'] is None
     r = terminar(c, pa, m, 2)
     assert r.status_code == 400 and 'motivo' in r.json()['error']
     d = terminar(c, pa, m, 2, 'el frente va después').json()
@@ -231,7 +231,7 @@ def test_fin_de_fabricacion_con_faltantes_pide_motivo(cliente_de, t, pa):
 
 def test_fin_sin_faltantes_y_reabrir(cliente_de, t, pa):
     m = mueble_chico()
-    marcar_todas(t.A, pa, m, etapas(t.A)['Armada'])
+    marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     assert terminar(cliente_de(t.armador_a), pa, m).json()['fin']['motivo'] == ''
     reabrir = {'proyecto': pa.pk, 'mueble': m}
     assert post(cliente_de(t.armador_a), '/taller-a/puesto/api/reabrir', reabrir).status_code == 403
@@ -308,7 +308,7 @@ def test_pantallas(cliente_de, t, pa):
     assert '25%' in c.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
     assert '%' in c.get('/taller-a/proyectos/').content.decode()
     d = c.get(f'/taller-a/visor/api/avance?proyecto={pa.pk}').json()
-    assert d['muebles'][m]['pct'] == 25 and d['final'] == etapas(t.A)['Armada'] and d['nuevas'] == []
+    assert d['muebles'][m]['pct'] == 25 and d['final'] == etapas(t.A)['Armado'] and d['nuevas'] == []
     assert d['paneles'][piezas_del(m)[0]['panel']['id']] == [etapas(t.A)['Cortada']]
 
 
@@ -363,14 +363,14 @@ def test_avance_de_a_no_se_ve_ni_se_toca_desde_b(cliente_de, t, pa):
 
 def test_ordenar_las_etapas_arrastrando(cliente_de, t):
     e = etapas(t.A)
-    nuevo = [e['Canteada'], e['Cortada'], e['Armada'], e['Mecanizada']]
+    nuevo = [e['Canteada'], e['Mecanizada'], e['Cortada']]                 # Armado es fijo: queda al final
     datos_ = {'accion': 'guardar-etapas', 'orden': ','.join(map(str, nuevo)), **{f'nombre-{i}': n for n, i in e.items()},
               **{f'activa-{i}': '1' for i in e.values()}}
     c = cliente_de(t.dueno_a)
     c.post('/taller-a/procesos/', datos_)
     with con_taller(t.A):
-        assert [x.pk for x in etapas_activas()] == nuevo
-        assert etapas_activas()[-1].nombre == 'Mecanizada'        # la última es la que mira "Fabricación terminada"
+        assert [x.pk for x in etapas_activas()] == nuevo + [e['Armado']]
+        assert etapas_activas()[-1].nombre == 'Armado'            # Armado es el que mira el embalaje
     pagina = c.get('/taller-a/procesos/').content.decode()            # y la pantalla las muestra en ese orden
     assert [pagina.index(f'name="nombre-{i}"') for i in nuevo] == sorted(pagina.index(f'name="nombre-{i}"') for i in nuevo)
 

@@ -29,7 +29,8 @@ from . import entrega as entrega_
 from .calculo import piezas_de
 from .pasos import PASOS, pasos
 from .tablero import tablero as armar_tablero
-from .models import Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, puntos_de_control
+from .models import (Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, procesos as procesos_del_taller,
+                     puntos_de_control)
 
 
 def url(request, nombre, **kwargs):
@@ -112,13 +113,18 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
     if accion == f'agregar-{nombre}':
         texto = request.POST.get('nombre', '').strip()[:40]
         if texto:
-            modelo.objects.create(nombre=texto, orden=max((e.orden for e in lista), default=0) + 1)
+            extra = {'por_mueble': request.POST.get('por') == 'mueble'} if modelo is Etapa else {}
+            modelo.objects.create(nombre=texto, orden=max((e.orden for e in lista), default=0) + 1, **extra)
     elif accion == f'guardar-{nombre}':
         for e in lista:
             texto = request.POST.get(f'nombre-{e.pk}', '').strip()[:40]
             e.nombre = texto or e.nombre
             e.activa = request.POST.get(f'activa-{e.pk}') == '1'
-            e.save(update_fields=['nombre', 'activa'])
+            campos = ['nombre', 'activa']
+            if modelo is Etapa and f'por-{e.pk}' in request.POST:
+                e.por_mueble = request.POST[f'por-{e.pk}'] == 'mueble'
+                campos.append('por_mueble')
+            e.save(update_fields=campos)
         if sin_ninguna and lista and not any(e.activa for e in lista):
             messages.error(request, sin_ninguna)
             lista[-1].activa = True
@@ -136,7 +142,7 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
         e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1]), None)
         usada = e is not None and (e.marcas.exists() if modelo is Etapa else e.ubicados.exists()
                                    if modelo is Ubicacion else e.pk in usos_de_puntos())
-        if e is not None and not usada and (modelo is not Etapa or len(lista) > 1):
+        if e is not None and not usada:
             e.delete()
         elif e is not None:
             messages.error(request, f'{e.nombre} ya se usó: apagala en vez de borrarla.')
@@ -144,15 +150,27 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
 
 @con_rol(Rol.DUENO, Rol.OFICINA)
 def procesos(request, taller):
-    """Procesos de Producción: las etapas de las piezas y los puntos del control de calidad (solo el dueño), y las
-    ubicaciones del taller (dueño y oficina)."""
+    """Procesos de Producción: los procesos (los del taller y los fijos) y los puntos del control de calidad (solo el
+    dueño), y las ubicaciones del taller (dueño y oficina). Los fijos se renombran y se apagan; no se mueven ni se
+    borran."""
     dueno = request.membresia.rol == Rol.DUENO
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
         if accion.endswith('-etapas') or '-etapas-' in accion:
             if not dueno:
                 raise PermissionDenied('Las etapas las cambia el dueño.')
-            editar_lista(request, Etapa, etapas_del_taller(), 'etapas', 'Dejá al menos una etapa prendida.')
+            todos = procesos_del_taller()
+            editar_lista(request, Etapa, [e for e in todos if not e.fijo], 'etapas')
+            if accion == 'guardar-etapas':
+                for e in (e for e in todos if e.fijo):
+                    e.nombre = request.POST.get(f'nombre-{e.pk}', '').strip()[:40] or e.nombre
+                    e.activa = request.POST.get(f'activa-{e.pk}') == '1'
+                    e.save(update_fields=['nombre', 'activa'])
+                if not any(e.activa for e in procesos_del_taller()):
+                    messages.error(request, 'Dejá al menos un proceso prendido.')
+                    e = next(e for e in todos if e.tipo == Etapa.Tipo.ARMADO)
+                    e.activa = True
+                    e.save(update_fields=['activa'])
         elif accion.endswith('-puntos') or '-puntos-' in accion:
             if not dueno:
                 raise PermissionDenied('El control de calidad lo cambia el dueño.')
@@ -166,14 +184,16 @@ def procesos(request, taller):
         puntos = puntos_de_control()
         for x in puntos:
             x.usadas = usos.get(x.pk, 0)
-        etapas_del_taller()
-        # order_by explícito: con annotate (GROUP BY), Django no aplica el orden de Meta
-        etapas = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
-                      .order_by('orden', 'pk'))
+        usadas = dict(Etapa.objects.annotate(n=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
+                      .values_list('pk', 'n'))
+        etapas = procesos_del_taller()
+        for e in etapas:
+            e.usadas = usadas.get(e.pk, 0)
     ubicaciones = list(Ubicacion.objects.annotate(usadas=Count('ubicados')).order_by('orden', 'pk'))
     return render(request, 'avance/procesos.html', {
         'etapas': etapas, 'ubicaciones': ubicaciones, 'puntos': puntos,
-        'armado': next((e for e in reversed(etapas or []) if e.activa), None)})
+        'del_taller': [e for e in etapas or [] if not e.fijo], 'fijos': [e for e in etapas or [] if e.fijo],
+        'control_prendido': any(e.tipo == Etapa.Tipo.CONTROL and e.activa for e in etapas or [])})
 
 
 @miembro

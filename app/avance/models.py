@@ -13,7 +13,10 @@ from proyectos.models import Proyecto
 from talleres.archivos import ruta_de_taller
 from talleres.separacion import DatoDeTaller
 
-ETAPAS_POR_DEFECTO = ['Cortada', 'Canteada', 'Mecanizada', 'Armada']
+ETAPAS_POR_DEFECTO = ['Cortada', 'Canteada', 'Mecanizada']
+# los procesos fijos (ficha 19): van después de los del taller, en este orden; se renombran y se apagan, no se borran
+FIJOS = [('armado', 'Armado'), ('control', 'Control de calidad'), ('embalaje', 'Embalaje'), ('carga', 'Carga'),
+         ('instalacion', 'Instalar en obra')]
 
 
 def quien(related_name='+', nombre='quién'):
@@ -22,31 +25,71 @@ def quien(related_name='+', nombre='quién'):
 
 
 class Etapa(DatoDeTaller):
-    """Etapas de las piezas del taller, en orden. La última activa es la de armado: la que mira "Fabricación
-    terminada"."""
+    """Los procesos del taller (Procesos, en Producción). Los del taller (`tipo='pieza'`) se ordenan, renombran, apagan
+    y borran si nunca se usaron, y se marcan por pieza o por mueble (`por_mueble`: cualquier etiqueta del mueble marca
+    todas sus piezas). Los fijos (FIJOS: armado, control, embalaje, carga, instalación) van después, en su orden; se
+    renombran y se apagan. Las marcas por pieza (`Marca`) son de los del taller y de Armado: con ellas sale el %."""
+    class Tipo(models.TextChoices):
+        PIEZA = 'pieza', 'Del taller'
+        ARMADO = 'armado', 'Armado'
+        CONTROL = 'control', 'Control de calidad'
+        EMBALAJE = 'embalaje', 'Embalaje'
+        CARGA = 'carga', 'Carga'
+        INSTALACION = 'instalacion', 'Instalar en obra'
+
     nombre = models.CharField('nombre', max_length=40)
     orden = models.PositiveSmallIntegerField('orden', default=0)
     activa = models.BooleanField('activa', default=True)
+    tipo = models.CharField('tipo', max_length=12, choices=Tipo.choices, default=Tipo.PIEZA)
+    por_mueble = models.BooleanField('se marca por mueble', default=False)
 
     class Meta:
-        verbose_name = 'etapa'
-        verbose_name_plural = 'etapas'
+        verbose_name = 'proceso'
+        verbose_name_plural = 'procesos'
         ordering = ['orden', 'pk']
+        constraints = [models.UniqueConstraint(fields=['taller', 'tipo'], condition=~models.Q(tipo='pieza'),
+                                               name='un_proceso_fijo_de_cada_tipo')]
+
+    @property
+    def fijo(self):
+        return self.tipo != self.Tipo.PIEZA
+
+    @property
+    def marca_piezas(self):
+        """Los que dejan marcas por pieza (cuentan para el %): los del taller y Armado."""
+        return self.tipo in (self.Tipo.PIEZA, self.Tipo.ARMADO)
 
     def __str__(self):
         return self.nombre
 
 
+def procesos():
+    """Todos los procesos del taller: los del taller por su orden y después los fijos en su orden. La primera vez crea
+    los de por defecto; a un taller que no tiene algún fijo se lo agrega (prendido)."""
+    todos = list(Etapa.objects.all())
+    if not todos:
+        todos = [Etapa.objects.create(nombre=n, orden=i) for i, n in enumerate(ETAPAS_POR_DEFECTO, 1)]
+    tiene = {e.tipo for e in todos}
+    for i, (tipo, nombre) in enumerate(FIJOS, 1):
+        if tipo not in tiene:
+            todos.append(Etapa.objects.create(nombre=nombre, orden=100 + i, tipo=tipo, por_mueble=True))
+    orden_fijo = {t: i for i, (t, _) in enumerate(FIJOS)}
+    return sorted(todos, key=lambda e: (e.fijo, orden_fijo.get(e.tipo, 0), e.orden, e.pk))
+
+
 def etapas_del_taller():
-    """Las etapas del taller (todas, en orden). La primera vez crea las de por defecto."""
-    etapas = list(Etapa.objects.all())
-    if not etapas:
-        etapas = [Etapa.objects.create(nombre=n, orden=i) for i, n in enumerate(ETAPAS_POR_DEFECTO, 1)]
-    return etapas
+    """Los procesos que dejan marcas por pieza (los del taller y Armado), en orden, prendidos o no."""
+    return [e for e in procesos() if e.marca_piezas]
 
 
 def etapas_activas():
+    """Las que cuentan para el %: los del taller y Armado, prendidos."""
     return [e for e in etapas_del_taller() if e.activa]
+
+
+def fijo(tipo):
+    """El proceso fijo de ese tipo si está prendido; si no, None."""
+    return next((e for e in procesos() if e.tipo == tipo and e.activa), None)
 
 
 class Marca(DatoDeTaller):

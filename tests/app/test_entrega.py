@@ -32,7 +32,7 @@ def paso(taller, proyecto, mueble):
 def test_pasos_de_un_mueble_hasta_cargado(cliente_de, t, pa):
     m = mueble_chico()
     assert paso(t.A, pa, m)['paso'] == 'sin_armar'
-    marcar_todas(t.A, pa, m, etapas(t.A)['Armada'])
+    marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     assert paso(t.A, pa, m)['paso'] == 'armado'
     with con_taller(t.A):
         Control.objects.create(proyecto=pa, mueble=m, resultados=[], cuando=timezone.now())
@@ -88,7 +88,7 @@ def test_armar_el_mueble_desde_una_pieza_y_deshacer(cliente_de, t, pa):
     m = mueble_chico()
     piezas = piezas_del(m)
     c = cliente_de(t.armador_a)
-    marcar(c, etiqueta(t.A, pa, piezas[0]).codigo, etapas(t.A)['Armada'])       # una ya estaba armada
+    marcar(c, etiqueta(t.A, pa, piezas[0]).codigo, etapas(t.A)['Armado'])       # una ya estaba armada
     d = post(c, '/taller-a/puesto/api/armar', {'texto': etiqueta(t.A, pa, piezas[1]).codigo,
                                                'ubicacion': estante.pk}).json()
     assert d['resultado'] == 'ok' and d['mueble'] == m and d['piezas'] == len(piezas)
@@ -118,7 +118,7 @@ def test_control_con_un_punto_mal_crea_la_tarea_y_deja_embalar(cliente_de, t, pa
     from trabajos.models import Trabajo
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    marcar_todas(t.A, pa, m, etapas(t.A)['Armada'])
+    marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     d = post(c, '/taller-a/puesto/api/control', {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()
     assert d['armado'] and [p['nombre'] for p in d['puntos']] == ['Cantos', 'Todas las piezas', 'Frentes', 'Herrajes']
     assert d['ultimo'] is None
@@ -255,7 +255,7 @@ def piezas_del_proyecto():
 def test_visor_api_entrega(cliente_de, t, pa):
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    marcar_todas(t.A, pa, m, etapas(t.A)['Armada'])
+    marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     d = c.get(f'/taller-a/visor/api/entrega?proyecto={pa.pk}').json()
     assert [p['clave'] for p in d['pasos']] == ['sin_armar', 'armado', 'controlado', 'embalado', 'cargado', 'entregado',
                                                 'instalado']
