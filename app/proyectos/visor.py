@@ -133,7 +133,8 @@ def visor(request, taller):
         'marca': {'nombre': request.taller.nombre},
         'menu': menu_de(request),
         'etiquetas': {'pantalla': url_de_etiquetas(request), 'formato': formato_para_el_visor()},
-        'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug})},
+        'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}),
+                   'api': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}) + 'api/'},
         'salir': reverse('salir'),
         'cambiar': reverse('entrar') + '?cambiar=1',         # celular compartido: entra otro
     })

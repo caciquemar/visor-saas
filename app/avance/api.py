@@ -351,7 +351,9 @@ def avance_proceso(request, taller):
     if not piezas:
         raise Http404()
     d = avance_de_proceso(p, etapa, piezas)
-    return responder(200, {'proyecto': acciones.proyecto_a_dic(p), 'proceso': {'id': etapa.pk, 'nombre': etapa.nombre},
+    return responder(200, {'proyecto': acciones.proyecto_a_dic(p),
+                           'proceso': {'id': etapa.pk, 'nombre': etapa.nombre, 'tipo': etapa.tipo,
+                                       'por_mueble': etapa.por_mueble},
                            **d, 'colores': COLORES_AVANCE, 'nombres': NOMBRES_AVANCE})
 
 

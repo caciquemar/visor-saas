@@ -148,6 +148,28 @@ body.modo-avance .hoja, body.modo-avance .borde-panel, body.modo-avance .vista, 
 body.modo-avance #btnTrabajos{display:none!important}
 body.modo-avance .app{grid-template-rows:auto 1fr;grid-template-columns:minmax(0,1fr)}
 .leyenda-entrega .proceso{font:600 15px var(--sans);color:var(--tinta);margin-bottom:2px}
+/* escáner del modo avance (ficha 21): abajo del 3D; el aviso arriba; el control en una tarjeta encima */
+.barra-avance{position:absolute;left:10px;right:10px;bottom:10px;z-index:5;display:flex;gap:8px;align-items:stretch}
+.barra-avance[hidden],.aviso-avance[hidden],.control-avance[hidden]{display:none}
+.barra-avance .btn-escanear{flex:none;padding:0 16px}
+.barra-avance input{flex:1;min-width:0;font:500 16px var(--sans);padding:10px;border:1px solid var(--linea);border-radius:12px;
+  background:var(--hoja);color:var(--tinta);text-transform:uppercase}
+.barra-avance button[type=submit]{flex:none;padding:0 16px;border:1px solid var(--linea);border-radius:12px;background:var(--hoja);
+  color:var(--tinta);font:600 15px var(--sans)}
+body.modo-avance .leyenda-entrega{bottom:74px}
+.aviso-avance{position:absolute;left:50%;top:10px;transform:translateX(-50%);z-index:6;max-width:calc(100% - 20px);
+  padding:10px 16px;border-radius:12px;font:600 15px var(--sans);color:#fff;background:#2E7D32;box-shadow:0 4px 14px rgba(0,0,0,.2)}
+.aviso-avance.ya{background:#F2A900;color:#2b1d00}
+.aviso-avance.mal{background:#C62828}
+.control-avance{position:absolute;left:50%;top:56px;transform:translateX(-50%);z-index:7;width:min(420px,calc(100% - 20px));
+  max-height:calc(100% - 140px);overflow:auto;background:var(--hoja);border:1px solid var(--linea);border-radius:14px;padding:12px;
+  box-shadow:0 8px 24px rgba(0,0,0,.2);font:500 15px var(--sans);color:var(--tinta)}
+.control-avance .punto{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--linea)}
+.control-avance .okmal button{padding:6px 12px;border:1px solid var(--linea);border-radius:10px;background:var(--hoja);color:var(--tinta);font:600 14px var(--sans)}
+.control-avance .okmal button[data-v="1"][aria-pressed=true]{background:#2E7D32;color:#fff}
+.control-avance .okmal button[data-v="0"][aria-pressed=true]{background:#C62828;color:#fff}
+.control-avance textarea{width:100%;margin-top:4px;font:inherit}
+.control-avance .botones{display:flex;gap:8px;margin-top:10px}
 /* leyenda del modo avance, abajo a la izquierda del 3D */
 .leyenda-entrega{position:absolute;left:10px;bottom:10px;z-index:4;background:var(--hoja);border:1px solid var(--linea);
   border-radius:12px;padding:8px 10px;font:500 13px var(--sans);color:var(--tinta-2);display:grid;gap:3px;
@@ -422,6 +444,15 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
     <div class="cargando" id="cargando">Cargando proyecto…</div>
     <div class="cotas" id="cotas" aria-hidden="true"></div>
     <div class="leyenda-entrega solo-taller" id="leyendaEntrega" hidden></div>
+    <div class="aviso-avance" id="avisoAvance" role="status" aria-live="assertive" hidden></div>
+    <div class="control-avance" id="controlAvance" hidden></div>
+    <form class="barra-avance solo-taller" id="barraAvance" onsubmit="return false" hidden>
+      <button type="button" class="btn-escanear" id="btnEscanearAvance">
+        <svg width="24" height="24" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 9v6M10 9v6M13 9v6M16.5 9v6"/></svg>
+        Escanear</button>
+      <input id="codigoAvance" autocomplete="off" placeholder="Código o número" aria-label="Código de la etiqueta o número de mecanizado">
+      <button type="submit" id="btnCodigoAvance">OK</button>
+    </form>
     <div class="vista" hidden id="vista">
       <div class="segmento solo-taller" id="nivel" role="group" aria-label="Qué está elegido" hidden>
         <button id="verMueble" aria-pressed="false" title="Ver el mueble elegido">Mueble</button>
@@ -2104,6 +2135,7 @@ function cerrarEscaner(){
 }
 function leido(txt){
   cerrarEscaner();
+  if (AVP.id){ registrarEnAvance(txt); return; }           // modo avance: se registra en el proceso
   if (etiquetaDe(txt)){ $('numManual').value = ''; buscar(txt); return; }
   $('numManual').value = normalizar(txt).padStart(4,'0'); mostrar(txt);
 }
@@ -2185,6 +2217,77 @@ function leyendaAvance(){
   $('leyendaEntrega').innerHTML = `<div class="proceso">${esc(d.proceso.nombre)}</div>`
     + ver.map(k => `<div><i style="background:${d.colores[k]}"></i>${esc(d.nombres[k])} <b>${d.totales[k]}</b></div>`).join('')
     + (d.por_pieza ? '<div>muebles; en color, las piezas hechas</div>' : '');
+}
+// escáner del modo avance (ficha 21): se registra en el proceso, igual que en Mi puesto, y el 3D se repinta
+AVP.carga = +new URLSearchParams(location.search).get('carga') || 'nueva';
+if (AVP.id){
+  $('barraAvance').hidden = false;
+  $('btnEscanearAvance').onclick = abrirEscaner;
+  $('barraAvance').onsubmit = () => { const v = $('codigoAvance').value.trim(); $('codigoAvance').value = ''; if (v) registrarEnAvance(v); return false; };
+}
+let avisoT = 0;
+function avisoAvance(clase, texto){
+  const a = $('avisoAvance');
+  a.className = 'aviso-avance' + (clase ? ' ' + clase : ''); a.textContent = texto; a.hidden = false;
+  clearTimeout(avisoT); avisoT = setTimeout(() => { a.hidden = true; }, 4000);
+}
+async function puesto(ruta, cuerpo){
+  try{
+    const r = await fetch(VISOR.avance.api + ruta, {method: 'POST', credentials: 'same-origin',
+      headers: {'Content-Type': 'application/json', 'X-CSRFToken': VISOR.csrf}, body: JSON.stringify(cuerpo)});
+    let d = null; try{ d = await r.json(); }catch(e){}
+    return d || {resultado: 'error', error: r.status === 403 ? 'Se cerró la sesión. Volvé a entrar.' : 'No se pudo leer la respuesta.'};
+  }catch(e){ return {resultado: 'error', error: 'Sin conexión. Probá de nuevo.'}; }
+}
+async function registrarEnAvance(txt){
+  const d0 = AVP.datos;
+  if (!d0) return;
+  const p = d0.proceso, proyecto = item.id;
+  let r;
+  if (p.tipo === 'pieza' && !p.por_mueble) r = await puesto('marcar', {texto: txt, etapa: p.id, proyecto});
+  else if (p.tipo === 'pieza' || p.tipo === 'armado') r = await puesto('armar', {texto: txt, etapa: p.id, proyecto});
+  else if (p.tipo === 'embalaje') r = await puesto('embalar', {texto: txt, proyecto});
+  else if (p.tipo === 'instalacion') r = await puesto('instalar', {texto: txt, proyecto});
+  else if (p.tipo === 'carga'){
+    r = await puesto(AVP.carga === 'nueva' ? 'cargas/nueva/bulto' : `cargas/${AVP.carga}/bulto`, {texto: txt, proyecto});
+    if (r.resultado !== 'error' && r.carga) AVP.carga = r.carga.id;
+  } else if (p.tipo === 'control'){
+    r = await puesto('control', {texto: txt, proyecto});
+    if (r.resultado !== 'error') return controlEnAvance(r);
+  }
+  if (!r || r.resultado === 'error') return avisoAvance('mal', (r && r.error) || 'No se pudo');
+  const que = r.mueble && typeof r.mueble === 'string' ? r.mueble : r.pieza ? `${r.pieza.num || 's/n'} ${r.pieza.nombre}` : '';
+  const otro = r.proyecto && r.proyecto.id !== item.id ? ` · es de ${r.proyecto.nombre}` : '';
+  avisoAvance(r.resultado === 'ya' ? 'ya' : '', `${r.resultado === 'ya' ? 'Ya estaba' : p.nombre + ' ✓'}: ${que}${otro}`);
+  cargarAvanceProceso();
+}
+// control de calidad en el 3D: la lista de puntos con Ok/Mal, como en Mi puesto (sin fotos)
+function controlEnAvance(d){
+  const el = $('controlAvance'), resp = {};
+  el.innerHTML = `<b>${esc(d.mueble)}</b>${d.ultimo ? `<div class="nota">Ya tiene control (${d.ultimo.ok ? 'ok' : 'con observaciones'}); se puede repetir.</div>` : ''}
+    ${d.puntos.map(x => `<div class="punto" data-p="${x.id}"><span>${esc(x.nombre)}</span>
+      <span class="okmal"><button type="button" data-v="1" aria-pressed="false">Ok</button> <button type="button" data-v="0" aria-pressed="false">Mal</button></span></div>
+      <textarea data-nota="${x.id}" rows="2" placeholder="¿Qué pasa?" hidden></textarea>`).join('')}
+    <div class="nota" id="errControlAvance"></div>
+    <div class="botones"><button type="button" class="btn-escanear" id="guardarControlAvance">Guardar</button>
+      <button type="button" class="link" id="cancelarControlAvance">Cancelar</button></div>`;
+  el.hidden = false;
+  el.querySelectorAll('.punto').forEach(f => f.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
+    resp[f.dataset.p] = b.dataset.v === '1';
+    f.querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    el.querySelector(`[data-nota="${f.dataset.p}"]`).hidden = resp[f.dataset.p];
+  }));
+  $('cancelarControlAvance').onclick = () => { el.hidden = true; };
+  $('guardarControlAvance').onclick = async () => {
+    const faltan = d.puntos.filter(x => !(x.id in resp));
+    if (faltan.length){ $('errControlAvance').textContent = `Falta revisar: ${faltan.map(x => x.nombre).join(', ')}.`; return; }
+    const r = await puesto('control', {proyecto: d.proyecto.id, mueble: d.mueble, resultados: d.puntos.map(x => ({
+      punto: x.id, ok: resp[x.id], nota: resp[x.id] ? '' : el.querySelector(`[data-nota="${x.id}"]`).value.trim()}))});
+    if (r.resultado === 'error'){ $('errControlAvance').textContent = r.error; return; }
+    el.hidden = true;
+    avisoAvance(r.control.ok ? '' : 'ya', `Control de ${d.mueble}: ${r.control.ok ? 'ok ✓' : 'con observaciones (' + r.control.mal.join(', ') + ')'}`);
+    cargarAvanceProceso();
+  };
 }
 setInterval(() => { if (AVP.id && !document.hidden) cargarAvanceProceso(); }, 15000);
 document.addEventListener('visibilitychange', () => { if (!document.hidden && AVP.id) cargarAvanceProceso(); });

@@ -334,6 +334,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-24: **ficha 20 hecha.** Avance por proceso en Lista y 3D desde Mi puesto (sin "Colorear por entrega"); todos
   los procesos se ordenan (también los fijos); Armado por su tipo (`models.etapa_de_armado`); migración `avance 0006`
   repara el Armado que la 0004 eligió mal en el NAS ("Instalacion"). Ver `docs/sesiones/20-avance-y-orden.md`.
+- 2026-10-24: **ficha 21 hecha.** ABM de cargas en el proyecto (alta con filtro por proceso completado, modificar,
+  anular), carga nueva al escanear en Mi puesto (`Carga.libre`), cerrar con faltantes que quedan para otro envío
+  (`pendientes_de_envio`), y escáner en el 3D de cada proceso (incluido el control). Ver `docs/sesiones/21-cargas.md`.
 
 ## Pendientes
 
