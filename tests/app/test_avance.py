@@ -478,3 +478,18 @@ def test_ubicaciones_de_a_no_se_usan_desde_b(cliente_de, t, pa):
         assert not Ubicado.objects.exists() and not Ubicacion.objects.exists()
         with pytest.raises(OtroTaller):
             Ubicado.objects.create(proyecto=pa, ubicacion=estante, cuando=pa.creado)
+
+
+def test_el_visor_ve_donde_esta_cada_pieza(cliente_de, t, pa):
+    c = cliente_de(t.armador_a)
+    d = c.get(f'/taller-a/visor/api/avance?proyecto={pa.pk}').json()
+    assert d['lugares'] is None                                         # sin ubicaciones en el taller, nada
+    estante, = ubicaciones(t.A, 'Estante A')
+    m = mueble_chico()
+    x = piezas_del(m)[0]
+    post(c, '/taller-a/puesto/api/marcar', {'texto': etiqueta(t.A, pa, x).codigo, 'etapa': etapas(t.A)['Cortada'],
+                                            'ubicacion': estante.pk})
+    d = c.get(f'/taller-a/visor/api/avance?proyecto={pa.pk}').json()
+    assert d['lugares'][x['panel']['id']]['lugar'] == 'Estante A' and d['lugares'][x['panel']['id']]['por'] == 'Arturo'
+    assert d['muebles'][m]['lugares'] == [['Estante A', 1]]
+    assert d['muebles'][m]['sin_lugar'] == claves.muebles(GRONDONA)[m] - 1

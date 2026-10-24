@@ -12,7 +12,7 @@ from etiquetas.datos import proyecto_de, version_actual
 from etiquetas.models import Etiqueta, huella
 from proyectos.models import Version
 
-from .models import FinDeMueble, Marca, etapas_activas
+from .models import FinDeMueble, Marca, etapas_activas, Ubicado
 
 CODIGO = re.compile(r'^[2-9A-HJ-NP-Z]{8}$', re.I)          # como etiquetas.models.ALFABETO, 8 caracteres
 
@@ -72,6 +72,20 @@ def avance(proyecto, piezas=None):
     total['terminados'] = sum(1 for m in muebles.values() if m['fin'])
     return {'etapas': etapas, 'total': total, 'muebles': muebles, 'paneles': paneles,
             'sueltas': sum(1 for h in hechas if h not in presentes)}
+
+
+def ubicaciones(proyecto):
+    """Dónde está cada pieza (por huella) y cada bulto (por id): su último `Ubicado` vigente. Las piezas o bultos
+    que salieron del taller (ubicación vacía) no aparecen."""
+    piezas, bultos = {}, {}
+    for u in (Ubicado.objects.filter(proyecto=proyecto, deshecho_en__isnull=True)
+              .select_related('ubicacion', 'por').order_by('cuando', 'pk')):
+        if u.bulto_id:
+            bultos[u.bulto_id] = u
+        elif u.huella:
+            piezas[u.huella] = u
+    return ({h: u for h, u in piezas.items() if u.ubicacion_id},
+            {b: u for b, u in bultos.items() if u.ubicacion_id})
 
 
 def faltan_en(proyecto, mueble, etapa, piezas=None):

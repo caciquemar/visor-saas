@@ -20,7 +20,8 @@ from talleres.roles import Rol
 from trabajos.api import Rechazo, api, leer_json, responder, solo, uno
 
 from . import acciones
-from .calculo import avance, piezas_de, piezas_nuevas
+from .calculo import avance, piezas_de, piezas_nuevas, ubicaciones
+from .models import Ubicacion
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
@@ -127,7 +128,9 @@ def deshacer_bulto(request, taller, id):
 @api
 def avance_visor(request, taller):
     """Para el visor: por panel, las etapas hechas; por mueble, el % y si está terminado; las piezas nuevas de la
-    versión. `final` es la etapa de armado (las piezas que la tienen se pintan con otro tono)."""
+    versión. `final` es la etapa de armado (las piezas que la tienen se pintan con otro tono). Si el taller usa
+    ubicaciones (ficha 17): `lugares` por panel (dónde quedó, quién y cuándo) y, por mueble, cuántas piezas hay en
+    cada lugar y cuántas sin ubicar."""
     solo(request, 'GET')
     p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
     piezas = piezas_de(p)
@@ -135,6 +138,17 @@ def avance_visor(request, taller):
         raise Http404()
     a = avance(p, piezas)
     armado = acciones.etapa_de_armado()
+    lugares, por_mueble = {}, {}
+    if Ubicacion.objects.exists():
+        donde, _ = ubicaciones(p)
+        for x in piezas:
+            u = donde.get(x['huella'])
+            cuenta = por_mueble.setdefault(x['panel']['mueble'], {})
+            nombre_ = u.ubicacion.nombre if u else ''
+            cuenta[nombre_] = cuenta.get(nombre_, 0) + 1
+            if u:
+                lugares[x['panel']['id']] = {'lugar': nombre_, 'por': str(u.por) if u.por else None,
+                                             'cuando': acciones.hora(u.cuando)}
     return responder(200, {
         'etapas': [{'id': e.pk, 'nombre': e.nombre} for e in a['etapas']],
         'final': armado.pk if armado else None,
@@ -142,6 +156,10 @@ def avance_visor(request, taller):
         'paneles': a['paneles'],
         'muebles': {n: {'pct': m['pct'], 'piezas': m['piezas'],
                         'por_etapa': [m['por_etapa'][e.pk] for e in a['etapas']],
-                        'terminado': bool(m['fin'])} for n, m in a['muebles'].items()},
+                        'terminado': bool(m['fin']),
+                        'lugares': sorted(([k, v] for k, v in por_mueble.get(n, {}).items() if k),
+                                          key=lambda kv: -kv[1]),
+                        'sin_lugar': por_mueble.get(n, {}).get('', 0)} for n, m in a['muebles'].items()},
+        'lugares': lugares if Ubicacion.objects.exists() else None,
         'nuevas': [x['panel']['id'] for x in piezas_nuevas(p, piezas)],
     })

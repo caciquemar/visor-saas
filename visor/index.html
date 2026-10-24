@@ -2130,6 +2130,8 @@ function avanceMueble(nombre){
     <div class="barra-av"><i style="width:${m.pct}%"></i></div>
     <div>${d.etapas.map((e, i) => `${esc(e.nombre)} ${m.por_etapa[i]}/${m.piezas}`).join(' · ')}</div>
     ${nuevas ? `<div>${pl(nuevas, 'pieza nueva', 'piezas nuevas')} en esta versión</div>` : ''}
+    ${d.lugares && (m.lugares.length || m.sin_lugar < m.piezas) ? `<div>Piezas en: ${m.lugares.map(([n, c]) => `${esc(n)} ${c}`)
+      .concat(m.sin_lugar ? [`sin ubicar ${m.sin_lugar}`] : []).join(' · ')}</div>` : ''}
     <div><a href="${puesto}">${m.terminado ? 'Ver bultos' : 'Fabricación terminada…'}</a></div>`;
 }
 function avanceFicha(){
@@ -2139,7 +2141,10 @@ function avanceFicha(){
   if (!hechas) return;
   $('fAvance').innerHTML = d.etapas.map(e => hechas.includes(e.id)
     ? `<span class="hecha">✓ ${esc(e.nombre)}</span>` : `<span>– ${esc(e.nombre)}</span>`).join(' &nbsp; ')
-    + (d.nuevas.includes(p.id) ? '<br>Pieza nueva en esta versión' : '');
+    + (d.nuevas.includes(p.id) ? '<br>Pieza nueva en esta versión' : '')
+    + (d.lugares && d.lugares[p.id] ? `<br>Está en: <b>${esc(d.lugares[p.id].lugar)}</b>${d.lugares[p.id].por
+        ? ` (${esc(d.lugares[p.id].por)}, ${esc(fecha(d.lugares[p.id].cuando))})` : ''}`
+      : d.lugares ? '<br>Sin ubicar' : '');
 }
 const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
 let pedidoLista = 0;
