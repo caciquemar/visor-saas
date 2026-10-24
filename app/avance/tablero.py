@@ -33,7 +33,8 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
         Marca.objects.filter(proyecto=p).aggregate(x=Max('cuando'))['x'],
         Movimiento.objects.filter(bulto__proyecto=p).aggregate(x=Max('cuando'))['x']]), default=None)
     t = a['total']
-    entrega = pasos(p, piezas, a)['totales']
+    pasos_ = pasos(p, piezas, a)
+    entrega = pasos_['totales']
     instalados = entrega['instalado']
     return {
         'proyecto': p, 'pct': t['pct'], 'piezas': t['piezas'], 'pasos': t['pasos'], 'hechos': t['hechos'],
@@ -46,7 +47,7 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
         'ultima': ultima,
         # instalar es el último paso: con todo instalado está terminado aunque falten marcas de etapas
         'en_curso': instalados < muebles,
-        'instalados': instalados, 'entrega': barra(entrega, muebles),
+        'instalados': instalados, 'entrega': barra(entrega, muebles), 'controles': pasos_['controles'],
         'por_etapa': t['por_etapa'],
     }
 
@@ -92,5 +93,6 @@ def tablero(ver_terminados=False):
         'entrega': barra({k: sum(x['entrega'][ORDEN.index(k)]['n'] for x in en_curso) for k in ORDEN},
                          sum(x['muebles'] for x in en_curso)),
         'por_instalar': sum(x['muebles'] - x['instalados'] for x in en_curso),
+        'controles': {k: sum(x['controles'][k] for x in en_curso) for k in ('ok', 'obs', 'sin')},
         'cuello': max(por_etapa[1:], key=lambda e: e['esperando'], default=None) if piezas_en_curso else None,
     }

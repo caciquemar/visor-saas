@@ -78,7 +78,10 @@
   <div class="barra-pasos" role="img" aria-label="{% for p in entrega %}{{ p.nombre }} {{ p.n }}{% if not forloop.last %}, {% endif %}{% endfor %}">
     {% for p in entrega %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}</div>
   <div class="leyenda">{% for p in entrega %}<span><i style="background:{{ p.color }}"></i>{{ p.nombre }} <b>{{ p.n }}</b></span>{% endfor %}</div>
-  <p class="suave" style="margin:.75rem 0 0">Muebles de los proyectos en curso, del armado a la instalación.</p>
+  <p style="margin:.75rem 0 0"><strong>Control de calidad:</strong> {{ controles.ok }} ok ·
+    <span{% if controles.obs %} class="error"{% endif %}>{{ controles.obs }} con observaciones</span> · {{ controles.sin }} sin control</p>
+  <p class="suave" style="margin:.4rem 0 0">Muebles de los proyectos en curso, del armado a la instalación. Cada mueble
+    cuenta en su paso más avanzado; el control se cuenta aparte.</p>
   {% else %}<p class="suave" style="margin:0">No hay proyectos en curso.</p>{% endif %}
 </div>
 
@@ -102,6 +105,7 @@
     <div class="barra-pasos chica">{% for p in x.entrega %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}</div>
     <div class="meta">
       <b>{{ x.terminados }}/{{ x.muebles }}</b> embalado{{ x.muebles|pluralize }} · <b>{{ x.instalados }}/{{ x.muebles }}</b> instalado{{ x.muebles|pluralize }}
+      · control: {{ x.controles.ok }} ok{% if x.controles.obs %}, <span class="error">{{ x.controles.obs }} con observaciones</span>{% endif %}
       {% if x.embalados or x.cargados or x.entregados %} · bultos: {{ x.embalados }} embalado{{ x.embalados|pluralize }},
         {{ x.cargados }} cargado{{ x.cargados|pluralize }}, {{ x.entregados }} entregado{{ x.entregados|pluralize }}{% endif %}
       {% if x.ubicadas is not None %} · {{ x.ubicadas }} de {{ x.piezas }} piezas ubicadas{% endif %}

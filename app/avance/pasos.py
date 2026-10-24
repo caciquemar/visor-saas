@@ -41,8 +41,10 @@ def instalacion_a_dic(i):
 
 
 def pasos(proyecto, piezas=None, a=None):
-    """{'muebles': {nombre: {...}}, 'totales': {paso: cuántos}}. Cada mueble: piezas, armadas, armado (todas en la
-    etapa de armado), control, fin, bultos (total, cargados, entregados), instalacion y paso."""
+    """{'muebles': {nombre: {...}}, 'totales': {paso: cuántos}, 'controles': {ok, obs, sin}}. Cada mueble: piezas,
+    armadas, armado (todas en la etapa de armado), control, fin, bultos (total, cargados, entregados), instalacion y
+    paso. `controles` cuenta el último control de cada mueble aparte del paso: un mueble ya embalado o cargado que se
+    controla después sigue en su paso, pero su control tiene que verse igual."""
     piezas = piezas_de(proyecto) if piezas is None else piezas
     a = avance(proyecto, piezas) if a is None else a
     activas = etapas_activas()
@@ -55,7 +57,7 @@ def pasos(proyecto, piezas=None, a=None):
         bultos.setdefault(b.mueble, []).append(b)
     instalaciones = {i.mueble: i for i in Instalacion.objects.filter(proyecto=proyecto, anulado_en__isnull=True)
                      .select_related('por').prefetch_related('fotos')}
-    muebles, totales = {}, {p: 0 for p in ORDEN}
+    muebles, totales, controles_ = {}, {p: 0 for p in ORDEN}, {'ok': 0, 'obs': 0, 'sin': 0}
     for n, m in sorted(a['muebles'].items(), key=lambda kv: kv[0].lower()):
         armadas = m['por_etapa'][armado.pk] if armado else 0
         bs = bultos.get(n, [])
@@ -77,10 +79,11 @@ def pasos(proyecto, piezas=None, a=None):
         else:
             paso = 'sin_armar'
         totales[paso] += 1
+        controles_['sin' if c is None else 'ok' if c.ok else 'obs'] += 1
         muebles[n] = {
             'piezas': m['piezas'], 'armadas': armadas, 'armado': bool(m['piezas']) and armadas == m['piezas'],
             'control': control_a_dic(c), 'fin': quien_cuando(fin.por, fin.cuando) if fin else None,
             'bultos': {'total': len(bs), 'cargados': cargados, 'entregados': entregados},
             'instalacion': instalacion_a_dic(inst), 'paso': paso,
         }
-    return {'muebles': muebles, 'totales': totales}
+    return {'muebles': muebles, 'totales': totales, 'controles': controles_}

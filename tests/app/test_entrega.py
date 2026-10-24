@@ -286,3 +286,19 @@ def test_tablero_y_estado_del_pedido_con_la_entrega(cliente_de, t, pa):
         assert estado_del_pedido(pa)['estado'] == 'instalado'
     ctx = c.get('/taller-a/tablero/').context
     assert ctx['en_curso'] == 0 or all(x['proyecto'] != pa for x in ctx['proyectos'])
+
+
+def test_control_despues_de_embalar_se_ve_en_el_tablero(cliente_de, t, pa):
+    """Pedido de Martín: un mueble ya embalado (o cargado) que se controla sigue en su paso, pero el tablero cuenta el
+    control aparte."""
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    terminar(c, pa, m, 1, 'prueba')
+    ids = {p['nombre']: p['id'] for p in post(c, '/taller-a/puesto/api/control',
+                                               {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()['puntos']}
+    post(c, '/taller-a/puesto/api/control', {'proyecto': pa.pk, 'mueble': m,
+                                             'resultados': [{'punto': i, 'ok': n != 'Herrajes'} for n, i in ids.items()]})
+    assert paso(t.A, pa, m)['paso'] == 'embalado'
+    r = c.get('/taller-a/tablero/')
+    assert r.context['controles']['obs'] == 1 and r.context['proyectos'][0]['controles']['obs'] == 1
+    assert '1 con observaciones' in r.content.decode()
