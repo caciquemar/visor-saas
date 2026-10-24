@@ -2295,8 +2295,7 @@ function mostrarDetalle(id){
     ${t.piezas.length || t.muebles.length ? `<div class="chips">${t.piezas.map(k => `<button class="chip pieza" data-pieza="${esc(k)}">${esc(etiquetaPieza(k))}</button>`).join('')}
       ${t.muebles.map(n => `<button class="chip" data-mueble="${esc(n)}">${esc(n)}</button>`).join('')}</div>` : ''}
     ${t.fotos.length ? `<div class="fotos">${t.fotos.map(f => `<a class="foto" href="api/fotos/${encodeURIComponent(f)}" target="_blank" rel="noopener"><img src="api/fotos/${encodeURIComponent(f)}" alt="Foto del trabajo" loading="lazy"></a>`).join('')}</div>` : ''}
-    ${VISOR.fotos === false ? '' : `<label class="btn-sec" for="dtFoto" data-sumar-foto style="display:inline-flex;margin:4px 0 8px;color:var(--tinta);font-size:16px">📷 Agregar foto</label>
-      <input id="dtFoto" type="file" accept="image/*" multiple hidden><p class="error" id="dtError"></p>`}
+    ${VISOR.fotos === false ? '' : `<div class="botones-foto" data-sumar-foto>${botonesFoto('dt')}</div><p class="error" id="dtError"></p>`}
     <div class="estados" role="group" aria-label="Estado">${ESTADOS.map(e =>
       `<button data-est="${e}" aria-pressed="${t.estado === e}" style="--c:${hex(COLOR_ESTADO[e][0])}">${NOMBRE_ESTADO[e]}</button>`).join('')}</div>
     ${t.puede_editar === false ? '' : `<div class="botonera">
@@ -2306,7 +2305,7 @@ function mostrarDetalle(id){
   el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
   el.querySelector('[data-volver]').onclick = () => { TR.vista = 'lista'; TR.resaltar = null; pintar(); mostrarTrabajos(); };
   el.querySelectorAll('[data-est]').forEach(b => b.onclick = () => cambiarEstado(t.id, b.dataset.est));
-  if ($('dtFoto')) $('dtFoto').onchange = e => sumarFotos(t.id, [...e.target.files].filter(x => x.type.startsWith('image/')));
+  ['dtCamara', 'dtGaleria'].forEach(id => { if ($(id)) $(id).onchange = e => { sumarFotos(t.id, fotosElegidas(e.target)); }; });
   if (el.querySelector('[data-editar]')) el.querySelector('[data-editar]').onclick = () => abrirForm(t);
   if (el.querySelector('[data-borrar]')) el.querySelector('[data-borrar]').onclick = async () => {
     if (!confirm('¿Borrar este trabajo y sus fotos?')) return;
@@ -2335,8 +2334,7 @@ function abrirForm(base){
     <div class="chips" id="ftPiezas"></div>
     <label>Muebles</label><div class="chips">${muebles.map(n => `<button class="chip" data-mueble="${esc(n)}" aria-pressed="${f.muebles.has(n)}">${esc(n)}</button>`).join('')}</div>
     <label>Fotos</label><div class="fotos" id="ftFotos"></div>
-    ${VISOR.fotos === false ? '' : '<label class="btn-sec" for="ftArchivo" style="display:inline-flex;margin:0;color:var(--tinta);font-size:16px">📷 Agregar foto</label>'}
-    <input id="ftArchivo" type="file" accept="image/*" multiple hidden>
+    ${VISOR.fotos === false ? '' : `<div class="botones-foto">${botonesFoto('ft')}</div>`}
     ${nombreYo() ? '' : '<label for="ftYo">Tu nombre (queda guardado en este celular)</label><input id="ftYo" maxlength="80" autocomplete="name">'}
     <p class="error" id="ftError"></p>
     <div class="botonera"><button class="btn-prim" data-guardar>Guardar</button><button class="btn-sec" data-cancelar>Cancelar</button></div>
@@ -2347,7 +2345,18 @@ function abrirForm(base){
     const n = b.dataset.mueble; f.muebles.has(n) ? f.muebles.delete(n) : f.muebles.add(n);
     b.setAttribute('aria-pressed', f.muebles.has(n)); pintar();
   });
-  $('ftArchivo').onchange = e => { f.nuevas.push(...[...e.target.files].filter(x => x.type.startsWith('image/'))); e.target.value = ''; fotosForm(f); };
+  ['ftCamara', 'ftGaleria'].forEach(id => { if ($(id)) $(id).onchange = async e => {
+    const lista = fotosElegidas(e.target); if (!lista.length) return;
+    $('ftError').classList.remove('visible');
+    // se leen y se achican ya: en Android el archivo elegido puede dejar de leerse un rato después, y al tocar
+    // Guardar la subida se cortaba ("Failed to fetch") con el trabajo guardado sin la foto
+    for (const a of lista){
+      const b = await enMemoria(a);
+      if (b) f.nuevas.push(b);
+      else { $('ftError').textContent = 'No se pudo leer una de las fotos. Probá sacarla de nuevo.'; $('ftError').classList.add('visible'); }
+    }
+    fotosForm(f);
+  }; });
   el.querySelector('[data-guardar]').onclick = () => guardarForm(f);
   piezasForm(f); fotosForm(f); pintar();
   const mallas = paneles.filter(m => enClaves(f.piezas, m.userData.p) || f.muebles.has(m.userData.p.mueble));
@@ -2385,11 +2394,12 @@ function fotosForm(f){
 async function sumarFotos(id, archivos){
   const boton = document.querySelector('[data-sumar-foto]');
   if (!archivos.length || !boton) return;
-  $('dtFoto').disabled = true;
+  boton.querySelectorAll('input').forEach(i => i.disabled = true);
   try{
     for (let i = 0; i < archivos.length; i++){
       boton.textContent = `Subiendo foto (${archivos.length - i})…`;
-      const b = await reducir(archivos[i]);
+      const b = await enMemoria(archivos[i]);
+      if (!b) throw new Error('no se pudo leer la foto');
       const nuevo = await api(`trabajos/${id}/fotos`, {method: 'POST', headers: {'Content-Type': b.type || 'image/jpeg'}, body: b});
       TR.lista = TR.lista.map(x => x.id === id ? nuevo : x);
     }
@@ -2399,6 +2409,24 @@ async function sumarFotos(id, archivos){
     return;
   }
   mostrarTrabajos(); cargarTrabajos();
+}
+// botones de foto: en el celular la cámara va aparte, porque con "varias a la vez" Android no ofrece sacar una
+const tactil = matchMedia('(pointer: coarse)').matches;
+function botonesFoto(pre){
+  const estilo = 'style="display:inline-flex;margin:4px 8px 8px 0;color:var(--tinta);font-size:16px"';
+  return (tactil ? `<label class="btn-sec" for="${pre}Camara" ${estilo}>📷 Sacar foto</label>
+    <input id="${pre}Camara" type="file" accept="image/*" capture="environment" hidden>` : '')
+    + `<label class="btn-sec" for="${pre}Galeria" ${estilo}>${tactil ? '🖼 Galería' : '📷 Agregar foto'}</label>
+    <input id="${pre}Galeria" type="file" accept="image/*" multiple hidden>`;
+}
+const fotosElegidas = input => { const l = [...input.files].filter(x => !x.type || x.type.startsWith('image/')); input.value = ''; return l; };
+// la foto achicada en memoria (no la referencia al archivo del celular); null si no se pudo leer
+async function enMemoria(archivo){
+  try{
+    const b = await reducir(archivo);
+    if (b !== archivo) return b;
+    return new Blob([await archivo.arrayBuffer()], {type: archivo.type || 'image/jpeg'});
+  }catch(e){ return null; }
 }
 // fotos del celular: se achican a 1600 px en JPEG antes de subir (unos 300 KB en vez de varios MB)
 async function reducir(archivo){
@@ -2424,7 +2452,7 @@ async function guardarForm(f){
     while (f.quitar.length){ await api(`trabajos/${t.id}/fotos/${encodeURIComponent(f.quitar[0])}`, {method: 'DELETE'}); f.quitar.shift(); }
     while (f.nuevas.length){
       boton.textContent = `Subiendo foto (${f.nuevas.length})…`;
-      const b = await reducir(f.nuevas[0]);
+      const b = f.nuevas[0];   // ya achicada y en memoria al elegirla
       await api(`trabajos/${t.id}/fotos`, {method: 'POST', headers: {'Content-Type': b.type || 'image/jpeg'}, body: b});
       f.nuevas.shift();
     }
