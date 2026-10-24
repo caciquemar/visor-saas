@@ -88,6 +88,9 @@ class FormatoEtiquetas(DatoDeTaller):
     ajuste_x = models.DecimalField('correr a la derecha (mm)', max_digits=4, decimal_places=1, default=0)
     ajuste_y = models.DecimalField('correr hacia abajo (mm)', max_digits=4, decimal_places=1, default=0)
     bordes = models.BooleanField('dibujar el borde de cada etiqueta', default=False)
+    ESQUEMAS = [('mueble', 'Esquema del mueble'), ('proyecto', 'Proyecto con el mueble marcado'),
+                ('ninguno', 'Sin esquema')]
+    esquema = models.CharField('dibujo en la etiqueta del mueble', max_length=8, choices=ESQUEMAS, default='mueble')
     actualizado = models.DateTimeField('actualizado', auto_now=True)
 
     class Meta:
@@ -113,4 +116,4 @@ class FormatoEtiquetas(DatoDeTaller):
                         self.columnas if self.es_hoja else 1, self.filas if self.es_hoja else 1,
                         float(self.margen_sup), float(self.margen_izq), float(self.sep_h), float(self.sep_v))
         return replace(f, margen_sup=f.margen_sup + float(self.ajuste_y), margen_izq=f.margen_izq + float(self.ajuste_x),
-                       bordes=self.bordes)
+                       bordes=self.bordes, esquema=self.esquema)

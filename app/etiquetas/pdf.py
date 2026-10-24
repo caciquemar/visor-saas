@@ -33,6 +33,7 @@ class Formato:
     sep_h: float = 0
     sep_v: float = 0
     bordes: bool = False    # línea de corte alrededor de cada etiqueta (para probar en papel común)
+    esquema: str = 'mueble'  # en la del mueble: 'mueble', 'proyecto' (con el mueble marcado) o 'ninguno'
 
     @property
     def por_hoja(self):
@@ -59,9 +60,10 @@ def etiqueta_de_pieza(panel, proyecto, url, copia=1, de=1):
             'copia': copia, 'de': de}
 
 
-def etiqueta_de_mueble(mueble, proyecto, url, piezas, bulto=1, bultos=1, cliente='', direccion=''):
+def etiqueta_de_mueble(mueble, proyecto, url, piezas, bulto=1, bultos=1, cliente='', direccion='', esquema=None):
+    """`esquema`: las cajas de etiquetas/esquema.py (el mueble de frente, o el proyecto con el mueble marcado)."""
     return {'tipo': 'mueble', 'url': url, 'mueble': mueble, 'proyecto': proyecto, 'piezas': piezas,
-            'bulto': bulto, 'bultos': bultos, 'cliente': cliente, 'direccion': direccion}
+            'bulto': bulto, 'bultos': bultos, 'cliente': cliente, 'direccion': direccion, 'esquema': esquema or []}
 
 
 def generar(etiquetas, formato, desde=1):
@@ -263,7 +265,12 @@ def _flecha(c, x0, y0, x1, y1, u):
 
 
 def _mueble(c, e, x, y, w, h):
-    lado = min(h, w * .4)
+    # con esquema (y lugar): el dibujo a la derecha; el QR y los textos se achican a la izquierda
+    dw = min(w * .27, h * 1.1) if e.get('esquema') and w > h * 1.3 else 0
+    if dw:
+        _esquema(c, e['esquema'], x + w - dw, y, dw, h)
+        w -= dw + h * .05
+    lado = min(h, w * (.33 if dw else .4))          # con dibujo, el QR un poco más chico: el bulto tiene que entrar
     _qr(c, e['url'], x, y + (h - lado) / 2, lado)
     tx = x + lado + h * .06
     tw = x + w - tx
@@ -278,7 +285,33 @@ def _mueble(c, e, x, y, w, h):
     bw = stringWidth(bulto, 'Helvetica-Bold', tb) + 2.4 * u
     by = top - 18.4 * u
     c.setFillColor(black); c.roundRect(tx, by - 1.3 * u, min(bw, tw), tb + 1.9 * u, .8 * u, stroke=0, fill=1)
-    _texto(c, bulto, tx + 1.2 * u, by, tw - 2.4 * u, 'Helvetica-Bold', tb, white)
+    _texto(c, bulto, tx + 1.2 * u, by, tw - 2.4 * u, 'Helvetica-Bold', tb, white, minimo=tb * .6)
     _texto(c, f"{e['piezas']} piezas", tx, by - 6 * u, tw, 'Helvetica', 3.2 * u)
     if e['direccion']:
         _texto(c, e['direccion'], tx, by - 10.2 * u, tw, 'Helvetica', 3 * u, GRIS)
+
+
+def _esquema(c, cajas, x, y, w, h):
+    """El mueble de frente (o el proyecto con el mueble marcado), escalado para entrar en el rectángulo. Cada pieza es
+    la caja de su proyección, de atrás hacia adelante: lo de adelante tapa. Solo el mueble: piezas blancas con borde
+    negro. Con el proyecto: lo demás blanco con borde gris claro y el mueble en gris con borde negro (se ve igual en
+    blanco y negro y en térmica)."""
+    u0 = min(k['caja'][0] for k in cajas); v0 = min(k['caja'][1] for k in cajas)
+    u1 = max(k['caja'][2] for k in cajas); v1 = max(k['caja'][3] for k in cajas)
+    if u1 - u0 <= 0 or v1 - v0 <= 0:
+        return
+    escala = min(w / (u1 - u0), h / (v1 - v0))
+    ox = x + (w - (u1 - u0) * escala) / 2
+    oy = y + (h - (v1 - v0) * escala) / 2
+    solo = all(k['del_mueble'] for k in cajas)
+    marcado = Color(.78, .78, .78)
+    for k in cajas:
+        a, b, cc, d = k['caja']
+        if k['del_mueble'] and not solo:
+            c.setFillColor(marcado); c.setStrokeColor(black); c.setLineWidth(.45)
+        elif k['del_mueble']:
+            c.setFillColor(white); c.setStrokeColor(black); c.setLineWidth(.35)
+        else:
+            c.setFillColor(white); c.setStrokeColor(GRIS_CLARO); c.setLineWidth(.25)
+        c.rect(ox + (a - u0) * escala, oy + (b - v0) * escala, max((cc - a) * escala, .2), max((d - b) * escala, .2),
+               stroke=1, fill=1)

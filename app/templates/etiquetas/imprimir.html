@@ -72,6 +72,8 @@
       <div id="desdeCaja"><label for="desde">Empezar en la etiqueta</label>
         <input id="desde" name="desde" type="number" min="1" value="1"><span class="ayuda">Para aprovechar una hoja empezada: 1 es la de arriba a la izquierda.</span></div>
     </div>
+    <label for="{{ form.esquema.id_for_label }}">{{ form.esquema.label|capfirst }}</label>{{ form.esquema }}
+    <span class="ayuda">Visto desde el frente del mueble. "Proyecto con el mueble marcado" muestra dónde va.</span>
     <label class="opcion">{{ form.bordes }} {{ form.bordes.label|capfirst }} <span class="suave">(para probar en papel común)</span></label>
     <p class="suave" style="margin-bottom:0">El formato queda guardado para la próxima vez.</p>
   </div>

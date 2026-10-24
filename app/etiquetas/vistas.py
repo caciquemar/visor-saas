@@ -18,6 +18,7 @@ from proyectos.models import Proyecto
 from talleres.roles import miembro
 
 from . import claves, pdf
+from .esquema import esquema
 from .datos import proyecto_de, resolver, version_actual
 from .formularios import FormFormato
 from .models import Etiqueta, FormatoEtiquetas
@@ -75,19 +76,22 @@ def elegidos(request, campo, total):
 
 
 def armar_pdf(request, proyecto, piezas, muebles, cuenta, formato, desde):
-    """El PDF de esas piezas (de claves.piezas) y esos muebles [(nombre, bultos)]; crea los códigos que falten."""
+    """El PDF de esas piezas (de claves.piezas) y esos muebles [(nombre, bultos)]; crea los códigos que falten. La
+    etiqueta del mueble lleva el esquema que eligió el taller (ficha 19)."""
     etiquetas = []
+    d = proyecto_de(version_actual(proyecto)) if muebles and formato.esquema != 'ninguno' else None
     for x in piezas:
         e = Etiqueta.para(proyecto, Etiqueta.Tipo.PIEZA, x['clave'])
         etiquetas.append(pdf.etiqueta_de_pieza(x['panel'], proyecto.nombre, url_de(request, e), x['copia'], x['de']))
     for nombre, bultos in muebles:
         e = Etiqueta.para(proyecto, Etiqueta.Tipo.MUEBLE, {'mueble': nombre})
+        dibujo = esquema(d, nombre, todo=formato.esquema == 'proyecto') if d else None
         if not bultos:              # la del mueble armado, antes de embalar: sin número de bulto (ficha 18)
             etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e), cuenta[nombre],
-                                                    0, 0, proyecto.cliente, proyecto.direccion))
+                                                    0, 0, proyecto.cliente, proyecto.direccion, dibujo))
         for b in range(1, bultos + 1):
             etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e, b), cuenta[nombre],
-                                                    b, bultos, proyecto.cliente, proyecto.direccion))
+                                                    b, bultos, proyecto.cliente, proyecto.direccion, dibujo))
     r = HttpResponse(pdf.generar(etiquetas, formato, desde=desde), content_type='application/pdf')
     r['Content-Disposition'] = f'inline; filename="etiquetas-{proyecto.pk}.pdf"'
     return r

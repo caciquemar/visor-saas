@@ -11,11 +11,18 @@ class FormFormato(forms.ModelForm):
     class Meta:
         model = FormatoEtiquetas
         fields = ['formato', 'ancho', 'alto', 'columnas', 'filas', 'margen_sup', 'margen_izq', 'sep_h', 'sep_v',
-                  'ajuste_x', 'ajuste_y', 'bordes']
+                  'ajuste_x', 'ajuste_y', 'bordes', 'esquema']
 
     LIMITES = {'ancho': (20, 210), 'alto': (15, 297), 'columnas': (1, 10), 'filas': (1, 30),
                'margen_sup': (0, 100), 'margen_izq': (0, 100), 'sep_h': (0, 50), 'sep_v': (0, 50),
                'ajuste_x': (-10, 10), 'ajuste_y': (-10, 10)}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['esquema'].required = False       # si no viene (ventana del visor, pedidos viejos): el de antes
+
+    def clean_esquema(self):
+        return self.cleaned_data.get('esquema') or self.instance.esquema or 'mueble'
 
     def clean(self):
         datos = super().clean()
