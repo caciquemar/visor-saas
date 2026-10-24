@@ -7,8 +7,9 @@
   .pad:active { cursor:grabbing; }
   tr.arrastrando { background:var(--fondo); outline:2px solid var(--acento); outline-offset:-2px; }
   tr.arrastrando .pad { color:var(--acento); border-color:var(--acento); }
-  .candado { margin-left:.35rem; }
-  td:has(> .candado) { white-space:nowrap; }
+  .nombre-proceso { display:flex; align-items:center; gap:.35rem; }
+  .nombre-proceso input { flex:1; min-width:9rem; }
+  .candado { flex:none; }
   .lista-ordenada select { width:auto; }
   /* en el celular: el nombre se lleva el ancho; Borrar, chico */
   .lista-ordenada th, .lista-ordenada td { padding:.45rem .3rem; vertical-align:middle; }
@@ -33,7 +34,7 @@
     <tr data-id="{{ e.pk }}"{% if e.fijo %} class="fijo"{% endif %}>
       <td><button type="button" class="pad" aria-label="Mover {{ e.nombre }} (arrastrá, o flechas arriba y abajo)">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg></button></td>
-      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre del proceso">{% if e.fijo %}<span class="candado" title="Proceso fijo: se renombra y se apaga, no se borra">🔒</span>{% endif %}</td>
+      <td><div class="nombre-proceso"><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre del proceso">{% if e.fijo %}<span class="candado" title="Proceso fijo: se renombra y se apaga, no se borra">🔒</span>{% endif %}</div></td>
       <td>{% if e.fijo %}<span class="suave">Mueble</span>{% else %}<select name="por-{{ e.pk }}" aria-label="Se marca por"><option value="pieza">Pieza</option>
         <option value="mueble"{% if e.por_mueble %} selected{% endif %}>Mueble</option></select>{% endif %}</td>
       <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendido"></td>
