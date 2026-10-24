@@ -11,6 +11,7 @@ import json
 
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Count, Q
 from django.middleware.csrf import get_token
 from django.http import Http404
@@ -153,6 +154,15 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
             e.delete()
         elif e is not None:
             messages.error(request, f'{e.nombre} ya se usó: apagala en vez de borrarla.')
+    elif modelo is Etapa and accion.startswith(f'vaciar-{nombre}-'):
+        # borrar un proceso del taller ya usado, con todas sus marcas (para probar; pide confirmación en la pantalla)
+        e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1] and not e.fijo), None)
+        if e is not None:
+            with transaction.atomic():
+                n = e.marcas.count()
+                e.marcas.all().delete()
+                e.delete()
+            messages.success(request, f'Se borró {e.nombre} con sus {n} marca{"s" if n != 1 else ""}.')
 
 
 @con_rol(Rol.DUENO, Rol.OFICINA)

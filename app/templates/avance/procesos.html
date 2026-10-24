@@ -39,7 +39,9 @@
         <option value="mueble"{% if e.por_mueble %} selected{% endif %}>Mueble</option></select>{% endif %}</td>
       <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendido"></td>
       <td>{% if e.marca_piezas %}{{ e.usadas }}{% endif %}</td>
-      <td>{% if not e.fijo and not e.usadas %}<button class="secundario" name="accion" value="borrar-etapas-{{ e.pk }}">Borrar</button>{% endif %}</td>
+      <td>{% if not e.fijo and not e.usadas %}<button class="secundario" name="accion" value="borrar-etapas-{{ e.pk }}">Borrar</button>
+        {% elif not e.fijo %}<button class="secundario" name="accion" value="vaciar-etapas-{{ e.pk }}" title="Borra también las piezas marcadas"
+          onclick="return confirm('¿Borrar {{ e.nombre|escapejs }} y sus {{ e.usadas }} marca{{ e.usadas|pluralize }}? No se puede deshacer.')">Borrar con sus marcas</button>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody>

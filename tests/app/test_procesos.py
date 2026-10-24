@@ -289,3 +289,20 @@ def test_avance_de_un_proceso(cliente_de, t, pa):
     html = c.get(f'/taller-a/proyectos/{pa.pk}/entrega/?proceso={i["Armado"]}').content.decode()
     assert 'Avance: Armado' in html and f'avance={i["Armado"]}' in html
     assert cliente_de(t.dueno_b).get(f'/taller-b/visor/api/avance-proceso?proyecto={pa.pk}&proceso={corte}').status_code == 404
+
+
+def test_borrar_un_proceso_usado_con_sus_marcas(cliente_de, t, pa):
+    from avance.models import Marca
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    cortada = ids(t.A)['Cortada']
+    post(c, '/taller-a/puesto/api/marcar', {'texto': etiqueta(t.A, pa, piezas_del(m)[0]).codigo, 'etapa': cortada})
+    assert c.post('/taller-a/procesos/', {'accion': f'vaciar-etapas-{cortada}'}).status_code == 403   # solo el dueño
+    d = cliente_de(t.dueno_a)
+    assert 'Borrar con sus marcas' in d.get('/taller-a/procesos/').content.decode()
+    d.post('/taller-a/procesos/', {'accion': f'vaciar-etapas-{cortada}'})
+    assert 'Cortada' not in [x[0] for x in los_procesos(t.A)]
+    with con_taller(t.A):
+        assert not Marca.objects.filter(etapa_id=cortada).exists()
+    d.post('/taller-a/procesos/', {'accion': f'vaciar-etapas-{ids(t.A)["Armado"]}'})          # un fijo no se borra
+    assert 'Armado' in [x[0] for x in los_procesos(t.A)]
