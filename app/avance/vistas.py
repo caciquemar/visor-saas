@@ -24,7 +24,7 @@ from trabajos.api import Rechazo
 
 from . import acciones
 from .tablero import tablero as armar_tablero
-from .models import Carga, Etapa, Ubicacion, etapas_del_taller
+from .models import Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, puntos_de_control
 
 
 def url(request, nombre, **kwargs):
@@ -89,6 +89,15 @@ def carga(request, taller, id):
     }, status=400 if error else 200)
 
 
+def usos_de_puntos():
+    """Cuántos controles usaron cada punto (los resultados guardan el id del punto)."""
+    usos = {}
+    for resultados in Control.objects.values_list('resultados', flat=True):
+        for r in resultados:
+            usos[r.get('punto')] = usos.get(r.get('punto'), 0) + 1
+    return usos
+
+
 def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
     """Lo que manda la tabla de Procesos para una lista ordenada (etapas o ubicaciones): agregar, guardar nombres,
     tildes y el orden en que quedaron las filas, o borrar una que nunca se usó. `nombre` es el prefijo de los
@@ -119,7 +128,8 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
                     e.save(update_fields=['orden'])
     elif accion.startswith(f'borrar-{nombre}-'):
         e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1]), None)
-        usada = e is not None and (e.marcas.exists() if modelo is Etapa else e.ubicados.exists())
+        usada = e is not None and (e.marcas.exists() if modelo is Etapa else e.ubicados.exists()
+                                   if modelo is Ubicacion else e.pk in usos_de_puntos())
         if e is not None and not usada and (modelo is not Etapa or len(lista) > 1):
             e.delete()
         elif e is not None:
@@ -128,8 +138,8 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
 
 @con_rol(Rol.DUENO, Rol.OFICINA)
 def procesos(request, taller):
-    """Procesos de Producción: las etapas de las piezas (solo el dueño) y las ubicaciones del taller (dueño y
-    oficina)."""
+    """Procesos de Producción: las etapas de las piezas y los puntos del control de calidad (solo el dueño), y las
+    ubicaciones del taller (dueño y oficina)."""
     dueno = request.membresia.rol == Rol.DUENO
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
@@ -137,18 +147,26 @@ def procesos(request, taller):
             if not dueno:
                 raise PermissionDenied('Las etapas las cambia el dueño.')
             editar_lista(request, Etapa, etapas_del_taller(), 'etapas', 'Dejá al menos una etapa prendida.')
+        elif accion.endswith('-puntos') or '-puntos-' in accion:
+            if not dueno:
+                raise PermissionDenied('El control de calidad lo cambia el dueño.')
+            editar_lista(request, PuntoDeControl, puntos_de_control(), 'puntos')
         else:
             editar_lista(request, Ubicacion, list(Ubicacion.objects.all()), 'ubicaciones')
         return redirect(url(request, 'procesos'))
-    etapas = None
+    etapas = puntos = None
     if dueno:
+        usos = usos_de_puntos()
+        puntos = puntos_de_control()
+        for x in puntos:
+            x.usadas = usos.get(x.pk, 0)
         etapas_del_taller()
         # order_by explícito: con annotate (GROUP BY), Django no aplica el orden de Meta
         etapas = list(Etapa.objects.annotate(usadas=Count('marcas', filter=Q(marcas__deshecha_en__isnull=True)))
                       .order_by('orden', 'pk'))
     ubicaciones = list(Ubicacion.objects.annotate(usadas=Count('ubicados')).order_by('orden', 'pk'))
     return render(request, 'avance/procesos.html', {
-        'etapas': etapas, 'ubicaciones': ubicaciones,
+        'etapas': etapas, 'ubicaciones': ubicaciones, 'puntos': puntos,
         'armado': next((e for e in reversed(etapas or []) if e.activa), None)})
 
 

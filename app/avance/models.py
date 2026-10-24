@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import models
 
 from proyectos.models import Proyecto
+from talleres.archivos import ruta_de_taller
 from talleres.separacion import DatoDeTaller
 
 ETAPAS_POR_DEFECTO = ['Cortada', 'Canteada', 'Mecanizada', 'Armada']
@@ -207,3 +208,89 @@ class Ubicado(DatoDeTaller):
 
     def __str__(self):
         return f'{self.bulto or (self.clave or {}).get("nombre")} en {self.ubicacion or "camión"}'
+
+
+# ---------------------------------------------------------------- ficha 18: del armado a la instalación
+
+PUNTOS_POR_DEFECTO = ['Cantos', 'Todas las piezas', 'Frentes', 'Herrajes']
+
+
+class PuntoDeControl(DatoDeTaller):
+    """Un punto de la lista del control de calidad de cada mueble (Procesos, solo el dueño)."""
+    nombre = models.CharField('nombre', max_length=40)
+    orden = models.PositiveSmallIntegerField('orden', default=0)
+    activa = models.BooleanField('activo', default=True)
+
+    class Meta:
+        verbose_name = 'punto de control'
+        verbose_name_plural = 'puntos de control'
+        ordering = ['orden', 'pk']
+
+    def __str__(self):
+        return self.nombre
+
+
+def puntos_de_control():
+    """Los puntos del taller (todos, en orden). La primera vez crea los de por defecto."""
+    puntos = list(PuntoDeControl.objects.all())
+    if not puntos:
+        puntos = [PuntoDeControl.objects.create(nombre=n, orden=i) for i, n in enumerate(PUNTOS_POR_DEFECTO, 1)]
+    return puntos
+
+
+class Control(DatoDeTaller):
+    """Control de calidad de un mueble armado. Vale el último. `resultados`: [{punto, nombre, ok, nota, tarea}];
+    cada punto mal crea una tarea del mueble (y se puede seguir: decisión de Martín, 2026-10-24)."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='controles')
+    mueble = models.CharField('mueble', max_length=200)
+    resultados = models.JSONField('resultados', default=list)
+    ok = models.BooleanField('todo ok', default=True)
+    por = quien()
+    cuando = models.DateTimeField('cuándo')
+
+    class Meta:
+        verbose_name = 'control de calidad'
+        verbose_name_plural = 'controles de calidad'
+        ordering = ['cuando', 'pk']
+        indexes = [models.Index(fields=['taller', 'proyecto'])]
+
+    def __str__(self):
+        return f'control de {self.mueble}'
+
+
+class Instalacion(DatoDeTaller):
+    """Un mueble quedó instalado en la obra. Con bultos sin entregar o tareas abiertas, queda el motivo. Deshacer (dueño
+    u oficina) lo deja con `anulado_en`."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='instalaciones')
+    mueble = models.CharField('mueble', max_length=200)
+    nota = models.TextField('nota', max_length=1000, blank=True)
+    motivo = models.TextField('motivo', max_length=1000, blank=True)
+    faltantes = models.JSONField('lo que faltaba', default=list, blank=True)
+    por = quien()
+    cuando = models.DateTimeField('cuándo')
+    anulado_por = quien(nombre='deshecho por')
+    anulado_en = models.DateTimeField('deshecho', null=True, blank=True)
+
+    class Meta:
+        verbose_name = 'instalación'
+        verbose_name_plural = 'instalaciones'
+        ordering = ['cuando', 'pk']
+        constraints = [models.UniqueConstraint(fields=['proyecto', 'mueble'],
+                                               condition=models.Q(anulado_en__isnull=True),
+                                               name='una_instalacion_vigente_por_mueble')]
+
+    def __str__(self):
+        return f'{self.mueble} instalado'
+
+
+class FotoDeInstalacion(DatoDeTaller):
+    instalacion = models.ForeignKey(Instalacion, on_delete=models.CASCADE, related_name='fotos')
+    archivo = models.ImageField('archivo', upload_to=ruta_de_taller, max_length=300)
+    tamano = models.PositiveIntegerField('tamaño', default=0)
+    subida_por = quien(nombre='subida por')
+    creada = models.DateTimeField('subida', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'foto de instalación'
+        verbose_name_plural = 'fotos de instalación'
+        ordering = ['pk']

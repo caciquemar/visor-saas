@@ -26,6 +26,14 @@
   <input name="nombre" maxlength="40" placeholder="Pintada" aria-label="Nombre de la etapa nueva" style="width:auto">
   <button name="accion" value="agregar-etapas">Agregar etapa</button>
 </form>
+<h2>Control de calidad</h2>
+<p class="suave">La lista que se revisa en cada mueble armado, en Mi puesto → Control de calidad. Cada punto que no está
+  bien crea una tarea del mueble.</p>
+{% include 'avance/lista_ordenada.html' with filas=puntos lista='puntos' que='punto' usadas='Controles' %}
+<form method="post" class="acciones">{% csrf_token %}
+  <input name="nombre" maxlength="40" placeholder="Limpieza" aria-label="Nombre del punto nuevo" style="width:auto">
+  <button name="accion" value="agregar-puntos">Agregar punto</button>
+</form>
 {% endif %}
 <h2>Ubicaciones</h2>
 <p class="suave">Dónde quedan las piezas y los bultos en el taller (un estante, el depósito, la playa de carga). En Mi
