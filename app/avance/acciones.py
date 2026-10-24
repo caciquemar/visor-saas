@@ -3,7 +3,11 @@ devuelve un dict para el puesto o lanza `Rechazo` (el mismo de la API de trabajo
 
 `resultado`: 'ok' (se hizo), 'ya' (ya estaba hecho: no cambia nada) o 'error' (no se hizo). Con 'ok' u 'ya',
 `otro_proyecto` avisa que la pieza no es del proyecto elegido en el puesto (se marca igual en el suyo: decisión de
-Martín, 2026-10-11)."""
+Martín, 2026-10-11).
+
+Ficha 17: el puesto ya no elige proyecto (lo dice la etiqueta). Para los números de mecanizado manda el de la última
+pieza leída; sin ninguno, el error trae `falta_proyecto`. Con una ubicación elegida, cada pieza o bulto leído queda
+ahí (`Ubicado`)."""
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -14,7 +18,7 @@ from proyectos.models import Proyecto
 from trabajos.api import Rechazo, hora, nombre
 
 from .calculo import (avance, etiqueta_de, faltan_en, leer, marcas_vigentes, numero, piezas_de)
-from .models import Bulto, Carga, FinDeMueble, Marca, Movimiento, etapas_activas
+from .models import Bulto, Carga, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas
 
 MAX_MOTIVO = 1000
 
@@ -47,6 +51,28 @@ def motivo_de(texto):
     if not isinstance(texto, str) or len(texto) > MAX_MOTIVO:
         raise Rechazo(400, 'motivo no válido')
     return texto.strip()
+
+
+def sin_proyecto():
+    return error('Escaneá primero una etiqueta QR o elegí el proyecto para leer números de mecanizado.', falta_proyecto=True)
+
+
+def ubicacion_o_rechazo(ubicacion_id):
+    """La ubicación prendida elegida en el puesto, o None si no se eligió."""
+    if ubicacion_id is None:
+        return None
+    u = Ubicacion.objects.filter(pk=ubicacion_id, activa=True).first() \
+        if isinstance(ubicacion_id, int) and not isinstance(ubicacion_id, bool) else None
+    if u is None:
+        raise Rechazo(400, 'Esa ubicación no existe o está apagada. Elegí otra.')
+    return u
+
+
+def ubicar(proyecto, ubicacion, usuario, ahora, pieza=None, bulto=None, marca=None):
+    """La pieza (dict de piezas_de) o el bulto queda en la ubicación (None = salió del taller)."""
+    return Ubicado.objects.create(proyecto=proyecto, huella=pieza['huella'] if pieza else '',
+                                  clave=pieza['clave'] if pieza else None, bulto=bulto, ubicacion=ubicacion,
+                                  marca=marca, por=usuario, cuando=ahora)
 
 
 # ---------------------------------------------------------------- piezas por etapa
@@ -89,7 +115,7 @@ def pieza_leida(texto, slug, proyecto_puesto, etapa):
         return e.proyecto, x, piezas
     # número de mecanizado (código de barras de OptiCut): la siguiente copia sin marcar, en el proyecto del puesto
     if proyecto_puesto is None:
-        return error('Para leer números de mecanizado, elegí primero el proyecto.')
+        return sin_proyecto()
     piezas = piezas_de(proyecto_puesto)
     iguales = [x for x in piezas if x['panel'].get('num') and numero(x['panel']['num']) == lectura['numero']]
     if not iguales:
@@ -99,8 +125,9 @@ def pieza_leida(texto, slug, proyecto_puesto, etapa):
     return proyecto_puesto, x, piezas
 
 
-def marcar(usuario, slug, texto, etapa_id, proyecto_id=None):
+def marcar(usuario, slug, texto, etapa_id, proyecto_id=None, ubicacion_id=None):
     etapa = etapa_o_rechazo(etapa_id)
+    ubicacion = ubicacion_o_rechazo(ubicacion_id)
     puesto = proyecto_o_rechazo(proyecto_id) if proyecto_id is not None else None
     leido = pieza_leida(texto, slug, puesto, etapa)
     if isinstance(leido, dict):
@@ -120,6 +147,11 @@ def marcar(usuario, slug, texto, etapa_id, proyecto_id=None):
             salida.update(resultado='ya', ya=ya_marcada(previa), marca=previa.pk)
     else:
         salida.update(resultado='ya', ya=ya_marcada(previa), marca=previa.pk)
+    if ubicacion is not None:
+        # con "ya" no se ata a la marca: deshacer esa marca vieja no tiene que mover la pieza
+        ubicar(proyecto, ubicacion, usuario, timezone.now(), pieza=x,
+               marca=previa if salida['resultado'] == 'ok' else None)
+        salida['ubicacion'] = ubicacion.nombre
     salida['mueble'] = cuenta(proyecto, etapa, piezas, x['panel']['mueble'])
     salida['total'] = cuenta(proyecto, etapa, piezas)
     return salida
@@ -132,6 +164,7 @@ def deshacer(usuario, marca_id):
         raise Rechazo(404, 'Esa marca no existe o ya se deshizo.')
     m.deshecha_por, m.deshecha_en = usuario, timezone.now()
     m.save(update_fields=['deshecha_por', 'deshecha_en'])
+    m.ubicados.filter(deshecho_en__isnull=True).update(deshecho_en=m.deshecha_en)
     return {'resultado': 'ok', 'marca': m.pk, 'etapa': m.etapa.nombre, 'pieza': m.clave,
             'proyecto': proyecto_a_dic(m.proyecto)}
 
@@ -177,7 +210,7 @@ def mueble_leido(slug, texto, proyecto_id=None):
         return error('Esta etiqueta es de otro taller.')
     if 'numero' in lectura:
         if puesto is None:
-            return error('Para leer números de mecanizado, elegí primero el proyecto.')
+            return sin_proyecto()
         x = next((x for x in piezas_de(puesto) if x['panel'].get('num')
                   and numero(x['panel']['num']) == lectura['numero']), None)
         if x is None:
@@ -193,8 +226,9 @@ def mueble_leido(slug, texto, proyecto_id=None):
     return estado_del_mueble(e.proyecto, mueble, piezas)
 
 
-def terminar(usuario, proyecto_id, mueble, bultos, motivo):
+def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
     proyecto = proyecto_o_rechazo(proyecto_id)
+    ubicacion = ubicacion_o_rechazo(ubicacion_id)
     if not isinstance(mueble, str):
         raise Rechazo(400, 'mueble no válido')
     if isinstance(bultos, bool) or not isinstance(bultos, int) or not 1 <= bultos <= MAX_BULTOS:
@@ -217,6 +251,8 @@ def terminar(usuario, proyecto_id, mueble, bultos, motivo):
                 b = Bulto.objects.create(fin=fin, proyecto=proyecto, mueble=mueble, numero=n,
                                          embalado_por=usuario, embalado_en=ahora)
                 Movimiento.objects.create(bulto=b, a=Bulto.Estado.EMBALADO, usuario=usuario, cuando=ahora)
+                if ubicacion is not None:
+                    ubicar(proyecto, ubicacion, usuario, ahora, bulto=b)
     except IntegrityError:
         raise Rechazo(409, f'{mueble} ya tiene la fabricación terminada.')
     return estado_del_mueble(proyecto, mueble, piezas)
@@ -320,6 +356,52 @@ def mover(bulto, a, usuario, carga, ahora):
         bulto.entregado_por, bulto.entregado_en = None, None
     bulto.save()
     Movimiento.objects.create(bulto=bulto, carga=carga, de=de, a=a, usuario=usuario, cuando=ahora)
+    # al camión deja de estar en el taller; si vuelve atrás, vuelve a donde estaba
+    if a == Bulto.Estado.CARGADO and de == Bulto.Estado.EMBALADO:
+        ubicar(bulto.proyecto, None, usuario, ahora, bulto=bulto)
+    elif a == Bulto.Estado.EMBALADO:
+        bulto.ubicados.filter(ubicacion__isnull=True, deshecho_en__isnull=True).update(deshecho_en=ahora)
+
+
+# ---------------------------------------------------------------- tareas (modo "Tareas" del puesto)
+
+def tareas_de_lo_leido(slug, texto, proyecto_id=None):
+    """(proyecto, qué se leyó, tareas sin instalar) de la etiqueta de una pieza o de un mueble, o un dict de error.
+    De una pieza: las suyas y las de su mueble (como "en esta pieza o su mueble" del visor). De un mueble: las del
+    mueble y las de cualquiera de sus piezas. Las piezas de una tarea van por id del panel o nº de mecanizado."""
+    from trabajos.models import Trabajo
+    puesto = proyecto_o_rechazo(proyecto_id) if proyecto_id is not None else None
+    lectura = leer(texto, slug)
+    if lectura is None:
+        return error(f'No se reconoció un código en "{str(texto)[:40]}". Probá de nuevo o escribilo.')
+    if lectura.get('ajena'):
+        return error('Esta etiqueta es de otro taller.')
+    if 'codigo' in lectura:
+        e = etiqueta_de(lectura['codigo'])
+        if e is None:
+            return error('Esta etiqueta no es de este taller.')
+        proyecto, piezas = e.proyecto, piezas_de(e.proyecto)
+        if e.tipo == e.Tipo.MUEBLE:
+            mueble, pieza = e.clave.get('mueble'), None
+        else:
+            pieza = next((x for x in piezas if x['clave'] == e.clave), None)
+            if pieza is None:
+                return error(f'Esta pieza ya no está en la versión actual de {proyecto.nombre}.')
+            mueble = pieza['panel']['mueble']
+    else:
+        if puesto is None:
+            return sin_proyecto()
+        proyecto, piezas = puesto, piezas_de(puesto)
+        pieza = next((x for x in piezas if x['panel'].get('num') and numero(x['panel']['num']) == lectura['numero']),
+                     None)
+        if pieza is None:
+            return error(f'El mecanizado {lectura["numero"]} no está en {puesto.nombre}.')
+        mueble = pieza['panel']['mueble']
+    del_mueble = [x for x in piezas if x['panel']['mueble'] == mueble] if pieza is None else [pieza]
+    claves_ = {str(c) for x in del_mueble for c in (x['panel'].get('id'), x['panel'].get('num')) if c}
+    abiertas = [t for t in Trabajo.objects.filter(proyecto=proyecto).exclude(estado=Trabajo.Estado.INSTALADO)
+                if mueble in (t.muebles or []) or claves_ & {str(c) for c in (t.piezas or [])}]
+    return proyecto, {'mueble': mueble, 'pieza': pieza_a_dic(pieza) if pieza else None}, abiertas
 
 
 def bulto_leido(usuario, slug, carga_id, texto, entregar=False):

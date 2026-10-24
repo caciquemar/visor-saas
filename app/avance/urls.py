@@ -12,6 +12,7 @@ urlpatterns = [
     path('puesto/api/mueble', api.mueble, name='mueble'),
     path('puesto/api/terminar', api.terminar, name='terminar'),
     path('puesto/api/reabrir', api.reabrir, name='reabrir'),
+    path('puesto/api/tareas', api.tareas, name='tareas'),
     path('puesto/api/cargas/<int:id>', api.carga, name='api_carga'),
     path('puesto/api/cargas/<int:id>/bulto', api.bulto, name='bulto'),
     path('puesto/api/cargas/<int:id>/deshacer', api.deshacer_bulto, name='deshacer_bulto'),

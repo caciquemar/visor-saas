@@ -7,6 +7,10 @@
   .pad:active { cursor:grabbing; }
   tr.arrastrando { background:var(--fondo); outline:2px solid var(--acento); outline-offset:-2px; }
   tr.arrastrando .pad { color:var(--acento); border-color:var(--acento); }
+  /* en el celular: el nombre se lleva el ancho; Borrar, chico */
+  .lista-ordenada th, .lista-ordenada td { padding:.45rem .3rem; vertical-align:middle; }
+  .lista-ordenada input[name^="nombre-"] { min-width:9rem; }
+  .lista-ordenada button.secundario { padding:.4rem .6rem; font-size:.85rem; }
 </style>
 {% endblock %}
 {% block contenido %}

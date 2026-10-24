@@ -471,8 +471,10 @@ def test_el_tilde_pide_post_y_respeta_el_plan(ana, varios, monkeypatch):
 
 
 def test_pantalla_enlazada_desde_el_inicio(ana, t):
-    html = ana.get('/taller-a/').content.decode()
-    assert html.count('href="/taller-a/trabajos/"') == 2              # menú y caja del inicio
+    # en el menú (dentro de Armado) y en la pantalla de Armado, que se abre desde el botón del Inicio
+    assert ana.get('/taller-a/').content.decode().count('href="/taller-a/trabajos/"') == 1
+    assert 'href="/taller-a/armado/"' in ana.get('/taller-a/').content.decode()
+    assert ana.get('/taller-a/armado/').content.decode().count('href="/taller-a/trabajos/"') == 2
 
 
 def test_pantalla_de_a_no_muestra_ni_avanza_lo_de_b(ana, con_trabajos):

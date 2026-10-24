@@ -2,11 +2,12 @@
 del taller; reabrir un mueble es del dueño o la oficina. Como en el resto de la app, el filtro por taller lo pone
 DatoDeTaller: ids y códigos de otro taller no se encuentran.
 
-    POST puesto/api/marcar                 {texto, etapa, proyecto?}   pieza en una etapa
+    POST puesto/api/marcar                 {texto, etapa, proyecto?, ubicacion?}   pieza en una etapa (y lugar)
     POST puesto/api/deshacer               {marca}
     POST puesto/api/mueble                 {texto, proyecto?}          qué mueble es y cuánto le falta
     GET  puesto/api/mueble?proyecto=&mueble=
-    POST puesto/api/terminar               {proyecto, mueble, bultos, motivo}
+    POST puesto/api/terminar               {proyecto, mueble, bultos, motivo, ubicacion?}
+    POST puesto/api/tareas                 {texto, proyecto?}          tareas sin instalar de una pieza o mueble
     POST puesto/api/reabrir                {proyecto, mueble}
     GET  puesto/api/cargas/<id>
     POST puesto/api/cargas/<id>/bulto      {texto, entregar?}
@@ -16,7 +17,7 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
 from django.http import Http404
 
 from talleres.roles import Rol
-from trabajos.api import Rechazo, api, leer_json, responder, solo
+from trabajos.api import Rechazo, api, leer_json, responder, solo, uno
 
 from . import acciones
 from .calculo import avance, piezas_de, piezas_nuevas
@@ -38,6 +39,11 @@ def texto_de(d):
     return t
 
 
+def ubicacion_de(d):
+    u = d.get('ubicacion')
+    return None if u in (None, '') else entero(u) if not isinstance(u, bool) else -1
+
+
 def proyecto_de(d):
     p = d.get('proyecto')
     return None if p in (None, '') else entero(p) if not isinstance(p, bool) else None
@@ -48,7 +54,7 @@ def marcar(request, taller):
     solo(request, 'POST')
     d = leer_json(request)
     return responder(200, acciones.marcar(request.user, request.taller.slug, texto_de(d), entero(d.get('etapa')),
-                                          proyecto_de(d)))
+                                          proyecto_de(d), ubicacion_de(d)))
 
 
 @api
@@ -72,7 +78,21 @@ def terminar(request, taller):
     solo(request, 'POST')
     d = leer_json(request)
     return responder(200, acciones.terminar(request.user, entero(d.get('proyecto')), d.get('mueble'),
-                                            d.get('bultos'), d.get('motivo')))
+                                            d.get('bultos'), d.get('motivo'), ubicacion_de(d)))
+
+
+@api
+def tareas(request, taller):
+    """Modo "Tareas" del puesto: las tareas sin instalar de la pieza o el mueble leído, como las da la API de
+    tareas del visor (para pasarlas de estado con PATCH visor/api/trabajos/<id>)."""
+    solo(request, 'POST')
+    d = leer_json(request)
+    leido = acciones.tareas_de_lo_leido(request.taller.slug, texto_de(d), proyecto_de(d))
+    if isinstance(leido, dict):
+        return responder(200, leido)
+    proyecto, que, abiertas = leido
+    return responder(200, {'resultado': 'ok', 'proyecto': acciones.proyecto_a_dic(proyecto), **que,
+                           'tareas': [uno(request, t.pk) for t in abiertas]})
 
 
 @api

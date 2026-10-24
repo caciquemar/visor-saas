@@ -373,3 +373,108 @@ def test_ordenar_las_etapas_arrastrando(cliente_de, t):
         assert etapas_activas()[-1].nombre == 'Mecanizada'        # la última es la que mira "Fabricación terminada"
     pagina = c.get('/taller-a/procesos/').content.decode()            # y la pantalla las muestra en ese orden
     assert [pagina.index(f'name="nombre-{i}"') for i in nuevo] == sorted(pagina.index(f'name="nombre-{i}"') for i in nuevo)
+
+
+# ---------------------------------------------------------------- ficha 17: Mi puesto sin proyecto, ubicaciones, tareas
+
+def ubicaciones(taller, *nombres):
+    with con_taller(taller):
+        return [Ubicacion.objects.create(nombre=n, orden=i) for i, n in enumerate(nombres, 1)]
+
+
+def test_ubicacion_al_marcar_y_al_deshacer(cliente_de, t, pa):
+    estante, deposito = ubicaciones(t.A, 'Estante A', 'Depósito')
+    e = etiqueta(t.A, pa, una_pieza())
+    corte = etapas(t.A)['Cortada']
+    c = cliente_de(t.armador_a)
+    d = post(c, '/taller-a/puesto/api/marcar', {'texto': e.codigo, 'etapa': corte, 'ubicacion': estante.pk}).json()
+    assert d['resultado'] == 'ok' and d['ubicacion'] == 'Estante A'
+    # ya cortada, pero la llevan al depósito: queda ahí, sin atarse a la marca
+    d2 = post(c, '/taller-a/puesto/api/marcar', {'texto': e.codigo, 'etapa': corte, 'ubicacion': deposito.pk}).json()
+    assert d2['resultado'] == 'ya' and d2['ubicacion'] == 'Depósito'
+    with con_taller(t.A):
+        primero, segundo = Ubicado.objects.order_by('pk')
+        assert (primero.ubicacion, primero.marca_id, primero.por) == (estante, d['marca'], t.armador_a)
+        assert (segundo.ubicacion, segundo.marca_id) == (deposito, None)
+    # deshacer la marca deshace la ubicación de esa lectura, no la otra
+    post(c, '/taller-a/puesto/api/deshacer', {'marca': d['marca']})
+    with con_taller(t.A):
+        assert [u.deshecho_en is None for u in Ubicado.objects.order_by('pk')] == [False, True]
+    # sin ubicación no se anota nada; apagada no se acepta
+    marcar(c, etiqueta(t.A, pa, una_pieza(lambda x: x['panel']['num'])).codigo, corte)
+    with con_taller(t.A):
+        assert Ubicado.objects.count() == 2
+        Ubicacion.objects.filter(pk=estante.pk).update(activa=False)
+    assert post(c, '/taller-a/puesto/api/marcar',
+                {'texto': e.codigo, 'etapa': corte, 'ubicacion': estante.pk}).status_code == 400
+
+
+def test_numero_de_mecanizado_sin_proyecto_lo_pide(cliente_de, t, pa):
+    x = una_pieza(lambda x: x['panel']['num'])
+    corte = etapas(t.A)['Cortada']
+    c = cliente_de(t.armador_a)
+    d = marcar(c, x['panel']['num'], corte).json()
+    assert d['resultado'] == 'error' and d['falta_proyecto'] and 'Escaneá primero' in d['error']
+    d = post(c, '/taller-a/puesto/api/mueble', {'texto': x['panel']['num']}).json()
+    assert d['falta_proyecto']
+    # con el proyecto de la última etiqueta leída, anda
+    assert marcar(c, x['panel']['num'], corte, pa.pk).json()['resultado'] == 'ok'
+
+
+def test_bultos_quedan_en_la_ubicacion_y_salen_al_cargar(cliente_de, t, pa):
+    playa, = ubicaciones(t.A, 'Playa de carga')
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    assert post(c, '/taller-a/puesto/api/terminar', {'proyecto': pa.pk, 'mueble': m, 'bultos': 2, 'motivo': 'x',
+                                                     'ubicacion': playa.pk}).status_code == 200
+    with con_taller(t.A):
+        assert [(u.bulto.numero, u.ubicacion) for u in Ubicado.objects.order_by('pk')] == [(1, playa), (2, playa)]
+    c.post(f'/taller-a/proyectos/{pa.pk}/cargas/nueva/', {'todo': '1'})
+    with con_taller(t.A):
+        carga = Carga.objects.get()
+    d = post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/bulto', {'texto': qr(etiqueta(t.A, pa, mueble=m), 1)}).json()
+    with con_taller(t.A):
+        ultimo = Ubicado.objects.order_by('pk').last()
+        assert ultimo.bulto_id == d['bulto'] and ultimo.ubicacion is None            # se fue en el camión
+    post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/deshacer', {'bulto': d['bulto']})
+    with con_taller(t.A):
+        assert Ubicado.objects.order_by('pk').last().deshecho_en is not None          # vuelve a la playa
+
+
+def test_tareas_desde_el_puesto(cliente_de, t, pa):
+    from trabajos.models import Trabajo
+    m = mueble_chico()
+    x = piezas_del(m)[0]
+    with con_taller(t.A):
+        del_mueble = Trabajo.objects.create(proyecto=pa, texto='Falta una bisagra', muebles=[m])
+        de_la_pieza = Trabajo.objects.create(proyecto=pa, texto='Rayada', piezas=[x['panel']['id']])
+        Trabajo.objects.create(proyecto=pa, texto='Ya instalada', muebles=[m], estado='instalado')
+        Trabajo.objects.create(proyecto=pa, texto='De otro mueble', muebles=['otro'])
+    c = cliente_de(t.armador_a)
+    d = post(c, '/taller-a/puesto/api/tareas', {'texto': etiqueta(t.A, pa, x).codigo}).json()
+    assert d['resultado'] == 'ok' and d['mueble'] == m and d['pieza']['panel'] == x['panel']['id']
+    assert {x['id'] for x in d['tareas']} == {del_mueble.pk, de_la_pieza.pk}
+    d = post(c, '/taller-a/puesto/api/tareas', {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()
+    assert d['pieza'] is None and {x['id'] for x in d['tareas']} == {del_mueble.pk, de_la_pieza.pk}
+    assert post(c, '/taller-a/puesto/api/tareas', {'texto': '12'}).json()['falta_proyecto']
+    # el ✓ del puesto usa la API de tareas del visor
+    r = c.patch(f'/taller-a/visor/api/trabajos/{del_mueble.pk}', json.dumps({'estado': 'en proceso'}),
+                content_type='application/json')
+    assert r.json()['estado'] == 'en proceso'
+    pagina = c.get('/taller-a/puesto/').content.decode()
+    assert '/taller-a/visor/api/trabajos/' in pagina and 'Escanear' in pagina
+
+
+def test_ubicaciones_de_a_no_se_usan_desde_b(cliente_de, t, pa):
+    estante, = ubicaciones(t.A, 'Rincón Q')
+    cb = cliente_de(t.dueno_b)
+    pb = proyecto_de(t.B)
+    e = etiqueta(t.B, pb, una_pieza())
+    assert post(cb, '/taller-b/puesto/api/marcar', {'texto': e.codigo, 'etapa': etapas(t.B)['Cortada'],
+                                                    'ubicacion': estante.pk}).status_code == 400
+    assert 'Rincón Q' not in cb.get('/taller-b/puesto/').content.decode()
+    assert 'Rincón Q' not in cb.get('/taller-b/procesos/').content.decode()
+    with con_taller(t.B):
+        assert not Ubicado.objects.exists() and not Ubicacion.objects.exists()
+        with pytest.raises(OtroTaller):
+            Ubicado.objects.create(proyecto=pa, ubicacion=estante, cuando=pa.creado)

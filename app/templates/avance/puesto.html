@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1d1d1b">
-<title>Puesto · {{ request.taller.nombre }}</title>
+<title>Mi puesto · {{ request.taller.nombre }}</title>
 <style>
   :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;
           --acento-texto:#fff; --ok:#2e7d32; --ok-texto:#fff; --ya:#f2a900; --ya-texto:#2b1d00; --mal:#c62828;
@@ -36,6 +36,17 @@
   .modos button[aria-pressed=true] { outline:3px solid var(--acento); outline-offset:-3px; }
   .modos .chico { font-size:.95rem; font-weight:500; color:var(--suave); }
   .separa { border-top:1px solid var(--borde); margin:.25rem 0; }
+  select.grande { font-size:1.25rem; font-weight:600; padding:1rem; }
+  button.escanear { display:flex; align-items:center; justify-content:center; gap:.6rem; min-height:5.5rem;
+                    font-size:1.5rem; margin-top:.5rem; }
+  .pista { color:var(--suave); font-size:.9rem; margin:0; }
+  .pista a { color:var(--acento); }
+  .tarea { border-top:1px solid var(--borde); padding:.6rem 0; display:flex; gap:.75rem; align-items:flex-start; }
+  .tarea .texto { flex:1; }
+  .tarea .meta { color:var(--suave); font-size:.9rem; }
+  .tarea button.avanzar { flex:none; min-width:3.5rem; min-height:3.5rem; padding:0; font-size:1.5rem; border-radius:50%;
+                          border:3px solid var(--acento); color:var(--acento); background:transparent; }
+  .tarea button.avanzar:disabled { opacity:.4; }
   .barra { display:flex; align-items:center; gap:.5rem; }
   .barra .nombre { font-size:1.3rem; font-weight:700; margin-right:auto; }
   .barra .cuenta { font-size:1.1rem; font-variant-numeric:tabular-nums; }
@@ -85,26 +96,27 @@
 <body>
 <header>
   {% include 'menu.html' %}
-  <span class="titulo" id="titulo">Puesto</span>
+  <span class="titulo" id="titulo">Mi puesto</span>
 </header>
 
 <main>
   <!-- elegir qué se hace en este puesto -->
   <section id="elegir" class="modos">
-    <label class="campo" for="selProyecto">Proyecto</label>
-    <select id="selProyecto"></select>
-    <label class="campo">¿Qué hacés en este puesto?</label>
-    <div class="modos" id="listaEtapas"></div>
-    <div class="separa"></div>
-    <button type="button" data-modo="fin" aria-pressed="false">Fin de fabricación <span class="chico">mueble por mueble</span></button>
-    <label class="campo" for="selCarga">Carga</label>
-    <select id="selCarga"></select>
-    <div class="modos">
-      <button type="button" data-modo="carga" aria-pressed="false">Cargar bultos <span class="chico">al camión</span></button>
-      <button type="button" data-modo="entrega" aria-pressed="false">Entregar en obra <span class="chico">bulto por bulto</span></button>
+    <label class="campo" for="selModo">Etapa</label>
+    <select id="selModo" class="grande"></select>
+    <div class="modos" id="campoUbicacion">
+      <label class="campo" for="selUbicacion">Ubicación <span class="chico">(dónde quedan las piezas)</span></label>
+      <select id="selUbicacion" class="grande"></select>
+    </div>
+    <p class="pista" id="sinUbicaciones" hidden></p>
+    <div class="modos" id="campoCarga" hidden>
+      <label class="campo" for="selCarga">Carga</label>
+      <select id="selCarga" class="grande"></select>
     </div>
     <p class="error" id="errElegir" hidden></p>
-    <button type="button" class="principal" id="btnEmpezar">Empezar</button>
+    <button type="button" class="principal escanear" id="btnEmpezar">
+      <svg width="30" height="30" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5h3M17 5h3v2M20 17v2h-3M7 19H4v-2"/><path d="M8 9v6M11 9v6M14 9v6M17 9v6"/></svg>
+      Escanear</button>
   </section>
 
   <!-- escaneando -->
@@ -126,6 +138,10 @@
       <div class="s" id="a4"></div>
     </div>
     <div class="tarjeta" id="tarjeta" hidden></div>
+    <div id="pedirProyecto" hidden>
+      <label class="campo" for="selProyecto">Proyecto de los números de mecanizado</label>
+      <select id="selProyecto"></select>
+    </div>
     <form class="escribir" id="formEscribir" autocomplete="off">
       <input id="escrito" placeholder="Código o número" aria-label="Código de la etiqueta o número de mecanizado" enterkeyhint="go">
       <button type="submit">OK</button>
@@ -143,12 +159,16 @@ const C = {{ config|safe }};
 const $ = id => document.getElementById(id);
 const guardado = (() => { try { return JSON.parse(localStorage.getItem('puesto.eleccion') || '{}'); } catch (e) { return {}; } })();
 const q = new URLSearchParams(location.search);
+// el proyecto no se elige: lo dice cada etiqueta. Se recuerda el de la última pieza leída, para los números de
+// mecanizado (que no dicen de qué proyecto son); si todavía no hay ninguno, se pide ahí mismo.
 let estado = {
-  proyecto: q.get('p') ? +q.get('p') : guardado.proyecto,
+  proyecto: q.get('p') ? +q.get('p') : null,
   modo: q.get('modo') || (q.get('c') ? 'carga' : guardado.modo),
   etapa: guardado.etapa,
   carga: q.get('c') ? +q.get('c') : guardado.carga,
+  ubicacion: guardado.ubicacion || null,
 };
+let pendiente = '';               // lo leído que esperaba el proyecto
 let ultimas = [], muebleActual = null, cargaActual = null;
 
 /* ---------- elegir ---------- */
@@ -160,24 +180,52 @@ function opciones(sel, items, valor, vacio){
 const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 opciones($('selProyecto'), C.proyectos, estado.proyecto, 'Elegí el proyecto');
 opciones($('selCarga'), C.cargas, estado.carga, C.cargas.length ? 'Elegí la carga' : 'No hay cargas abiertas');
-$('listaEtapas').innerHTML = C.etapas.map(e =>
-  `<button type="button" data-modo="etapa" data-etapa="${e.id}" aria-pressed="false">${esc(e.nombre)}</button>`).join('');
-function marcarElegido(){
-  document.querySelectorAll('[data-modo]').forEach(b => b.setAttribute('aria-pressed',
-    String(b.dataset.modo === estado.modo && (b.dataset.modo !== 'etapa' || +b.dataset.etapa === estado.etapa))));
+opciones($('selUbicacion'), C.ubicaciones, estado.ubicacion, 'No cambiar');
+const MODOS = {fin: 'Fin de fabricación', carga: 'Cargar bultos', entrega: 'Entregar en obra', tareas: 'Tareas'};
+$('selModo').innerHTML = '<option value="">Elegí la etapa</option>'
+  + `<optgroup label="Etapas de las piezas">${C.etapas.map(e => `<option value="etapa:${e.id}">${esc(e.nombre)}</option>`).join('')}</optgroup>`
+  + `<optgroup label="Muebles y bultos"><option value="fin">${MODOS.fin}</option><option value="carga">${MODOS.carga}</option>`
+  + `<option value="entrega">${MODOS.entrega}</option></optgroup>`
+  + (C.tareas ? `<optgroup label="Tareas"><option value="tareas">${MODOS.tareas} (lo que falta hacer)</option></optgroup>` : '');
+const valorModo = () => estado.modo === 'etapa' ? `etapa:${estado.etapa}` : estado.modo || '';
+$('selModo').value = valorModo();
+if ($('selModo').value !== valorModo()) $('selModo').value = '';
+// la ubicación vale para las piezas y los bultos que quedan en el taller: no al cargar, entregar ni en tareas
+function camposSegunModo(){
+  const enTaller = ['etapa', 'fin'].includes(estado.modo) || !estado.modo;
+  $('campoUbicacion').hidden = !enTaller || !C.ubicaciones.length;
+  $('sinUbicaciones').hidden = !enTaller || C.ubicaciones.length > 0 || !C.procesos;
+  $('sinUbicaciones').innerHTML = `Para anotar dónde quedan las piezas, cargá las ubicaciones del taller en <a href="${C.procesos}">Procesos</a>.`;
+  $('campoCarga').hidden = !(estado.modo === 'carga' || estado.modo === 'entrega');
 }
-document.querySelectorAll('[data-modo]').forEach(b => b.onclick = () => {
-  estado.modo = b.dataset.modo;
-  if (b.dataset.etapa) estado.etapa = +b.dataset.etapa;
-  marcarElegido(); $('errElegir').hidden = true;
-});
-marcarElegido();
+$('selModo').onchange = () => {
+  const v = $('selModo').value;
+  estado.modo = v.startsWith('etapa:') ? 'etapa' : v || null;
+  if (v.startsWith('etapa:')) estado.etapa = +v.slice(6);
+  camposSegunModo(); $('errElegir').hidden = true;
+};
+camposSegunModo();
+const ubicacionElegida = () => C.ubicaciones.find(u => u.id === estado.ubicacion);
+$('selProyecto').onchange = () => {
+  estado.proyecto = +$('selProyecto').value || null;
+  if (estado.proyecto && pendiente){ const t = pendiente; pendiente = ''; ultimoTexto = ''; leido(t); }
+};
+function usarProyecto(p){                // el de la última pieza leída, para los números de mecanizado
+  if (!p) return;
+  estado.proyecto = p.id; $('selProyecto').value = p.id; $('pedirProyecto').hidden = true;
+}
+function faltaProyecto(d, txt){
+  if (!d.falta_proyecto) return false;
+  pendiente = txt; $('pedirProyecto').hidden = false;
+  mostrar('mal', 'Falta el proyecto', '', d.error);
+  return true;
+}
 
 function validarEleccion(){
-  estado.proyecto = +$('selProyecto').value || null;
   estado.carga = +$('selCarga').value || null;
+  estado.ubicacion = ['etapa', 'fin'].includes(estado.modo) ? (+$('selUbicacion').value || null) : null;
   if (!estado.modo || (estado.modo === 'etapa' && !C.etapas.some(e => e.id === estado.etapa)))
-    return 'Elegí qué hacés en este puesto.';
+    return 'Elegí la etapa.';
   if ((estado.modo === 'carga' || estado.modo === 'entrega') && !estado.carga)
     return 'Elegí la carga. Se arma en la pantalla del proyecto.';
   return null;
@@ -185,11 +233,12 @@ function validarEleccion(){
 $('btnEmpezar').onclick = () => {
   const err = validarEleccion();
   if (err){ $('errElegir').textContent = err; $('errElegir').hidden = false; return; }
-  try { localStorage.setItem('puesto.eleccion', JSON.stringify(estado)); } catch (e) {}
+  try { localStorage.setItem('puesto.eleccion', JSON.stringify({modo: estado.modo, etapa: estado.etapa,
+    carga: estado.carga, ubicacion: estado.ubicacion})); } catch (e) {}
   activarSonido(); empezar();
 };
 $('btnCambiar').onclick = () => { detenerCamara(); $('trabajo').hidden = true; $('elegir').hidden = false;
-  $('titulo').textContent = 'Puesto'; };
+  $('titulo').textContent = 'Mi puesto'; };
 
 /* ---------- sonido, vibración y pantalla prendida ---------- */
 let audio = null;
@@ -223,16 +272,16 @@ function empezar(){
   $('elegir').hidden = true; $('trabajo').hidden = false;
   const etapa = C.etapas.find(e => e.id === estado.etapa);
   const carga = C.cargas.find(c => c.id === estado.carga);
-  const nombres = {etapa: etapa && etapa.nombre, fin: 'Fin de fabricación', carga: 'Cargar bultos', entrega: 'Entregar en obra'};
-  $('modoNombre').textContent = nombres[estado.modo];
-  const proyecto = C.proyectos.find(p => p.id === estado.proyecto);
-  $('titulo').textContent = estado.modo === 'carga' || estado.modo === 'entrega'
-    ? (carga ? carga.nombre : '') : (proyecto ? proyecto.nombre : 'Todos los proyectos');
+  const u = ubicacionElegida();
+  $('modoNombre').textContent = (estado.modo === 'etapa' ? etapa && etapa.nombre : MODOS[estado.modo])
+    + (u ? ` · ${u.nombre}` : '');
+  $('titulo').textContent = estado.modo === 'carga' || estado.modo === 'entrega' ? (carga ? carga.nombre : '') : 'Mi puesto';
+  $('pedirProyecto').hidden = true; pendiente = '';
   $('cuenta').textContent = ''; $('tarjeta').hidden = true; $('aviso').hidden = false;
   $('faltanCarga').hidden = $('verCarga').hidden = !(estado.modo === 'carga' || estado.modo === 'entrega');
   ultimas = []; dibujarUltimas();
   mostrar('', 'Listo para escanear', '', estado.modo === 'etapa' ? 'Pieza tras pieza' : estado.modo === 'fin'
-    ? 'Escaneá la etiqueta del mueble' : 'Escaneá cada bulto');
+    ? 'Escaneá la etiqueta del mueble' : estado.modo === 'tareas' ? 'Escaneá una pieza o un mueble' : 'Escaneá cada bulto');
   if (estado.modo === 'carga' || estado.modo === 'entrega'){
     $('verCarga').href = C.carga.replace('{id}', estado.carga);
     pedir('GET', `cargas/${estado.carga}`).then(r => r.ok && dibujarCarga(r.datos));
@@ -254,6 +303,7 @@ async function leido(txt){
   try {
     if (estado.modo === 'etapa') await marcar(txt);
     else if (estado.modo === 'fin') await leerMueble(txt);
+    else if (estado.modo === 'tareas') await leerTareas(txt);
     else await leerBulto(txt);
   } finally { ocupado = false; }
 }
@@ -280,23 +330,22 @@ const numero = p => p.num ? p.num : 's/n';
 const copia = p => p.de > 1 ? ` (${p.copia} de ${p.de})` : '';
 
 async function marcar(txt){
-  const r = await pedir('POST', 'marcar', {texto: txt, etapa: estado.etapa, proyecto: estado.proyecto});
+  const r = await pedir('POST', 'marcar', {texto: txt, etapa: estado.etapa, proyecto: estado.proyecto,
+                                           ubicacion: estado.ubicacion});
   const d = r.datos;
+  if (r.ok && faltaProyecto(d, txt)) return;
   if (!r.ok || d.resultado === 'error') return mostrar('mal', d.error || 'No se pudo marcar', '', d.mueble ? `Mueble: ${d.mueble}` : '');
-  const p = d.pieza, etapa = d.etapa.toLowerCase();
+  usarProyecto(d.proyecto);
+  const p = d.pieza, etapa = d.etapa.toLowerCase(), lugar = d.ubicacion ? ` · ahora en ${d.ubicacion}` : '';
   const detalle = `${p.nombre}${copia(p)} · ${p.mueble}`;
-  const enMueble = `${p.mueble}: ${d.mueble.hechas} de ${d.mueble.piezas}`;
+  const enMueble = `${p.mueble}: ${d.mueble.hechas} de ${d.mueble.piezas} · ${d.proyecto.nombre}`;
   if (d.resultado === 'ya'){
-    mostrar('ya', `Ya estaba ${etapa}`, numero(p), `${d.ya.por || '—'}, ${cuandoCorto(d.ya.cuando)}`,
-            d.otro_proyecto ? `Es de ${d.proyecto.nombre}` : detalle);
-  } else if (d.otro_proyecto){
-    mostrar('ya', `Marcada en otro proyecto: ${d.proyecto.nombre}`, numero(p), detalle, enMueble);
-    sumarUltima(d, p);
+    mostrar('ya', `Ya estaba ${etapa}${lugar}`, numero(p), `${d.ya.por || '—'}, ${cuandoCorto(d.ya.cuando)}`, detalle);
   } else {
-    mostrar('ok', `${d.etapa}`, numero(p), detalle, enMueble);
+    mostrar('ok', `${d.etapa}${lugar}`, numero(p), detalle, enMueble);
     sumarUltima(d, p);
   }
-  if (!d.otro_proyecto) $('cuenta').textContent = `${d.total.hechas} / ${d.total.piezas}`;
+  $('cuenta').textContent = `${d.total.hechas} / ${d.total.piezas}`;
 }
 
 function sumarUltima(d, p){
@@ -338,7 +387,9 @@ function cuandoCorto(t){
 /* ---------- fin de fabricación ---------- */
 async function leerMueble(txt){
   const r = await pedir('POST', 'mueble', {texto: txt, proyecto: estado.proyecto});
+  if (r.ok && faltaProyecto(r.datos, txt)){ $('tarjeta').hidden = true; return; }
   if (!r.ok || r.datos.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', r.datos.error); }
+  usarProyecto(r.datos.proyecto);
   SONIDOS.ok(); tarjetaMueble(r.datos);
 }
 function tarjetaMueble(d){
@@ -363,6 +414,7 @@ function tarjetaMueble(d){
       <label class="campo">¿Cuántos bultos?</label>
       <div class="contador"><button type="button" id="menos" aria-label="Uno menos">−</button><output id="bultos">1</output>
         <button type="button" id="mas" aria-label="Uno más">+</button></div>
+      ${ubicacionElegida() ? `<p class="suave">Los bultos quedan en ${esc(ubicacionElegida().nombre)}.</p>` : ''}
       <p class="error" id="errFin" hidden></p>
       <button type="button" class="principal" id="btnTerminar">Fabricación terminada</button>`}
     <button type="button" id="btnOtro">Escanear otro mueble</button>`;
@@ -386,7 +438,8 @@ function tarjetaMueble(d){
     const motivo = $('motivo') ? $('motivo').value.trim() : '';
     if (faltan && !motivo){ $('errFin').textContent = 'Escribí el motivo para terminar con piezas faltantes.';
       $('errFin').hidden = false; $('motivo').focus(); return; }
-    const r = await pedir('POST', 'terminar', {proyecto: d.proyecto.id, mueble: d.mueble, bultos: n, motivo});
+    const r = await pedir('POST', 'terminar', {proyecto: d.proyecto.id, mueble: d.mueble, bultos: n, motivo,
+                                               ubicacion: estado.ubicacion});
     if (!r.ok){ $('errFin').textContent = r.datos.error; $('errFin').hidden = false; SONIDOS.mal(); return; }
     SONIDOS.ok(); tarjetaMueble(r.datos);
   };
@@ -394,6 +447,50 @@ function tarjetaMueble(d){
 function imprimir(d, bultos){
   const qs = new URLSearchParams({proyecto: d.proyecto.id, m: d.mueble, bultos});
   window.open(C.pdf + '?' + qs, '_blank', 'noopener');
+}
+
+/* ---------- tareas: las que faltan de la pieza o el mueble leído, con ✓ para pasarlas al estado siguiente ---------- */
+const SIGUIENTE = {pendiente: 'en proceso', 'en proceso': 'hecho', hecho: 'instalado'};
+const NOMBRE_ESTADO = {pendiente: 'Pendiente', 'en proceso': 'En proceso', hecho: 'Hecha', instalado: 'Instalada'};
+async function leerTareas(txt){
+  const r = await pedir('POST', 'tareas', {texto: txt, proyecto: estado.proyecto});
+  if (r.ok && faltaProyecto(r.datos, txt)){ $('tarjeta').hidden = true; return; }
+  if (!r.ok || r.datos.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', r.datos.error); }
+  usarProyecto(r.datos.proyecto);
+  const d = r.datos;
+  if (!d.tareas.length){ $('tarjeta').hidden = true;
+    return mostrar('ok', 'Sin tareas', d.pieza ? numero(d.pieza) : '', d.pieza ? `${d.pieza.nombre} · ${d.mueble}` : d.mueble,
+                   'No falta nada por hacer o instalar'); }
+  SONIDOS.ya(); tarjetaTareas(d);
+}
+function tarjetaTareas(d){
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta'), hoy = new Date().toISOString().slice(0, 10);
+  const meta = x => [NOMBRE_ESTADO[x.estado], x.asignado ? `para ${x.asignado}` : '',
+    x.limite ? `${x.limite < hoy && ['pendiente', 'en proceso'].includes(x.estado) ? 'venció' : 'vence'} ${x.limite.split('-').reverse().slice(0, 2).join('/')}` : '']
+    .filter(Boolean).join(' · ');
+  t.innerHTML = `<h2>${d.pieza ? `${esc(numero(d.pieza))} ${esc(d.pieza.nombre)}` : esc(d.mueble)}</h2>
+    <div class="suave">${d.pieza ? `${esc(d.mueble)} · ` : ''}${esc(d.proyecto.nombre)} · ${d.tareas.length} tarea${d.tareas.length > 1 ? 's' : ''} sin instalar</div>
+    ${d.tareas.map((x, i) => `<div class="tarea"><div class="texto">${esc(x.texto)}<div class="meta" id="meta${i}">${esc(meta(x))}</div></div>
+      <button type="button" class="avanzar" data-i="${i}" aria-label="Pasar a ${esc(NOMBRE_ESTADO[SIGUIENTE[x.estado]])}">✓</button></div>`).join('')}
+    <p class="error" id="errTarea" hidden></p>
+    <button type="button" id="btnOtro">Escanear otra</button>`;
+  t.querySelectorAll('button.avanzar').forEach(b => b.onclick = async () => {
+    const x = d.tareas[+b.dataset.i];
+    b.disabled = true;
+    try {
+      const r = await fetch(C.tareas + x.id, {method: 'PATCH', credentials: 'same-origin',
+        headers: {'Content-Type': 'application/json', 'X-CSRFToken': C.csrf}, body: JSON.stringify({estado: SIGUIENTE[x.estado]})});
+      const nuevo = await r.json();
+      if (!r.ok) throw new Error(nuevo.error || 'No se pudo cambiar');
+      d.tareas[+b.dataset.i] = nuevo; SONIDOS.ok();
+      $('meta' + b.dataset.i).textContent = meta(nuevo);
+      b.disabled = !SIGUIENTE[nuevo.estado];
+      if (SIGUIENTE[nuevo.estado]) b.setAttribute('aria-label', `Pasar a ${NOMBRE_ESTADO[SIGUIENTE[nuevo.estado]]}`);
+    } catch (e) { $('errTarea').textContent = e.message; $('errTarea').hidden = false; b.disabled = false; SONIDOS.mal(); }
+  });
+  $('btnOtro').onclick = () => { t.hidden = true; $('aviso').hidden = false; ultimoTexto = '';
+    mostrar('', 'Listo para escanear', '', 'Escaneá una pieza o un mueble'); };
 }
 
 /* ---------- carga y entrega ---------- */

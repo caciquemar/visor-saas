@@ -18,6 +18,7 @@ from django.urls import reverse
 from django.views.decorators.http import require_POST
 
 from proyectos.models import Proyecto, Version
+from talleres.limites import permite
 from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
 
@@ -41,6 +42,9 @@ def puesto(request, taller):
         'gestiona': request.membresia.rol in (Rol.DUENO, Rol.OFICINA),
         'proyectos': [{'id': p.pk, 'nombre': p.nombre} for p in proyectos],
         'etapas': [{'id': e.pk, 'nombre': e.nombre} for e in etapas_del_taller() if e.activa],
+        'ubicaciones': [{'id': u.pk, 'nombre': u.nombre} for u in Ubicacion.objects.filter(activa=True)],
+        'tareas': base + 'visor/api/trabajos/' if permite(request.taller, 'trabajos') else None,
+        'procesos': base + 'procesos/' if request.membresia.rol in (Rol.DUENO, Rol.OFICINA) else None,
         'cargas': [{'id': c.pk, 'proyecto': c.proyecto_id, 'nombre': f'{c.proyecto.nombre} · carga {c.pk}',
                     'estado': c.estado} for c in cargas],
         'api': base + 'puesto/api/',
