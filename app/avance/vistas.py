@@ -25,6 +25,7 @@ from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
 
 from . import acciones
+from .pantalla import muebles_para_cargar
 from . import entrega as entrega_
 from .calculo import piezas_de
 from .pasos import COLORES_AVANCE, NOMBRES_AVANCE, avance_de_proceso, pasos
@@ -67,11 +68,13 @@ def puesto(request, taller):
 @require_POST
 @miembro
 def nueva_carga(request, taller, id):
+    """Alta de una carga desde el proyecto: los muebles tildados (todos, algunos o filtrados por un proceso
+    completado; ver avance/elegir_muebles.html). `todo=1`: el proyecto completo."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
     muebles = request.POST.getlist('mueble') if request.POST.get('todo') != '1' else []
     try:
         if request.POST.get('todo') != '1' and not muebles:
-            raise Rechazo(400, 'Elegí el proyecto completo o algunos muebles.')
+            raise Rechazo(400, 'Elegí al menos un mueble.')
         c = acciones.crear_carga(request.user, proyecto, muebles)
     except Rechazo as e:
         messages.error(request, e.error)
@@ -254,6 +257,36 @@ def entrega(request, taller, id):
     }
     plantilla = 'avance/entrega_filas.html' if request.GET.get('filas') == '1' else 'avance/entrega.html'
     return render(request, plantilla, contexto)
+
+
+@miembro
+def modificar_carga(request, taller, id):
+    """Modificación de una carga que se está cargando: sus muebles."""
+    c = get_object_or_404(Carga.objects.select_related('proyecto__version_actual'), pk=id)
+    if request.method == 'POST':
+        try:
+            acciones.modificar_carga(request.user, c, request.POST.getlist('mueble'))
+            messages.success(request, 'Listo: la carga quedó con esos muebles.')
+            return redirect(url(request, 'carga', id=c.pk))
+        except Rechazo as e:
+            messages.error(request, e.error)
+    elegibles, prendidos = muebles_para_cargar(c.proyecto)
+    return render(request, 'avance/carga_modificar.html', {
+        'carga': c, 'elegibles': elegibles, 'procesos': prendidos, 'marcados': acciones.muebles_de(c)})
+
+
+@require_POST
+@con_rol(Rol.DUENO, Rol.OFICINA)
+def anular_carga(request, taller, id):
+    """Baja de una carga que no salió: los bultos cargados vuelven a embalados."""
+    c = get_object_or_404(Carga.objects.select_related('proyecto'), pk=id)
+    try:
+        acciones.anular_carga(request.user, c)
+        messages.success(request, f'Carga {c.pk} anulada: sus bultos quedaron libres para otra carga.')
+    except Rechazo as e:
+        messages.error(request, e.error)
+        return redirect(url(request, 'carga', id=c.pk))
+    return redirect(reverse('taller:proyectos:ver', kwargs={'taller': taller, 'id': c.proyecto_id}) + '#cargas')
 
 
 @con_rol(Rol.DUENO, Rol.OFICINA)

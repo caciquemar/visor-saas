@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block titulo %}Modificar la carga {{ carga.pk }}{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto_id %}#cargas">{{ carga.proyecto.nombre }}</a>
+  · <a href="{% url 'taller:avance:carga' taller=request.taller.slug id=carga.pk %}">Carga {{ carga.pk }}</a></p>
+<h1>Modificar la carga {{ carga.pk }}</h1>
+<form method="post" class="caja">{% csrf_token %}
+  <p class="suave" style="margin-top:0">Los muebles que ya tienen bultos en esta carga no se pueden sacar (primero hay que descargarlos en Mi puesto).</p>
+  {% include 'avance/elegir_muebles.html' with prefijo='mod' %}
+  <div class="acciones"><button type="submit">Guardar</button>
+    <a class="boton" style="background:transparent;color:var(--texto);border:1px solid var(--borde)" href="{% url 'taller:avance:carga' taller=request.taller.slug id=carga.pk %}">Cancelar</a></div>
+</form>
+{% endblock %}

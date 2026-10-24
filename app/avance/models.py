@@ -151,11 +151,14 @@ class FinDeMueble(DatoDeTaller):
 
 
 class Carga(DatoDeTaller):
-    """Lo que sube al camión: el proyecto completo (`muebles` vacío) o algunos muebles."""
+    """Lo que sube al camión: el proyecto completo (`muebles` vacío) o algunos muebles. `libre` (ficha 21): la que se
+    crea en Mi puesto escaneando el primer bulto; lleva solo lo que se carga (sus muebles se van sumando). Anularla
+    (sin haber salido) devuelve los bultos a embalados."""
     class Estado(models.TextChoices):
         ARMANDO = 'armando', 'Cargando'
         SALIO = 'salio', 'Salió a obra'
         ENTREGADA = 'entregada', 'Entregada'
+        ANULADA = 'anulada', 'Anulada'
 
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='cargas')
     muebles = models.JSONField('muebles', default=list, blank=True)
@@ -168,6 +171,9 @@ class Carga(DatoDeTaller):
     faltantes = models.JSONField('faltantes al salir', default=list, blank=True)
     entregada_por = quien(nombre='entregada por')
     entregada_en = models.DateTimeField('entregada', null=True, blank=True)
+    libre = models.BooleanField('solo lo que se escanee', default=False)
+    anulada_por = quien(nombre='anulada por')
+    anulada_en = models.DateTimeField('anulada', null=True, blank=True)
 
     class Meta:
         verbose_name = 'carga'

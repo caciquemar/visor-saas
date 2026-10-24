@@ -29,7 +29,8 @@ def del_proyecto(proyecto):
     return {
         'etapas': a['etapas'], 'total': a['total'], 'muebles': muebles, 'sueltas': a['sueltas'],
         'nuevas': piezas_nuevas(proyecto, piezas),
-        'cargas': list(Carga.objects.filter(proyecto=proyecto).select_related('creada_por')),
+        'cargas': cargas_con_resumen(proyecto),
+        'elegibles': muebles_para_cargar(proyecto, piezas),
     }
 
 
@@ -47,3 +48,34 @@ def de_la_lista(proyectos):
             salida[p.pk] = {'pct': a['total']['pct'], 'terminados': a['total']['terminados'],
                             'muebles': len(a['muebles'])}
     return salida
+
+
+def cargas_con_resumen(proyecto):
+    """Las cargas del proyecto, cada una con `resumen` (bultos cargados de cuántos, faltantes) salvo las anuladas."""
+    from .acciones import carga_a_dic
+    cargas = list(Carga.objects.filter(proyecto=proyecto).select_related('creada_por', 'anulada_por', 'proyecto'))
+    for c in cargas:
+        c.resumen = carga_a_dic(c) if c.estado != Carga.Estado.ANULADA else None
+    return cargas
+
+
+def muebles_para_cargar(proyecto, piezas=None):
+    """Para elegir los muebles de una carga (alta y Modificar): cada mueble con su paso, si todavía falta enviarlo y
+    qué procesos completó (para el filtro). (elegibles, procesos prendidos)."""
+    from .acciones import pendientes_de_envio
+    from .models import procesos
+    from .pasos import avance_de_proceso, pasos, pasos_activos
+    piezas = piezas_de(proyecto) if piezas is None else piezas
+    if not piezas:
+        return [], []
+    prendidos = [e for e in procesos() if e.activa]
+    hechos = {}
+    for e in prendidos:
+        for n, m in avance_de_proceso(proyecto, e, piezas)['muebles'].items():
+            if m['estado'] in ('hecho', 'obs'):
+                hechos.setdefault(n, []).append(e.pk)
+    nombres = {k: n for k, n, _ in pasos_activos()}
+    pendientes = set(pendientes_de_envio(proyecto))
+    elegibles = [{'nombre': n, 'paso': nombres.get(m['paso'], ''), 'pendiente': n in pendientes,
+                  'hechos': hechos.get(n, [])} for n, m in pasos(proyecto, piezas)['muebles'].items()]
+    return elegibles, prendidos

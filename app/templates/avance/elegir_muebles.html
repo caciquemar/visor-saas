@@ -1,0 +1,52 @@
+{# Elegir los muebles de una carga (alta en el proyecto y Modificar): todos, ninguno, los que faltan enviar y filtrar #}
+{# por un proceso completado. Recibe `elegibles` (nombre, pendiente, paso, hechos: ids de procesos), `procesos` y   #}
+{# `marcados` (nombres tildados de entrada; si es None, los pendientes).                                            #}
+<div class="elegir-muebles">
+  <div class="acciones" style="margin:.25rem 0">
+    <button type="button" class="secundario" data-tildar="todos">Todos</button>
+    <button type="button" class="secundario" data-tildar="ninguno">Ninguno</button>
+    <button type="button" class="secundario" data-tildar="pendientes">Los que faltan enviar</button>
+  </div>
+  <label for="filtroProceso-{{ prefijo }}">Solo los que completaron</label>
+  <div class="acciones" style="margin:0">
+    <select id="filtroProceso-{{ prefijo }}" data-filtro style="width:auto">
+      <option value="">(todos los muebles)</option>
+      {% for e in procesos %}<option value="{{ e.pk }}">{{ e.nombre }}</option>{% endfor %}
+    </select>
+    <button type="button" class="secundario" data-tildar="visibles">Tildar los que se ven</button>
+  </div>
+  <div class="lista-muebles">
+    {% for m in elegibles %}
+    <label data-procesos=" {{ m.hechos|join:' ' }} " data-pendiente="{{ m.pendiente|yesno:'1,0' }}">
+      <input type="checkbox" name="mueble" value="{{ m.nombre }}"{% if marcados is None and m.pendiente or m.nombre in marcados %} checked{% endif %}>
+      {{ m.nombre }} <span class="suave">· {{ m.paso }}{% if not m.pendiente %} · ya salió{% endif %}</span></label>
+    {% endfor %}
+  </div>
+  <p class="suave" data-cuenta></p>
+</div>
+<style>
+  .lista-muebles { display:grid; gap:.15rem; margin:.5rem 0; max-height:22rem; overflow:auto; }
+  .lista-muebles label { font-weight:400; margin:0; display:flex; gap:.4rem; align-items:center; }
+  .lista-muebles input { width:auto; }
+</style>
+<script>
+(() => {
+  const caja = document.currentScript.previousElementSibling.previousElementSibling;
+  const filas = [...caja.querySelectorAll('.lista-muebles label')], filtro = caja.querySelector('[data-filtro]');
+  const cuenta = () => { caja.querySelector('[data-cuenta]').textContent =
+    `${filas.filter(f => f.querySelector('input').checked).length} de ${filas.length} muebles tildados`; };
+  const aplicar = () => { filas.forEach(f => { f.hidden = !!filtro.value && !f.dataset.procesos.includes(` ${filtro.value} `); }); };
+  filtro.onchange = aplicar;
+  caja.querySelectorAll('[data-tildar]').forEach(b => b.onclick = () => {
+    const que = b.dataset.tildar;
+    filas.forEach(f => { const c = f.querySelector('input');
+      if (que === 'todos') c.checked = true;
+      else if (que === 'ninguno') c.checked = false;
+      else if (que === 'pendientes') c.checked = f.dataset.pendiente === '1';
+      else if (que === 'visibles') c.checked = !f.hidden; });
+    cuenta();
+  });
+  caja.addEventListener('change', e => { if (e.target.name === 'mueble') cuenta(); });
+  aplicar(); cuenta();
+})();
+</script>

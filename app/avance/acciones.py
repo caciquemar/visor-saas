@@ -300,11 +300,25 @@ def crear_carga(usuario, proyecto, muebles):
 
 
 def muebles_de(carga):
+    """Los muebles que van: los elegidos, todo el proyecto (lista vacía) o, en una carga libre, los que se cargaron."""
+    if carga.libre:
+        return list(carga.muebles)
     return carga.muebles or muebles_del_proyecto(carga.proyecto)
 
 
+def pendientes_de_envio(proyecto):
+    """Los muebles que todavía no salieron enteros: sin embalar o con algún bulto sin cargar en ninguna carga. Son los
+    que la próxima carga trae tildados (lo que faltó en un envío queda para el siguiente)."""
+    embalados = set(FinDeMueble.objects.filter(proyecto=proyecto, anulado_en__isnull=True)
+                    .values_list('mueble', flat=True))
+    sin_cargar = set(Bulto.objects.filter(proyecto=proyecto, fin__anulado_en__isnull=True, carga__isnull=True)
+                     .values_list('mueble', flat=True))
+    return [m for m in muebles_del_proyecto(proyecto) if m not in embalados or m in sin_cargar]
+
+
 def contenido(carga):
-    """{'bultos': bultos que van, 'sin_terminar': muebles sin fin de fabricación, 'faltantes': textos}."""
+    """{'bultos': bultos de sus muebles, 'sin_terminar': muebles sin embalar, 'faltan': bultos que no se cargaron en
+    ninguna carga, 'faltantes': textos}. Lo que ya salió en otra carga no es faltante de esta."""
     muebles = muebles_de(carga)
     fines = {f.mueble: f for f in FinDeMueble.objects.filter(proyecto=carga.proyecto, mueble__in=muebles,
                                                               anulado_en__isnull=True)}
@@ -312,7 +326,7 @@ def contenido(carga):
                                                                               'carga'))
     bultos.sort(key=lambda b: (muebles.index(b.mueble), b.numero))
     sin_terminar = [m for m in muebles if m not in fines]
-    faltan = [b for b in bultos if b.carga_id != carga.pk]
+    faltan = [b for b in bultos if b.carga_id is None]
     faltantes = ([f'{b.mueble} · bulto {b.numero} de {b.fin.bultos}' for b in faltan]
                  + [f'{m} · sin terminar' for m in sin_terminar])
     return {'bultos': bultos, 'sin_terminar': sin_terminar, 'faltan': faltan, 'faltantes': faltantes}
@@ -341,8 +355,8 @@ def carga_a_dic(carga):
                     'cuando_corto': corto(b.entregado_en if b.estado == b.Estado.ENTREGADO else b.cargado_en)
                     if b.carga_id == carga.pk else None} for b in c['bultos']],
         'sin_terminar': c['sin_terminar'], 'faltantes': c['faltantes'],
-        'cargados': len(en_la_carga), 'entregados': len(entregados),
-        'total': len(c['bultos']) + len(c['sin_terminar']),
+        'cargados': len(en_la_carga), 'entregados': len(entregados), 'libre': carga.libre,
+        'total': len(en_la_carga) + len(c['faltan']) + len(c['sin_terminar']),
     }
 
 
@@ -434,15 +448,27 @@ def tareas_de_lo_leido(slug, texto, proyecto_id=None):
 
 def bulto_leido(usuario, slug, carga_id, texto):
     """Cargar el bulto de la etiqueta leída. Sin correlatividad (ficha 19): la etiqueta del mueble o de una de sus
-    piezas sirve si el mueble tiene un solo bulto, y un mueble sin embalar se embala ahí con 1 bulto."""
+    piezas sirve si el mueble tiene un solo bulto, y un mueble sin embalar se embala ahí con 1 bulto. Sin carga
+    (`carga_id` None, ficha 21): se crea una libre en el proyecto de lo leído, que lleva solo lo que se escanee."""
     proceso_prendido(Etapa.Tipo.CARGA)
-    carga = carga_o_rechazo(carga_id)
-    if carga.estado != Carga.Estado.ARMANDO:
-        return error('Esta carga ya salió: no se le suman bultos.')
-    leido = que_se_leyo(slug, texto, carga.proyecto_id)
+    carga = carga_o_rechazo(carga_id) if carga_id is not None else None
+    if carga is not None and carga.estado != Carga.Estado.ARMANDO:
+        return error('Esta carga ya salió o se anuló: no se le suman bultos.')
+    leido = que_se_leyo(slug, texto, carga.proyecto_id if carga else None)
     if isinstance(leido, dict):
         return leido
     proyecto, _, mueble, _ = leido
+    if carga is None:
+        # se crea y se carga por el camino de siempre; si esa primera lectura no carga nada, no queda la carga vacía
+        carga = Carga.objects.create(proyecto=proyecto, libre=True, muebles=[], creada_por=usuario,
+                                     creada_en=timezone.now())
+        r = bulto_leido(usuario, slug, carga.pk, texto)
+        if r.get('resultado') == 'error':
+            carga.delete()
+        return r
+    if carga.libre and proyecto.pk == carga.proyecto_id and mueble not in carga.muebles:
+        carga.muebles = carga.muebles + [mueble]
+        carga.save(update_fields=['muebles'])
     lectura = leer(texto, slug) or {}
     n = lectura.get('bulto')
     base = {'mueble': mueble, 'numero': n or 1}
@@ -511,3 +537,38 @@ def salir(usuario, carga, motivo):
         carga.save(update_fields=['estado', 'entregada_por', 'entregada_en'])
     return carga
 
+
+
+# ---------------------------------------------------------------- ABM de cargas (ficha 21)
+
+def modificar_carga(usuario, carga, muebles):
+    """Cambiar los muebles de una carga que se está cargando. No se saca un mueble con bultos ya cargados acá."""
+    if carga.estado != Carga.Estado.ARMANDO:
+        raise Rechazo(409, 'Esta carga ya salió o se anuló: no se modifica.')
+    todos = muebles_del_proyecto(carga.proyecto)
+    if not muebles:
+        raise Rechazo(400, 'Elegí al menos un mueble.')
+    if any(m not in todos for m in muebles):
+        raise Rechazo(400, 'Algún mueble ya no está en la versión actual. Volvé a elegir.')
+    cargados = set(carga.bultos.values_list('mueble', flat=True))
+    sacados = sorted(cargados - set(muebles))
+    if sacados:
+        raise Rechazo(409, f'{", ".join(sacados)} ya tiene bultos en esta carga: descargalos antes de sacarlo.')
+    carga.muebles = [] if set(muebles) == set(todos) else [m for m in todos if m in muebles]
+    carga.libre = False
+    carga.save(update_fields=['muebles', 'libre'])
+    return carga
+
+
+def anular_carga(usuario, carga):
+    """Baja de una carga que no salió: los bultos cargados vuelven a embalados (libres para otra carga) y queda
+    anulada, con quién y cuándo."""
+    if carga.estado != Carga.Estado.ARMANDO:
+        raise Rechazo(409, 'Solo se anula una carga que todavía no salió.')
+    ahora = timezone.now()
+    with transaction.atomic():
+        for b in carga.bultos.filter(estado=Bulto.Estado.CARGADO).select_related('proyecto'):
+            mover(b, Bulto.Estado.EMBALADO, usuario, carga, ahora)
+        carga.estado, carga.anulada_por, carga.anulada_en = Carga.Estado.ANULADA, usuario, ahora
+        carga.save(update_fields=['estado', 'anulada_por', 'anulada_en'])
+    return carga

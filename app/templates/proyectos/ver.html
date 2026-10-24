@@ -169,27 +169,40 @@
 <div class="acciones"><a class="boton" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
   <a class="boton secundario-enlace" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?p={{ proyecto.pk }}">Mi puesto</a></div>
 
-<h3 style="margin-top:1.5rem">Cargas</h3>
-{% for c in avance.cargas %}
-<p><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a>
-  <span class="estado{% if c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
-  <span class="suave">· {% if c.muebles %}{{ c.muebles|join:", " }}{% else %}proyecto completo{% endif %} · {{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></p>
-{% endfor %}
+<h3 style="margin-top:1.5rem" id="cargas">Cargas</h3>
+{% if avance.cargas %}
+<div class="caja tabla" style="margin-bottom:1rem">
+  <table>
+    <thead><tr><th>Carga</th><th>Estado</th><th>Muebles</th><th>Bultos</th><th></th></tr></thead>
+    <tbody>
+    {% for c in avance.cargas %}
+      <tr>
+        <td><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a><br>
+          <span class="suave" style="font-size:.85rem">{{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></td>
+        <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
+          {% if c.estado == 'anulada' %}<br><span class="suave" style="font-size:.85rem">{{ c.anulada_por|default:"—" }}, {{ c.anulada_en|date:"j/n H:i" }}</span>{% endif %}</td>
+        <td>{% if c.libre %}<span class="suave">lo que se escaneó:</span> {% endif %}{% if c.muebles %}{{ c.muebles|join:", " }}{% elif c.libre %}—{% else %}proyecto completo{% endif %}</td>
+        <td>{% if c.resumen %}{{ c.resumen.cargados }} de {{ c.resumen.total }}{% if c.resumen.faltantes and c.estado != 'armando' %}<br><span class="suave" style="font-size:.85rem">{{ c.resumen.faltantes|length }} para otro envío</span>{% endif %}{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if c.estado == 'armando' %}
+          <a href="{% url 'taller:avance:modificar_carga' taller=request.taller.slug id=c.pk %}">Modificar</a>
+          {% if gestiona %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=c.pk %}"
+                onsubmit="return confirm('¿Anular la carga {{ c.pk }}? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}
+            <button class="secundario" type="submit" style="padding:.3rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}
+        {% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
 <details class="caja"{% if not avance.cargas %} open{% endif %}>
-  <summary>Armar una carga</summary>
+  <summary>Nueva carga</summary>
   <form method="post" action="{% url 'taller:avance:nueva_carga' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
-    <label><input type="radio" name="todo" value="1" checked> Proyecto completo</label>
-    <label><input type="radio" name="todo" value="0"> Algunos muebles:</label>
-    <div style="padding-left:1.5rem">{% for m in avance.muebles %}
-      <label style="font-weight:400;margin:.2rem 0"><input type="checkbox" name="mueble" value="{{ m.nombre }}"> {{ m.nombre }}{% if not m.fin %} <span class="suave">(sin terminar)</span>{% endif %}</label>{% endfor %}</div>
-    <div class="acciones"><button type="submit">Armar la carga</button></div>
+    {% include 'avance/elegir_muebles.html' with elegibles=avance.elegibles.0 procesos=avance.elegibles.1 marcados=None prefijo='alta' %}
+    <div class="acciones"><button type="submit">Crear la carga</button></div>
   </form>
+  <p class="suave" style="margin-bottom:0">También se puede crear en Mi puesto → Carga → "Nueva carga", escaneando el primer bulto.</p>
 </details>
-<script>
-  // tildar un mueble elige "Algunos muebles"
-  document.querySelectorAll('input[name=mueble]').forEach(c => c.onchange = () => {
-    if (c.checked) document.querySelector('input[name=todo][value="0"]').checked = true; });
-</script>
 {% endif %}
 
 <h2>Versiones</h2>
