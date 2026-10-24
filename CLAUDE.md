@@ -319,6 +319,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   Escanear, sin elegir proyecto (`falta_proyecto` para números de mecanizado sin etiqueta antes). Visor: "Está en …"
   en la pieza y "Piezas en …" en el mueble. Tablero en `avance/tablero.py`. Ver `docs/sesiones/17-produccion.md` y
   `docs/decisiones.md`. Probado en el navegador integrado en formato celular (sin cámara: códigos escritos).
+- 2026-10-24: **ficha 18 hecha: del armado a la instalación** (pedido de Martín, con su dibujo). Paso de cada mueble
+  (`avance/pasos.py`), control de calidad (puntos por taller en Procesos; Mal crea tarea), armado por mueble con
+  etiqueta del mueble sin bulto, "Fin de fabricación" → Embalaje, instalación por mueble con fotos
+  (`avance/entrega.py`), Lista de entrega (`/<taller>/proyectos/<id>/entrega/`) y "Colorear por entrega" en el
+  visor. Tablero con Entrega e instalados. Ver `docs/sesiones/18-entrega.md`. Probado en el navegador integrado
+  (sin cámara: códigos escritos, sin fotos de verdad).
 
 ## Pendientes
 
@@ -333,6 +339,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   es inmediata). Probar también pasar el límite de 20 (modelo del celular).
 - Materiales: un tablero cargado solo con color (sin imagen) cuenta como "sin textura" y sale en rojo; para los que
   se agregan a mano para el probador quizás no corresponda avisar.
+
+- **Ficha 18, probar con celular de verdad** (en el NAS): sacar fotos con la cámara en el control de calidad y al
+  instalar, y escanear en la obra.
 
 - **Ficha 13, probar con el celular de verdad** (Martín, en el NAS por HTTPS): la cámara siempre prendida del puesto,
   el sonido (en iPhone se activa con "Empezar") y la vibración (Safari no vibra), que la pantalla no se apague, y una

@@ -333,3 +333,11 @@ el bulto en el taller (historial `Ubicado`; dónde está algo es su último regi
 del taller), **Tareas** como un modo más de Mi puesto, **Procesos** (etapas del dueño + ubicaciones de dueño y
 oficina) y **Tablero de control**. En el tablero, "en curso" = versión lista y le falta algo (etapas, muebles sin
 terminar o bultos sin entregar); "donde se amontona" = la etapa con más piezas que ya pasaron la anterior.
+
+## 2026-10-24 · Del armado a la instalación (ficha 18)
+Cada mueble pasa por: sin armar → armado → control → embalado → cargado → entregado → instalado (`avance/pasos.py`;
+el paso es el más avanzado que tiene, aunque falten bultos). El armado se marca **por mueble** (cualquier etiqueta de
+una de sus piezas lo deja entero en la etapa de armado). El control de calidad es una lista por taller; un punto mal
+crea una tarea del mueble y **no frena** el embalaje. "Fin de fabricación" se llama **Embalaje**. La instalación es
+por mueble; con bultos sin entregar o tareas abiertas pide motivo; deshacerla es del dueño o la oficina. En el tablero,
+un proyecto está **en curso hasta que todos sus muebles están instalados** (reemplaza la regla de la ficha 17).
