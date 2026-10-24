@@ -7,8 +7,8 @@
   .pad:active { cursor:grabbing; }
   tr.arrastrando { background:var(--fondo); outline:2px solid var(--acento); outline-offset:-2px; }
   tr.arrastrando .pad { color:var(--acento); border-color:var(--acento); }
-  tbody.fijos tr:first-child td { border-top:2px solid var(--borde); }
-  .candado { text-align:center; }
+  .candado { margin-left:.35rem; }
+  td:has(> .candado) { white-space:nowrap; }
   .lista-ordenada select { width:auto; }
   /* en el celular: el nombre se lleva el ancho; Borrar, chico */
   .lista-ordenada th, .lista-ordenada td { padding:.45rem .3rem; vertical-align:middle; }
@@ -22,34 +22,23 @@
 {% if etapas is not None %}
 <p class="suave">Los procesos que se eligen en Mi puesto, en orden. Los del taller se marcan <strong>por pieza</strong>
   (cada etiqueta, una pieza) o <strong>por mueble</strong> (cualquier etiqueta del mueble marca todas sus piezas). El avance
-  de un mueble es el promedio de los procesos por pieza y Armado. Los fijos (🔒) se renombran y se apagan, no se borran.</p>
+  de un mueble es el promedio de los procesos por pieza y Armado. Todos se ordenan arrastrándolos; los fijos (🔒) se
+  renombran y se apagan, no se borran.</p>
 <form method="post" class="caja lista-ordenada">{% csrf_token %}
   <input type="hidden" name="orden">
   <div class="tabla"><table>
     <thead><tr><th>Orden</th><th>Nombre</th><th>Se marca por</th><th>Prendido</th><th>Usos</th><th></th></tr></thead>
     <tbody>
     {% for e in del_taller %}
-    <tr data-id="{{ e.pk }}">
+    <tr data-id="{{ e.pk }}"{% if e.fijo %} class="fijo"{% endif %}>
       <td><button type="button" class="pad" aria-label="Mover {{ e.nombre }} (arrastrá, o flechas arriba y abajo)">
         <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true" fill="currentColor"><circle cx="5" cy="3" r="1.5"/><circle cx="11" cy="3" r="1.5"/><circle cx="5" cy="8" r="1.5"/><circle cx="11" cy="8" r="1.5"/><circle cx="5" cy="13" r="1.5"/><circle cx="11" cy="13" r="1.5"/></svg></button></td>
-      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre del proceso"></td>
-      <td><select name="por-{{ e.pk }}" aria-label="Se marca por"><option value="pieza">Pieza</option>
-        <option value="mueble"{% if e.por_mueble %} selected{% endif %}>Mueble</option></select></td>
+      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre del proceso">{% if e.fijo %}<span class="candado" title="Proceso fijo: se renombra y se apaga, no se borra">🔒</span>{% endif %}</td>
+      <td>{% if e.fijo %}<span class="suave">Mueble</span>{% else %}<select name="por-{{ e.pk }}" aria-label="Se marca por"><option value="pieza">Pieza</option>
+        <option value="mueble"{% if e.por_mueble %} selected{% endif %}>Mueble</option></select>{% endif %}</td>
       <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendido"></td>
-      <td>{{ e.usadas }}</td>
-      <td>{% if not e.usadas %}<button class="secundario" name="accion" value="borrar-etapas-{{ e.pk }}">Borrar</button>{% endif %}</td>
-    </tr>
-    {% endfor %}
-    </tbody>
-    <tbody class="fijos">
-    {% for e in fijos %}
-    <tr>
-      <td class="candado" title="Proceso fijo">🔒</td>
-      <td><input name="nombre-{{ e.pk }}" value="{{ e.nombre }}" maxlength="40" aria-label="Nombre del proceso"></td>
-      <td class="suave">Mueble</td>
-      <td><input type="checkbox" name="activa-{{ e.pk }}" value="1"{% if e.activa %} checked{% endif %} aria-label="Prendido"></td>
-      <td>{% if e.tipo == 'armado' %}{{ e.usadas }}{% endif %}</td>
-      <td></td>
+      <td>{% if e.marca_piezas %}{{ e.usadas }}{% endif %}</td>
+      <td>{% if not e.fijo and not e.usadas %}<button class="secundario" name="accion" value="borrar-etapas-{{ e.pk }}">Borrar</button>{% endif %}</td>
     </tr>
     {% endfor %}
     </tbody>

@@ -14,7 +14,8 @@ from talleres.archivos import ruta_de_taller
 from talleres.separacion import DatoDeTaller
 
 ETAPAS_POR_DEFECTO = ['Cortada', 'Canteada', 'Mecanizada']
-# los procesos fijos (ficha 19): van después de los del taller, en este orden; se renombran y se apagan, no se borran
+# los procesos fijos (ficha 19): se renombran, se apagan y se ordenan como los demás; no se borran. Un taller nuevo
+# los tiene en este orden, después de los suyos
 FIJOS = [('armado', 'Armado'), ('control', 'Control de calidad'), ('embalaje', 'Embalaje'), ('carga', 'Carga'),
          ('instalacion', 'Instalar en obra')]
 
@@ -25,10 +26,11 @@ def quien(related_name='+', nombre='quién'):
 
 
 class Etapa(DatoDeTaller):
-    """Los procesos del taller (Procesos, en Producción). Los del taller (`tipo='pieza'`) se ordenan, renombran, apagan
-    y borran si nunca se usaron, y se marcan por pieza o por mueble (`por_mueble`: cualquier etiqueta del mueble marca
-    todas sus piezas). Los fijos (FIJOS: armado, control, embalaje, carga, instalación) van después, en su orden; se
-    renombran y se apagan. Las marcas por pieza (`Marca`) son de los del taller y de Armado: con ellas sale el %."""
+    """Los procesos del taller (Procesos, en Producción), en el orden que elige el taller (todos se arrastran). Los del
+    taller (`tipo='pieza'`) se renombran, apagan y borran si nunca se usaron, y se marcan por pieza o por mueble
+    (`por_mueble`: cualquier etiqueta del mueble marca todas sus piezas). Los fijos (FIJOS: armado, control, embalaje,
+    carga, instalación) se renombran y se apagan, no se borran. Las marcas por pieza (`Marca`) son de los del taller y
+    de Armado: con ellas sale el %."""
     class Tipo(models.TextChoices):
         PIEZA = 'pieza', 'Del taller'
         ARMADO = 'armado', 'Armado'
@@ -64,8 +66,8 @@ class Etapa(DatoDeTaller):
 
 
 def procesos():
-    """Todos los procesos del taller: los del taller por su orden y después los fijos en su orden. La primera vez crea
-    los de por defecto; a un taller que no tiene algún fijo se lo agrega (prendido)."""
+    """Todos los procesos del taller, en el orden que eligió (Procesos). La primera vez crea los de por defecto; a un
+    taller que no tiene algún fijo se lo agrega (prendido, al final)."""
     todos = list(Etapa.objects.all())
     if not todos:
         todos = [Etapa.objects.create(nombre=n, orden=i) for i, n in enumerate(ETAPAS_POR_DEFECTO, 1)]
@@ -73,8 +75,7 @@ def procesos():
     for i, (tipo, nombre) in enumerate(FIJOS, 1):
         if tipo not in tiene:
             todos.append(Etapa.objects.create(nombre=nombre, orden=100 + i, tipo=tipo, por_mueble=True))
-    orden_fijo = {t: i for i, (t, _) in enumerate(FIJOS)}
-    return sorted(todos, key=lambda e: (e.fijo, orden_fijo.get(e.tipo, 0), e.orden, e.pk))
+    return sorted(todos, key=lambda e: (e.orden, e.pk))
 
 
 def etapas_del_taller():
@@ -85,6 +86,13 @@ def etapas_del_taller():
 def etapas_activas():
     """Las que cuentan para el %: los del taller y Armado, prendidos."""
     return [e for e in etapas_del_taller() if e.activa]
+
+
+def etapa_de_armado():
+    """La que mira el embalaje y la que pinta las piezas armadas: Armado si está prendido; si no, la última de las
+    del taller que marcan piezas."""
+    activas = etapas_activas()
+    return next((e for e in activas if e.tipo == Etapa.Tipo.ARMADO), None) or (activas[-1] if activas else None)
 
 
 def fijo(tipo):

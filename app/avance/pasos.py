@@ -11,7 +11,7 @@ entonces)."""
 from trabajos.api import hora, nombre
 
 from .calculo import avance, piezas_de
-from .models import Anotacion, Bulto, Control, Etapa, Instalacion, etapas_activas, procesos
+from .models import Anotacion, Bulto, Control, Etapa, Instalacion, etapa_de_armado, procesos
 
 # (clave, nombre, color, proceso fijo del que sale): el mismo color en la Lista, el 3D y el tablero
 TODOS = [
@@ -76,8 +76,7 @@ def pasos(proyecto, piezas=None, a=None):
     a = avance(proyecto, piezas) if a is None else a
     activos = pasos_activos()
     hay = {p[0] for p in activos}
-    activas = etapas_activas()
-    armado = activas[-1] if activas else None
+    armado = etapa_de_armado()
     controles = {}
     for c in Control.objects.filter(proyecto=proyecto).select_related('por').order_by('cuando', 'pk'):
         controles[c.mueble] = c                                       # vale el último

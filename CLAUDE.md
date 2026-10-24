@@ -331,6 +331,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   tablero y esquema en la etiqueta del mueble (`etiquetas/esquema.py`, `FormatoEtiquetas.esquema`). Ver
   `docs/sesiones/19-procesos-fijos.md`. Probado en el navegador integrado (sin cámara) y las etiquetas dibujadas a
   imagen con Pillow (no hay con qué pasar el PDF a imagen en la PC).
+- 2026-10-24: **ficha 20 hecha.** Avance por proceso en Lista y 3D desde Mi puesto (sin "Colorear por entrega"); todos
+  los procesos se ordenan (también los fijos); Armado por su tipo (`models.etapa_de_armado`); migración `avance 0006`
+  repara el Armado que la 0004 eligió mal en el NAS ("Instalacion"). Ver `docs/sesiones/20-avance-y-orden.md`.
 
 ## Pendientes
 

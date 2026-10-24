@@ -7,18 +7,24 @@ FIJOS = [('armado', 'Armado'), ('control', 'Control de calidad'), ('embalaje', '
 
 
 def procesos_fijos(apps, schema_editor):
-    """En cada taller con etapas: la que hacía de armado (la última prendida) pasa a ser el proceso fijo Armado, con
-    su nombre y sus marcas, y se agregan los otros cuatro prendidos."""
+    """En cada taller con etapas: la que se llama como el armado ("Armado", "Armada", "Ensamble"…; la última prendida
+    si hay varias) pasa a ser el proceso fijo Armado, con su nombre y sus marcas; si ninguna se llama así, se crea.
+    Se agregan los otros cuatro prendidos. (Antes se tomaba la última prendida, y en un taller cuya última etapa era
+    "Instalacion" la convirtió en Armado: lo repara 0006.)"""
+    import re
     Etapa = apps.get_model('avance', 'Etapa')
     for taller_id in Etapa.objects.order_by().values_list('taller_id', flat=True).distinct():   # sin el orden de Meta
         etapas = list(Etapa.objects.filter(taller_id=taller_id).order_by('orden', 'pk'))
-        prendidas = [e for e in etapas if e.activa]
-        armado = (prendidas or etapas)[-1]
-        armado.tipo, armado.por_mueble = 'armado', True
-        armado.save(update_fields=['tipo', 'por_mueble'])
-        for i, (tipo, nombre) in enumerate(FIJOS[1:], 2):
+        como_armado = [e for e in etapas if re.search(r'armad|ensambl', e.nombre, re.I)]
+        prendidas = [e for e in como_armado if e.activa]
+        armado = (prendidas or como_armado or [None])[-1]
+        if armado is not None:
+            armado.tipo, armado.por_mueble = 'armado', True
+            armado.save(update_fields=['tipo', 'por_mueble'])
+        for i, (tipo, nombre) in enumerate(FIJOS, 1):
+            if tipo == 'armado' and armado is not None:
+                continue
             Etapa.objects.create(taller_id=taller_id, nombre=nombre, orden=100 + i, tipo=tipo, por_mueble=True)
-
 
 class Migration(migrations.Migration):
 

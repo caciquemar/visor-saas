@@ -182,8 +182,8 @@ def deshacer(usuario, marca_id):
 # ---------------------------------------------------------------- fin de fabricación
 
 def etapa_de_armado():
-    activas = etapas_activas()
-    return activas[-1] if activas else None
+    from .models import etapa_de_armado as armado
+    return armado()
 
 
 def fin_a_dic(f):

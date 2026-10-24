@@ -116,7 +116,9 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
         texto = request.POST.get('nombre', '').strip()[:40]
         if texto:
             extra = {'por_mueble': request.POST.get('por') == 'mueble'} if modelo is Etapa else {}
-            modelo.objects.create(nombre=texto, orden=max((e.orden for e in lista), default=0) + 1, **extra)
+            # a continuación de los del taller (no de los fijos); después se arrastra a donde vaya
+            propios = [e for e in lista if not getattr(e, 'fijo', False)] or lista
+            modelo.objects.create(nombre=texto, orden=max((e.orden for e in propios), default=0) + 1, **extra)
     elif accion == f'guardar-{nombre}':
         for e in lista:
             texto = request.POST.get(f'nombre-{e.pk}', '').strip()[:40]
@@ -141,7 +143,7 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
                     e.orden = n
                     e.save(update_fields=['orden'])
     elif accion.startswith(f'borrar-{nombre}-'):
-        e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1]), None)
+        e = next((e for e in lista if str(e.pk) == accion.rsplit('-', 1)[1] and not getattr(e, 'fijo', False)), None)
         usada = e is not None and (e.marcas.exists() if modelo is Etapa else e.ubicados.exists()
                                    if modelo is Ubicacion else e.pk in usos_de_puntos())
         if e is not None and not usada:
@@ -162,12 +164,8 @@ def procesos(request, taller):
             if not dueno:
                 raise PermissionDenied('Las etapas las cambia el dueño.')
             todos = procesos_del_taller()
-            editar_lista(request, Etapa, [e for e in todos if not e.fijo], 'etapas')
+            editar_lista(request, Etapa, todos, 'etapas')
             if accion == 'guardar-etapas':
-                for e in (e for e in todos if e.fijo):
-                    e.nombre = request.POST.get(f'nombre-{e.pk}', '').strip()[:40] or e.nombre
-                    e.activa = request.POST.get(f'activa-{e.pk}') == '1'
-                    e.save(update_fields=['nombre', 'activa'])
                 if not any(e.activa for e in procesos_del_taller()):
                     messages.error(request, 'Dejá al menos un proceso prendido.')
                     e = next(e for e in todos if e.tipo == Etapa.Tipo.ARMADO)
@@ -194,7 +192,7 @@ def procesos(request, taller):
     ubicaciones = list(Ubicacion.objects.annotate(usadas=Count('ubicados')).order_by('orden', 'pk'))
     return render(request, 'avance/procesos.html', {
         'etapas': etapas, 'ubicaciones': ubicaciones, 'puntos': puntos,
-        'del_taller': [e for e in etapas or [] if not e.fijo], 'fijos': [e for e in etapas or [] if e.fijo],
+        'del_taller': etapas or [],
         'control_prendido': any(e.tipo == Etapa.Tipo.CONTROL and e.activa for e in etapas or [])})
 
 

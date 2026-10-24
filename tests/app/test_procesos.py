@@ -57,14 +57,13 @@ def guardar(c, taller, cambios=None, orden=None):
     return c.post('/taller-a/procesos/', datos)
 
 
-def test_los_fijos_se_renombran_y_apagan_pero_no_se_borran_ni_mueven(cliente_de, t):
+def test_los_fijos_se_renombran_apagan_y_mueven_pero_no_se_borran(cliente_de, t):
     c = cliente_de(t.dueno_a)
     i = ids(t.A)
     guardar(c, t.A, {f'nombre-{i["Armado"]}': 'Ensamble', f'activa-{i["Control de calidad"]}': None},
             orden=[i['Embalaje'], i['Mecanizada'], i['Cortada'], i['Canteada']])
     nombres = [x[0] for x in los_procesos(t.A)]
-    assert nombres == ['Mecanizada', 'Cortada', 'Canteada', 'Ensamble', 'Control de calidad', 'Embalaje', 'Carga',
-                       'Instalar en obra']
+    assert nombres[:4] == ['Embalaje', 'Mecanizada', 'Cortada', 'Canteada']        # todos se ordenan
     assert [x[3] for x in los_procesos(t.A) if x[1] == 'control'] == [False]
     c.post('/taller-a/procesos/', {'accion': f'borrar-etapas-{i["Carga"]}'})
     assert 'Carga' in [x[0] for x in los_procesos(t.A)]
@@ -112,11 +111,36 @@ def test_migracion_de_etapas_viejas(t):
                 Etapa.objects.create(nombre=n, orden=i, activa=not (apagada and n == 'Lustre'))
     migracion.procesos_fijos(apps, None)
     a, b = los_procesos(t.A), los_procesos(t.B)
-    assert [x[:2] for x in a] == [('Cortada', 'pieza'), ('Canteada', 'pieza'), ('Armada', 'pieza'), ('Lustre', 'armado'),
+    # Armado es la que se llama así (no la última: en el NAS la última era "Instalacion")
+    assert [x[:2] for x in a] == [('Cortada', 'pieza'), ('Canteada', 'pieza'), ('Armada', 'armado'), ('Lustre', 'pieza'),
                                   ('Control de calidad', 'control'), ('Embalaje', 'embalaje'), ('Carga', 'carga'),
                                   ('Instalar en obra', 'instalacion')]
-    # en B la última estaba apagada: Armado es la última prendida
     assert [x[0] for x in b if x[1] == 'armado'] == ['Armada']
+
+
+def test_migracion_sin_etapa_de_armado_y_reparacion(t):
+    """0004 con un taller cuyas etapas no tienen armado: lo crea. 0006: un Armado que en realidad era otra etapa
+    ("Instalacion", como quedó en el NAS) vuelve a ser del taller por pieza, con sus marcas, y se crea Armado."""
+    import importlib
+    from django.db import connection
+    from django.db.migrations.executor import MigrationExecutor
+    apps = MigrationExecutor(connection).loader.project_state(('avance', '0006_reparar_armado')).apps
+    m4 = importlib.import_module('avance.migrations.0004_procesos_fijos')
+    m6 = importlib.import_module('avance.migrations.0006_reparar_armado')
+    with con_taller(t.A):
+        for i, n in enumerate(['Cortado', 'Cantos', 'Instalacion'], 1):
+            Etapa.objects.create(nombre=n, orden=i)
+    m4.procesos_fijos(apps, None)
+    assert ('Instalacion', 'pieza', False, True) in los_procesos(t.A)
+    assert [x[0] for x in los_procesos(t.A) if x[1] == 'armado'] == ['Armado']
+    # como quedó en el NAS con la 0004 vieja
+    with con_taller(t.B):
+        for i, n in enumerate(['Cortado', 'Instalacion'], 1):
+            Etapa.objects.create(nombre=n, orden=i, tipo='armado' if n == 'Instalacion' else 'pieza', por_mueble=n == 'Instalacion')
+    m6.reparar(apps, None)
+    b = los_procesos(t.B)
+    assert ('Instalacion', 'pieza', False, True) in b and [x[0] for x in b if x[1] == 'armado'] == ['Armado']
+    assert [x[0] for x in los_procesos(t.A) if x[1] == 'armado'] == ['Armado']          # A ya estaba bien
 
 
 # ---------------------------------------------------------------- escanear es el registro, sin correlatividad
