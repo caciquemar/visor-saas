@@ -143,6 +143,13 @@ header h1,.btn-muebles{flex:none}
 .leyenda i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
 
 #escena{position:relative;min-height:0}
+/* colorear por entrega (ficha 18): leyenda arriba a la izquierda del 3D */
+.leyenda-entrega{position:absolute;left:10px;bottom:10px;z-index:4;background:var(--hoja);border:1px solid var(--linea);
+  border-radius:12px;padding:8px 10px;font:500 13px var(--sans);color:var(--tinta-2);display:grid;gap:3px;
+  box-shadow:0 4px 14px rgba(27,38,48,.12);pointer-events:none}
+.leyenda-entrega[hidden]{display:none}
+.leyenda-entrega b{color:var(--tinta)}
+.leyenda-entrega i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 #escena canvas{display:block;width:100%;height:100%;touch-action:none}
 .vista{position:absolute;left:12px;right:12px;top:8px;display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:flex-start;
   gap:6px;pointer-events:none;z-index:3}
@@ -407,6 +414,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
   <main id="escena">
     <div class="cargando" id="cargando">Cargando proyecto…</div>
     <div class="cotas" id="cotas" aria-hidden="true"></div>
+    <div class="leyenda-entrega solo-taller" id="leyendaEntrega" hidden></div>
     <div class="vista" hidden id="vista">
       <div class="segmento solo-taller" id="nivel" role="group" aria-label="Qué está elegido" hidden>
         <button id="verMueble" aria-pressed="false" title="Ver el mueble elegido">Mueble</button>
@@ -426,6 +434,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
           <button id="verAislar" aria-pressed="false" title="Ocultar los demás muebles">Aislar</button>
           <button id="verDespiece" class="solo-taller" aria-pressed="false" title="Separar las piezas del mueble">Despiece</button>
           <button id="verTransp" aria-pressed="false" title="Tableros translúcidos para ver adentro">Transparente</button>
+          <button id="verEntrega" class="solo-taller" aria-pressed="false" title="Cada mueble en el color de su paso, del armado a la instalación">Colorear por entrega</button>
           <hr>
           <button id="verTodo">Ver todo</button>
           <button id="verPlanos" title="Frente, planta y lateral en hojas A4, con medidas">Planos para imprimir</button>
@@ -1530,11 +1539,13 @@ function pintar(){
       op = esSel ? 1 : .1; borde = esSel ? 1 : .1;
     }
     const [cara, canto] = m.material;
+    // colorear por entrega: el mueble entero, liso, en el color de su paso
+    const deEntrega = !esSel && !tr ? colorEntrega(p.mueble) : null;
     // elegida: color liso; si no, la textura (color blanco para no teñirla) o el color del material
-    const mapa = esSel ? null : m.userData.mapa || null;
+    const mapa = esSel || deEntrega ? null : m.userData.mapa || null;
     if (cara.map !== mapa){ cara.map = mapa; cara.needsUpdate = true; }
-    cara.color.set(esSel ? color : mapa ? 0xFFFFFF : colorMaterial(p.mat));
-    if (!esSel && !tr && armada(p)) cara.color.lerp(TONO_ARMADA, mapa ? .8 : .55);   // armada: otro tono
+    cara.color.set(esSel ? color : deEntrega || (mapa ? 0xFFFFFF : colorMaterial(p.mat)));
+    if (!esSel && !tr && !deEntrega && armada(p)) cara.color.lerp(TONO_ARMADA, mapa ? .8 : .55);   // armada: otro tono
     if (canto.vertexColors === !!esSel){ canto.vertexColors = !esSel; canto.needsUpdate = true; }
     canto.color.set(esSel ? color : 0xFFFFFF);
     const transp = op < 1;
@@ -2120,19 +2131,59 @@ async function cargarAvance(){
 }
 document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarAvance(); });
 const armada = p => !!(AV.datos && AV.datos.final && (AV.datos.paneles[p.id] || []).includes(AV.datos.final));
+
+/* ---------- del armado a la instalación (ficha 18: api/entrega): el paso de cada mueble ---------- */
+// "Colorear por entrega" (Vista ▾, o ?entrega=1): cada mueble en el color de su paso, con leyenda; se actualiza sola
+const ENT = {on: !CLIENTE && new URLSearchParams(location.search).get('entrega') === '1', datos: null};
+let pedidoEntrega = 0;
+async function cargarEntrega(){
+  if (CLIENTE || !datos || !VISOR.avance || !item || item.id == null) return;
+  const pedido = ++pedidoEntrega;
+  let d = null;
+  try{ d = await api('entrega?proyecto=' + encodeURIComponent(item.id)); }catch(e){}
+  if (pedido !== pedidoEntrega) return;
+  ENT.datos = d;
+  if (d) ENT.colores = Object.fromEntries(d.pasos.map(x => [x.clave, new THREE.Color(x.color)]));
+  leyendaEntrega(); pintar();
+  if (seleccion && seleccion.soloMueble && panelMueble) $('pmAvance').innerHTML = avanceMueble(panelMueble);
+}
+function colorEntrega(mueble){
+  const m = ENT.on && ENT.datos && ENT.datos.muebles[mueble];
+  return m ? ENT.colores[m.paso] : null;
+}
+function leyendaEntrega(){
+  const d = ENT.datos;
+  $('leyendaEntrega').hidden = !(ENT.on && d);
+  $('verEntrega').setAttribute('aria-pressed', ENT.on);
+  if (!ENT.on || !d) return;
+  $('leyendaEntrega').innerHTML = d.pasos.map(x => `<div><i style="background:${x.color}"></i>${esc(x.nombre)} <b>${d.totales[x.clave]}</b></div>`).join('');
+}
+$('verEntrega').onclick = () => { ENT.on = !ENT.on; leyendaEntrega(); pintar(); if (ENT.on) cargarEntrega(); };
+setInterval(() => { if (ENT.on && !document.hidden) cargarEntrega(); }, 15000);
+document.addEventListener('visibilitychange', () => { if (!document.hidden) cargarEntrega(); });
+function pasoMueble(nombre){
+  const m = ENT.datos && ENT.datos.muebles[nombre];
+  if (!m) return '';
+  const x = ENT.datos.pasos.find(p => p.clave === m.paso), b = m.bultos;
+  const detalle = m.instalacion ? ` (${esc(m.instalacion.por || '—')}, ${fecha(m.instalacion.cuando)})`
+    : b.total && ['cargado', 'entregado'].includes(m.paso) ? ` · ${b.cargados} de ${b.total} bulto${b.total > 1 ? 's' : ''}${m.paso === 'entregado' ? ' entregados' : ' en camión'}`
+    : m.control && !m.control.ok ? ` · control: ${esc(m.control.mal.join(', '))}` : '';
+  return `<div>Paso: <b style="color:${x.color === '#CFD8DC' ? 'inherit' : x.color}">${esc(x.nombre)}</b>${detalle}</div>`;
+}
 const TONO_ARMADA = new THREE.Color('#7BC47F');
 function avanceMueble(nombre){
   const d = AV.datos, m = d && d.muebles[nombre];
   if (!m) return '';
   const nuevas = d.nuevas.filter(id => paneles.some(x => x.userData.p.id === id && x.userData.p.mueble === nombre)).length;
   const puesto = `${VISOR.avance.puesto}?modo=fin&p=${encodeURIComponent(item.id)}&m=${encodeURIComponent(nombre)}`;
-  return `<div>Avance <b>${m.pct}%</b>${m.terminado ? ' · <span class="hecha">Fabricación terminada</span>' : ''}</div>
+  return `<div>Avance <b>${m.pct}%</b>${m.terminado ? ' · <span class="hecha">Embalado</span>' : ''}</div>
     <div class="barra-av"><i style="width:${m.pct}%"></i></div>
     <div>${d.etapas.map((e, i) => `${esc(e.nombre)} ${m.por_etapa[i]}/${m.piezas}`).join(' · ')}</div>
     ${nuevas ? `<div>${pl(nuevas, 'pieza nueva', 'piezas nuevas')} en esta versión</div>` : ''}
     ${d.lugares && (m.lugares.length || m.sin_lugar < m.piezas) ? `<div>Piezas en: ${m.lugares.map(([n, c]) => `${esc(n)} ${c}`)
       .concat(m.sin_lugar ? [`sin ubicar ${m.sin_lugar}`] : []).join(' · ')}</div>` : ''}
-    <div><a href="${puesto}">${m.terminado ? 'Ver bultos' : 'Fabricación terminada…'}</a></div>`;
+    ${pasoMueble(nombre)}
+    <div><a href="${puesto}">${m.terminado ? 'Ver bultos' : 'Embalaje…'}</a></div>`;
 }
 function avanceFicha(){
   const d = AV.datos, p = seleccion.mallas[0].userData.p;
@@ -2526,7 +2577,7 @@ async function cargar(elegido){
   panelMueble = null; tamano(); construir(datos); $('vista').hidden = false;
   $('cargando').hidden = true;
   TR.lista = []; TR.vista = null; TR.resaltar = null; TR.marcando = null; TR.filtro = null;
-  $('panelTrabajos').hidden = true; $('tbInsignia').hidden = true; cargarTrabajos(); cargarAvance();
+  $('panelTrabajos').hidden = true; $('tbInsignia').hidden = true; cargarTrabajos(); cargarAvance(); cargarEntrega();
   if (CLIENTE){
     $('titulo').textContent = NOMBRE; $('hProyecto').textContent = datos.proyecto; $('hProyecto').hidden = false;
     document.title = `${datos.proyecto} — ${NOMBRE}`;

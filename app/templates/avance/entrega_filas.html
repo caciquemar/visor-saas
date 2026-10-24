@@ -11,8 +11,8 @@
       <span class="{% if m.armado %}si{% endif %}">{% if m.armado %}✓{% else %}–{% endif %} Armado{% if not m.armado and m.armadas %} {{ m.armadas }}/{{ m.piezas }}{% endif %}</span>
       <span class="{% if m.control.ok %}si{% elif m.control %}obs{% endif %}">{% if m.control.ok %}✓{% elif m.control %}⚠{% else %}–{% endif %} Control{% if m.control and not m.control.ok %}: {{ m.control.mal|join:", " }}{% endif %}</span>
       <span class="{% if m.fin %}si{% endif %}">{% if m.fin %}✓{% else %}–{% endif %} Embalado{% if m.bultos.total %} ({{ m.bultos.total }} bulto{{ m.bultos.total|pluralize }}){% endif %}</span>
-      <span class="{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}si{% elif m.bultos.cargados %}obs{% endif %}">{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}✓{% else %}–{% endif %} Cargado{% if m.bultos.total %} {{ m.bultos.cargados }}/{{ m.bultos.total }}{% endif %}</span>
-      <span class="{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}si{% elif m.bultos.entregados %}obs{% endif %}">{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}✓{% else %}–{% endif %} Entregado{% if m.bultos.total %} {{ m.bultos.entregados }}/{{ m.bultos.total }}{% endif %}</span>
+      <span class="{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}si{% elif m.bultos.cargados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}✓{% else %}–{% endif %} Cargado{% if m.bultos.total %} {{ m.bultos.cargados }}/{{ m.bultos.total }}{% endif %}</span>
+      <span class="{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}si{% elif m.bultos.entregados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}✓{% else %}–{% endif %} Entregado{% if m.bultos.total %} {{ m.bultos.entregados }}/{{ m.bultos.total }}{% endif %}</span>
       <span class="{% if m.instalacion %}si{% endif %}">{% if m.instalacion %}✓{% else %}–{% endif %} Instalado</span>
     </div>
     {% if m.instalacion %}

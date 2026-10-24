@@ -20,7 +20,7 @@
 <h2>Etapas de las piezas</h2>
 <p class="suave">En Mi puesto se elige una etapa y se marcan las piezas que pasan por ahí. El avance de un mueble es el
   promedio de todas las etapas prendidas. La última prendida{% if armado %} (<strong>{{ armado.nombre }}</strong>){% endif %}
-  es la que se mira al tocar "Fabricación terminada".</p>
+  es la que se mira al embalar y la que marca "Armado (mueble entero)" en Mi puesto.</p>
 {% include 'avance/lista_ordenada.html' with filas=etapas lista='etapas' que='etapa' usadas='Piezas marcadas' %}
 <form method="post" class="acciones">{% csrf_token %}
   <input name="nombre" maxlength="40" placeholder="Pintada" aria-label="Nombre de la etapa nueva" style="width:auto">

@@ -430,7 +430,7 @@ function tarjetaMueble(d){
     <div class="pct">${d.pct}%</div><div class="barrita"><i style="width:${d.pct}%"></i></div>
     <div class="suave">${d.por_etapa.map(e => `${esc(e.nombre)} ${e.hechas}/${d.piezas}`).join(' · ')}</div>
     <div>${resumenControl(d.control)}</div>
-    ${fin ? `<p><b>Fabricación terminada</b> · ${esc(fin.por || '')}, ${cuandoCorto(fin.cuando)} · ${fin.bultos} bulto${fin.bultos > 1 ? 's' : ''}</p>
+    ${fin ? `<p><b>Embalado</b> · ${esc(fin.por || '')}, ${cuandoCorto(fin.cuando)} · ${fin.bultos} bulto${fin.bultos > 1 ? 's' : ''}</p>
       ${fin.motivo ? `<p class="suave">Faltaban ${fin.faltantes.length}: ${esc(fin.motivo)}</p>` : ''}
       <ul class="lista">${fin.lista.map(b => `<li><span>Bulto ${b.numero} de ${fin.bultos}</span><span class="suave">${esc(b.estado_texto)}</span></li>`).join('')}</ul>
       <button type="button" class="principal" id="btnImprimir">Imprimir etiquetas de los bultos</button>

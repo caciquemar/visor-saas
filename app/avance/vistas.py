@@ -213,7 +213,8 @@ def entrega(request, taller, id):
         'proyecto': proyecto, 'gestiona': gestiona,
         'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']])
                     for n, m in d['muebles'].items()],
-        'pasos': [{'clave': k, 'nombre': nombre_, 'color': c, 'n': d['totales'][k], 'pct': d['totales'][k] * 100 / total}
+        'pasos': [{'clave': k, 'nombre': nombre_, 'color': c, 'n': d['totales'][k],
+                   'pct': f"{d['totales'][k] * 100 / total:.2f}"}       # texto con punto: va a CSS
                   for k, nombre_, c in PASOS],
         'visor': reverse('taller:proyectos:visor', kwargs={'taller': taller}) + f'?p={proyecto.pk}&entrega=1',
     }

@@ -240,7 +240,7 @@ def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
     piezas = piezas_de(proyecto)
     estado = estado_del_mueble(proyecto, mueble, piezas)
     if estado['fin']:
-        raise Rechazo(409, f'{mueble} ya tiene la fabricación terminada.')
+        raise Rechazo(409, f'{mueble} ya está embalado.')
     if estado['faltan'] and not motivo:
         raise Rechazo(400, f'Faltan {len(estado["faltan"])} piezas sin marcar en {estado["etapa"]}: '
                            'escribí el motivo para terminar igual.')
@@ -257,7 +257,7 @@ def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
                 if ubicacion is not None:
                     ubicar(proyecto, ubicacion, usuario, ahora, bulto=b)
     except IntegrityError:
-        raise Rechazo(409, f'{mueble} ya tiene la fabricación terminada.')
+        raise Rechazo(409, f'{mueble} ya está embalado.')
     return estado_del_mueble(proyecto, mueble, piezas)
 
 
@@ -265,7 +265,7 @@ def reabrir(usuario, proyecto_id, mueble):
     proyecto = proyecto_o_rechazo(proyecto_id)
     fin = FinDeMueble.objects.filter(proyecto=proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if fin is None:
-        raise Rechazo(404, 'Ese mueble no tiene la fabricación terminada.')
+        raise Rechazo(404, 'Ese mueble no está embalado.')
     if fin.lista_de_bultos.exclude(estado=Bulto.Estado.EMBALADO).exists():
         raise Rechazo(409, 'Hay bultos de este mueble cargados o entregados: no se puede reabrir.')
     fin.anulado_por, fin.anulado_en = usuario, timezone.now()
@@ -450,7 +450,7 @@ def bulto_leido(usuario, slug, carga_id, texto, entregar=False):
         return error(f'{mueble} no va en esta carga.', **base)
     fin = FinDeMueble.objects.filter(proyecto=carga.proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if fin is None:
-        return error(f'{mueble} no tiene la fabricación terminada.', **base)
+        return error(f'{mueble} no está embalado.', **base)
     b = fin.lista_de_bultos.select_related('carga', 'cargado_por', 'entregado_por').filter(numero=n).first()
     if b is None:
         return error(f'{mueble} tiene {fin.bultos} bultos: esta etiqueta (bulto {n}) es de una impresión vieja.',
