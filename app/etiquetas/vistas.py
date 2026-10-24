@@ -82,6 +82,9 @@ def armar_pdf(request, proyecto, piezas, muebles, cuenta, formato, desde):
         etiquetas.append(pdf.etiqueta_de_pieza(x['panel'], proyecto.nombre, url_de(request, e), x['copia'], x['de']))
     for nombre, bultos in muebles:
         e = Etiqueta.para(proyecto, Etiqueta.Tipo.MUEBLE, {'mueble': nombre})
+        if not bultos:              # la del mueble armado, antes de embalar: sin número de bulto (ficha 18)
+            etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e), cuenta[nombre],
+                                                    0, 0, proyecto.cliente, proyecto.direccion))
         for b in range(1, bultos + 1):
             etiquetas.append(pdf.etiqueta_de_mueble(nombre, proyecto.nombre, url_de(request, e, b), cuenta[nombre],
                                                     b, bultos, proyecto.cliente, proyecto.direccion))
@@ -119,7 +122,8 @@ def desde_el_visor(request, taller):
     ids = set(request.GET.getlist('pz'))
     elegidas = [x for x in piezas if x['panel']['id'] in ids]
     m = request.GET.get('m')
-    muebles = [(m, numero(request.GET.get('bultos'), 1, 1, MAX_BULTOS))] if m in cuenta else []
+    # bultos=0: la etiqueta del mueble armado, sin número de bulto (Mi puesto → Armado)
+    muebles = [(m, numero(request.GET.get('bultos'), 1, 0, MAX_BULTOS))] if m in cuenta else []
     if not elegidas and not muebles:
         return HttpResponse('Eso ya no está en la versión actual del proyecto (o no lleva etiqueta). Volvé al visor '
                             'y elegilo de nuevo.', status=400, content_type='text/plain; charset=utf-8')

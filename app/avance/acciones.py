@@ -18,7 +18,8 @@ from proyectos.models import Proyecto
 from trabajos.api import Rechazo, hora, nombre
 
 from .calculo import (avance, etiqueta_de, faltan_en, leer, marcas_vigentes, numero, piezas_de)
-from .models import Bulto, Carga, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas
+from .models import Bulto, Carga, Control, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas
+from .pasos import control_a_dic
 
 MAX_MOTIVO = 1000
 
@@ -197,7 +198,9 @@ def estado_del_mueble(proyecto, mueble, piezas=None):
     return {'resultado': 'ok', 'proyecto': proyecto_a_dic(proyecto), 'mueble': mueble, 'pct': m['pct'],
             'piezas': m['piezas'], 'etapa': armado.nombre if armado else '',
             'por_etapa': [{'nombre': e.nombre, 'hechas': m['por_etapa'][e.pk]} for e in a['etapas']],
-            'faltan': [pieza_a_dic(x) for x in faltan], 'fin': fin_a_dic(m['fin']), 'max_bultos': MAX_BULTOS}
+            'faltan': [pieza_a_dic(x) for x in faltan], 'fin': fin_a_dic(m['fin']), 'max_bultos': MAX_BULTOS,
+            'control': control_a_dic(Control.objects.filter(proyecto=proyecto, mueble=mueble)
+                                     .select_related('por').last())}
 
 
 def mueble_leido(slug, texto, proyecto_id=None):
@@ -365,11 +368,9 @@ def mover(bulto, a, usuario, carga, ahora):
 
 # ---------------------------------------------------------------- tareas (modo "Tareas" del puesto)
 
-def tareas_de_lo_leido(slug, texto, proyecto_id=None):
-    """(proyecto, qué se leyó, tareas sin instalar) de la etiqueta de una pieza o de un mueble, o un dict de error.
-    De una pieza: las suyas y las de su mueble (como "en esta pieza o su mueble" del visor). De un mueble: las del
-    mueble y las de cualquiera de sus piezas. Las piezas de una tarea van por id del panel o nº de mecanizado."""
-    from trabajos.models import Trabajo
+def que_se_leyo(slug, texto, proyecto_id=None):
+    """(proyecto, piezas, mueble, pieza) de la etiqueta de una pieza, de un mueble o de un bulto, o del número de
+    mecanizado en el proyecto del puesto; o un dict de error. `pieza` es None si se leyó el mueble o un bulto."""
     puesto = proyecto_o_rechazo(proyecto_id) if proyecto_id is not None else None
     lectura = leer(texto, slug)
     if lectura is None:
@@ -383,25 +384,44 @@ def tareas_de_lo_leido(slug, texto, proyecto_id=None):
         proyecto, piezas = e.proyecto, piezas_de(e.proyecto)
         if e.tipo == e.Tipo.MUEBLE:
             mueble, pieza = e.clave.get('mueble'), None
+            if not any(x['panel']['mueble'] == mueble for x in piezas):
+                return error(f'El mueble {mueble} ya no está en la versión actual de {proyecto.nombre}.')
         else:
             pieza = next((x for x in piezas if x['clave'] == e.clave), None)
             if pieza is None:
                 return error(f'Esta pieza ya no está en la versión actual de {proyecto.nombre}.')
             mueble = pieza['panel']['mueble']
-    else:
-        if puesto is None:
-            return sin_proyecto()
-        proyecto, piezas = puesto, piezas_de(puesto)
-        pieza = next((x for x in piezas if x['panel'].get('num') and numero(x['panel']['num']) == lectura['numero']),
-                     None)
-        if pieza is None:
-            return error(f'El mecanizado {lectura["numero"]} no está en {puesto.nombre}.')
-        mueble = pieza['panel']['mueble']
+        return proyecto, piezas, mueble, pieza
+    if puesto is None:
+        return sin_proyecto()
+    piezas = piezas_de(puesto)
+    pieza = next((x for x in piezas if x['panel'].get('num') and numero(x['panel']['num']) == lectura['numero']),
+                 None)
+    if pieza is None:
+        return error(f'El mecanizado {lectura["numero"]} no está en {puesto.nombre}.')
+    return puesto, piezas, pieza['panel']['mueble'], pieza
+
+
+def tareas_abiertas(proyecto, piezas, mueble, pieza=None):
+    """Las tareas sin instalar de la pieza (y su mueble) o del mueble (y cualquiera de sus piezas). Las piezas de una
+    tarea van por id del panel o nº de mecanizado."""
+    from trabajos.models import Trabajo
     del_mueble = [x for x in piezas if x['panel']['mueble'] == mueble] if pieza is None else [pieza]
     claves_ = {str(c) for x in del_mueble for c in (x['panel'].get('id'), x['panel'].get('num')) if c}
-    abiertas = [t for t in Trabajo.objects.filter(proyecto=proyecto).exclude(estado=Trabajo.Estado.INSTALADO)
-                if mueble in (t.muebles or []) or claves_ & {str(c) for c in (t.piezas or [])}]
-    return proyecto, {'mueble': mueble, 'pieza': pieza_a_dic(pieza) if pieza else None}, abiertas
+    return [t for t in Trabajo.objects.filter(proyecto=proyecto).exclude(estado=Trabajo.Estado.INSTALADO)
+            if mueble in (t.muebles or []) or claves_ & {str(c) for c in (t.piezas or [])}]
+
+
+def tareas_de_lo_leido(slug, texto, proyecto_id=None):
+    """(proyecto, qué se leyó, tareas sin instalar) de la etiqueta de una pieza o de un mueble, o un dict de error.
+    De una pieza: las suyas y las de su mueble (como "en esta pieza o su mueble" del visor). De un mueble: las del
+    mueble y las de cualquiera de sus piezas."""
+    leido = que_se_leyo(slug, texto, proyecto_id)
+    if isinstance(leido, dict):
+        return leido
+    proyecto, piezas, mueble, pieza = leido
+    return (proyecto, {'mueble': mueble, 'pieza': pieza_a_dic(pieza) if pieza else None},
+            tareas_abiertas(proyecto, piezas, mueble, pieza))
 
 
 def bulto_leido(usuario, slug, carga_id, texto, entregar=False):

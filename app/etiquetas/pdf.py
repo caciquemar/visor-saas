@@ -272,8 +272,8 @@ def _mueble(c, e, x, y, w, h):
     _texto(c, e['proyecto'] + (f" · {e['cliente']}" if e['cliente'] else ''), tx, top - 3.4 * u, tw,
            'Helvetica', 3 * u, GRIS)
     _texto(c, e['mueble'], tx, top - 9.6 * u, tw, 'Helvetica-Bold', 5.4 * u, minimo=3.4 * u)
-    # bulto, recuadrado para que se vea de lejos
-    bulto = f"Bulto {e['bulto']} de {e['bultos']}"
+    # bulto, recuadrado para que se vea de lejos (sin bultos: la etiqueta del mueble armado, ficha 18)
+    bulto = f"Bulto {e['bulto']} de {e['bultos']}" if e['bultos'] else 'Mueble armado'
     tb = 5 * u
     bw = stringWidth(bulto, 'Helvetica-Bold', tb) + 2.4 * u
     by = top - 18.4 * u

@@ -52,6 +52,7 @@ def puesto(request, taller):
         'pdf': base + 'visor/api/etiquetas/pdf',
         'carga': base + 'cargas/{id}/',
         'visor': base + 'visor/',
+        'entrega': base + 'proyectos/{id}/entrega/',
     }
     return render(request, 'avance/puesto.html', {'config': json.dumps(config, ensure_ascii=False).replace('<', '\\u003c')})
 

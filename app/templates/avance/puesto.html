@@ -50,7 +50,17 @@
   .barra { display:flex; align-items:center; gap:.5rem; }
   .barra .nombre { font-size:1.3rem; font-weight:700; margin-right:auto; }
   .barra .cuenta { font-size:1.1rem; font-variant-numeric:tabular-nums; }
-  .barra button { padding:.5rem .8rem; }
+  .barra button, .barra .boton-chico { padding:.5rem .8rem; }
+  .boton-chico { border:1px solid var(--borde); border-radius:14px; background:var(--panel); color:var(--texto);
+                 font-weight:600; text-decoration:none; }
+  .punto { border-top:1px solid var(--borde); padding:.6rem 0; display:grid; gap:.5rem; }
+  .fila-punto { display:flex; align-items:center; gap:.75rem; justify-content:space-between; }
+  .okmal { display:flex; gap:.4rem; }
+  .okmal button { padding:.6rem 1rem; min-width:4.2rem; }
+  .okmal button[data-v="1"][aria-pressed=true] { background:var(--ok); color:var(--ok-texto); border-color:transparent; }
+  .okmal button[data-v="0"][aria-pressed=true] { background:var(--mal); color:var(--mal-texto); border-color:transparent; }
+  .fotos { display:flex; gap:.4rem; flex-wrap:wrap; }
+  .fotos img { width:5rem; height:5rem; object-fit:cover; border-radius:8px; border:1px solid var(--borde); }
   .camara { position:relative; background:#111; border-radius:14px; overflow:hidden; height:28vh; min-height:140px;
             flex:none; }
   .camara video { width:100%; height:100%; object-fit:cover; display:block; }
@@ -124,6 +134,8 @@
     <div class="barra">
       <span class="nombre" id="modoNombre"></span>
       <span class="cuenta" id="cuenta"></span>
+      <a class="boton-chico" id="verLista" hidden>Lista</a>
+      <a class="boton-chico" id="ver3D" hidden>3D</a>
       <button type="button" id="btnCambiar">Cambiar</button>
     </div>
     <div class="camara" id="camara">
@@ -181,18 +193,19 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 opciones($('selProyecto'), C.proyectos, estado.proyecto, 'Elegí el proyecto');
 opciones($('selCarga'), C.cargas, estado.carga, C.cargas.length ? 'Elegí la carga' : 'No hay cargas abiertas');
 opciones($('selUbicacion'), C.ubicaciones, estado.ubicacion, 'No cambiar');
-const MODOS = {fin: 'Fin de fabricación', carga: 'Cargar bultos', entrega: 'Entregar en obra', tareas: 'Tareas'};
+const MODOS = {armado: 'Armado (mueble entero)', control: 'Control de calidad', fin: 'Embalaje', carga: 'Cargar bultos',
+               entrega: 'Entregar en obra', instalar: 'Instalar en obra', tareas: 'Tareas'};
 $('selModo').innerHTML = '<option value="">Elegí la etapa</option>'
   + `<optgroup label="Etapas de las piezas">${C.etapas.map(e => `<option value="etapa:${e.id}">${esc(e.nombre)}</option>`).join('')}</optgroup>`
-  + `<optgroup label="Muebles y bultos"><option value="fin">${MODOS.fin}</option><option value="carga">${MODOS.carga}</option>`
-  + `<option value="entrega">${MODOS.entrega}</option></optgroup>`
+  + `<optgroup label="Muebles, del armado a la instalación">${['armado', 'control', 'fin', 'carga', 'entrega', 'instalar']
+      .map(m => `<option value="${m}">${MODOS[m]}</option>`).join('')}</optgroup>`
   + (C.tareas ? `<optgroup label="Tareas"><option value="tareas">${MODOS.tareas} (lo que falta hacer)</option></optgroup>` : '');
 const valorModo = () => estado.modo === 'etapa' ? `etapa:${estado.etapa}` : estado.modo || '';
 $('selModo').value = valorModo();
 if ($('selModo').value !== valorModo()) $('selModo').value = '';
 // la ubicación vale para las piezas y los bultos que quedan en el taller: no al cargar, entregar ni en tareas
 function camposSegunModo(){
-  const enTaller = ['etapa', 'fin'].includes(estado.modo) || !estado.modo;
+  const enTaller = ['etapa', 'armado', 'fin'].includes(estado.modo) || !estado.modo;
   $('campoUbicacion').hidden = !enTaller || !C.ubicaciones.length;
   $('sinUbicaciones').hidden = !enTaller || C.ubicaciones.length > 0 || !C.procesos;
   $('sinUbicaciones').innerHTML = `Para anotar dónde quedan las piezas, cargá las ubicaciones del taller en <a href="${C.procesos}">Procesos</a>.`;
@@ -213,6 +226,14 @@ $('selProyecto').onchange = () => {
 function usarProyecto(p){                // el de la última pieza leída, para los números de mecanizado
   if (!p) return;
   estado.proyecto = p.id; $('selProyecto').value = p.id; $('pedirProyecto').hidden = true;
+  links();
+}
+// Lista y 3D de entrega del proyecto que se está trabajando (cargar, entregar, instalar)
+function links(){
+  const ver = ['carga', 'entrega', 'instalar'].includes(estado.modo) && !!estado.proyecto;
+  $('verLista').hidden = $('ver3D').hidden = !ver;
+  if (ver){ $('verLista').href = C.entrega.replace('{id}', estado.proyecto);
+            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&entrega=1`; }
 }
 function faltaProyecto(d, txt){
   if (!d.falta_proyecto) return false;
@@ -223,7 +244,7 @@ function faltaProyecto(d, txt){
 
 function validarEleccion(){
   estado.carga = +$('selCarga').value || null;
-  estado.ubicacion = ['etapa', 'fin'].includes(estado.modo) ? (+$('selUbicacion').value || null) : null;
+  estado.ubicacion = ['etapa', 'armado', 'fin'].includes(estado.modo) ? (+$('selUbicacion').value || null) : null;
   if (!estado.modo || (estado.modo === 'etapa' && !C.etapas.some(e => e.id === estado.etapa)))
     return 'Elegí la etapa.';
   if ((estado.modo === 'carga' || estado.modo === 'entrega') && !estado.carga)
@@ -281,7 +302,11 @@ function empezar(){
   $('faltanCarga').hidden = $('verCarga').hidden = !(estado.modo === 'carga' || estado.modo === 'entrega');
   ultimas = []; dibujarUltimas();
   mostrar('', 'Listo para escanear', '', estado.modo === 'etapa' ? 'Pieza tras pieza' : estado.modo === 'fin'
-    ? 'Escaneá la etiqueta del mueble' : estado.modo === 'tareas' ? 'Escaneá una pieza o un mueble' : 'Escaneá cada bulto');
+    ? 'Escaneá la etiqueta del mueble' : estado.modo === 'tareas' ? 'Escaneá una pieza o un mueble'
+    : estado.modo === 'armado' ? 'Escaneá una pieza o el mueble' : estado.modo === 'control' ? 'Escaneá el mueble armado'
+    : estado.modo === 'instalar' ? 'Escaneá el mueble o un bulto' : 'Escaneá cada bulto');
+  if (carga) usarProyecto({id: carga.proyecto});
+  links();
   if (estado.modo === 'carga' || estado.modo === 'entrega'){
     $('verCarga').href = C.carga.replace('{id}', estado.carga);
     pedir('GET', `cargas/${estado.carga}`).then(r => r.ok && dibujarCarga(r.datos));
@@ -304,6 +329,9 @@ async function leido(txt){
     if (estado.modo === 'etapa') await marcar(txt);
     else if (estado.modo === 'fin') await leerMueble(txt);
     else if (estado.modo === 'tareas') await leerTareas(txt);
+    else if (estado.modo === 'armado') await armarMueble(txt);
+    else if (estado.modo === 'control') await leerControl(txt);
+    else if (estado.modo === 'instalar') await leerInstalacion(txt);
     else await leerBulto(txt);
   } finally { ocupado = false; }
 }
@@ -369,7 +397,7 @@ async function deshacer(u){
     u.deshecha = true; dibujarUltimas(); dibujarCarga(r.datos.carga);
     return mostrar('', 'Deshecho', '', u.texto);
   }
-  const r = await pedir('POST', 'deshacer', {marca: u.marca});
+  const r = await pedir('POST', 'deshacer', u.marcas ? {marcas: u.marcas} : {marca: u.marca});
   if (!r.ok) return mostrar('mal', r.datos.error);
   u.deshecha = true; dibujarUltimas();
   mostrar('', 'Deshecho', '', u.texto, 'Ya no figura en esta etapa');
@@ -401,6 +429,7 @@ function tarjetaMueble(d){
     <div class="suave">${esc(d.proyecto.nombre)} · ${d.piezas} piezas</div>
     <div class="pct">${d.pct}%</div><div class="barrita"><i style="width:${d.pct}%"></i></div>
     <div class="suave">${d.por_etapa.map(e => `${esc(e.nombre)} ${e.hechas}/${d.piezas}`).join(' · ')}</div>
+    <div>${resumenControl(d.control)}</div>
     ${fin ? `<p><b>Fabricación terminada</b> · ${esc(fin.por || '')}, ${cuandoCorto(fin.cuando)} · ${fin.bultos} bulto${fin.bultos > 1 ? 's' : ''}</p>
       ${fin.motivo ? `<p class="suave">Faltaban ${fin.faltantes.length}: ${esc(fin.motivo)}</p>` : ''}
       <ul class="lista">${fin.lista.map(b => `<li><span>Bulto ${b.numero} de ${fin.bultos}</span><span class="suave">${esc(b.estado_texto)}</span></li>`).join('')}</ul>
@@ -416,7 +445,7 @@ function tarjetaMueble(d){
         <button type="button" id="mas" aria-label="Uno más">+</button></div>
       ${ubicacionElegida() ? `<p class="suave">Los bultos quedan en ${esc(ubicacionElegida().nombre)}.</p>` : ''}
       <p class="error" id="errFin" hidden></p>
-      <button type="button" class="principal" id="btnTerminar">Fabricación terminada</button>`}
+      <button type="button" class="principal" id="btnTerminar">Embalado</button>`}
     <button type="button" id="btnOtro">Escanear otro mueble</button>`;
   $('btnOtro').onclick = () => { t.hidden = true; $('aviso').hidden = false; ultimoTexto = '';
     mostrar('', 'Listo para escanear', '', 'Escaneá la etiqueta del mueble'); };
@@ -463,34 +492,203 @@ async function leerTareas(txt){
                    'No falta nada por hacer o instalar'); }
   SONIDOS.ya(); tarjetaTareas(d);
 }
-function tarjetaTareas(d){
-  $('aviso').hidden = true; $('tarjeta').hidden = false;
-  const t = $('tarjeta'), hoy = new Date().toISOString().slice(0, 10);
-  const meta = x => [NOMBRE_ESTADO[x.estado], x.asignado ? `para ${x.asignado}` : '',
-    x.limite ? `${x.limite < hoy && ['pendiente', 'en proceso'].includes(x.estado) ? 'venció' : 'vence'} ${x.limite.split('-').reverse().slice(0, 2).join('/')}` : '']
-    .filter(Boolean).join(' · ');
-  t.innerHTML = `<h2>${d.pieza ? `${esc(numero(d.pieza))} ${esc(d.pieza.nombre)}` : esc(d.mueble)}</h2>
-    <div class="suave">${d.pieza ? `${esc(d.mueble)} · ` : ''}${esc(d.proyecto.nombre)} · ${d.tareas.length} tarea${d.tareas.length > 1 ? 's' : ''} sin instalar</div>
-    ${d.tareas.map((x, i) => `<div class="tarea"><div class="texto">${esc(x.texto)}<div class="meta" id="meta${i}">${esc(meta(x))}</div></div>
-      <button type="button" class="avanzar" data-i="${i}" aria-label="Pasar a ${esc(NOMBRE_ESTADO[SIGUIENTE[x.estado]])}">✓</button></div>`).join('')}
-    <p class="error" id="errTarea" hidden></p>
-    <button type="button" id="btnOtro">Escanear otra</button>`;
+// las tareas de una tarjeta (Tareas o Instalar): texto, estado, para quién, vencimiento y ✓ para pasar al siguiente
+const hoyISO = () => new Date().toISOString().slice(0, 10);
+const metaTarea = x => [NOMBRE_ESTADO[x.estado], x.asignado ? `para ${x.asignado}` : '',
+  x.limite ? `${x.limite < hoyISO() && ['pendiente', 'en proceso'].includes(x.estado) ? 'venció' : 'vence'} ${x.limite.split('-').reverse().slice(0, 2).join('/')}` : '']
+  .filter(Boolean).join(' · ');
+const htmlTareas = tareas => tareas.map((x, i) => `<div class="tarea"><div class="texto">${esc(x.texto)}<div class="meta" data-meta="${i}">${esc(metaTarea(x))}</div></div>
+  <button type="button" class="avanzar" data-i="${i}" aria-label="Pasar a ${esc(NOMBRE_ESTADO[SIGUIENTE[x.estado]])}">✓</button></div>`).join('');
+function conectarTareas(t, tareas){
   t.querySelectorAll('button.avanzar').forEach(b => b.onclick = async () => {
-    const x = d.tareas[+b.dataset.i];
+    const x = tareas[+b.dataset.i];
     b.disabled = true;
     try {
       const r = await fetch(C.tareas + x.id, {method: 'PATCH', credentials: 'same-origin',
         headers: {'Content-Type': 'application/json', 'X-CSRFToken': C.csrf}, body: JSON.stringify({estado: SIGUIENTE[x.estado]})});
       const nuevo = await r.json();
       if (!r.ok) throw new Error(nuevo.error || 'No se pudo cambiar');
-      d.tareas[+b.dataset.i] = nuevo; SONIDOS.ok();
-      $('meta' + b.dataset.i).textContent = meta(nuevo);
+      tareas[+b.dataset.i] = nuevo; SONIDOS.ok();
+      t.querySelector(`[data-meta="${b.dataset.i}"]`).textContent = metaTarea(nuevo);
       b.disabled = !SIGUIENTE[nuevo.estado];
       if (SIGUIENTE[nuevo.estado]) b.setAttribute('aria-label', `Pasar a ${NOMBRE_ESTADO[SIGUIENTE[nuevo.estado]]}`);
-    } catch (e) { $('errTarea').textContent = e.message; $('errTarea').hidden = false; b.disabled = false; SONIDOS.mal(); }
+    } catch (e) { alert(e.message); b.disabled = false; SONIDOS.mal(); }
   });
+}
+function botonOtro(t, texto){
   $('btnOtro').onclick = () => { t.hidden = true; $('aviso').hidden = false; ultimoTexto = '';
-    mostrar('', 'Listo para escanear', '', 'Escaneá una pieza o un mueble'); };
+    mostrar('', 'Listo para escanear', '', texto); };
+}
+function tarjetaTareas(d){
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta');
+  t.innerHTML = `<h2>${d.pieza ? `${esc(numero(d.pieza))} ${esc(d.pieza.nombre)}` : esc(d.mueble)}</h2>
+    <div class="suave">${d.pieza ? `${esc(d.mueble)} · ` : ''}${esc(d.proyecto.nombre)} · ${d.tareas.length} tarea${d.tareas.length > 1 ? 's' : ''} sin instalar</div>
+    ${htmlTareas(d.tareas)}
+    <button type="button" id="btnOtro">Escanear otra</button>`;
+  conectarTareas(t, d.tareas);
+  botonOtro(t, 'Escaneá una pieza o un mueble');
+}
+
+/* ---------- fotos: del celular (cámara) a la API, de a una ---------- */
+async function subirFotos(url, archivos){
+  let mal = 0;
+  for (const f of archivos){
+    try {
+      const r = await fetch(url, {method: 'POST', credentials: 'same-origin',
+        headers: {'Content-Type': f.type || 'image/jpeg', 'X-CSRFToken': C.csrf}, body: f});
+      if (!r.ok) mal++;
+    } catch (e) { mal++; }
+  }
+  return mal;
+}
+const campoFotos = (id, texto) => `<label class="campo" for="${id}">${texto}</label>
+  <input type="file" id="${id}" accept="image/*" capture="environment" multiple>`;
+
+/* ---------- armado del mueble entero: cualquier etiqueta de una de sus piezas ---------- */
+async function armarMueble(txt){
+  const r = await pedir('POST', 'armar', {texto: txt, proyecto: estado.proyecto, ubicacion: estado.ubicacion});
+  const d = r.datos;
+  if (r.ok && faltaProyecto(d, txt)){ $('tarjeta').hidden = true; return; }
+  if (!r.ok || d.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', d.error || 'No se pudo armar'); }
+  usarProyecto(d.proyecto);
+  if (d.marcas.length){
+    ultimas.unshift({marcas: d.marcas, corto: d.mueble, texto: `${d.mueble} armado (${d.nuevas} piezas)`});
+    ultimas = ultimas.slice(0, 10); dibujarUltimas();
+  }
+  (d.resultado === 'ok' ? SONIDOS.ok : SONIDOS.ya)();
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta');
+  t.innerHTML = `<h2>${esc(d.mueble)}</h2>
+    <div class="suave">${esc(d.proyecto.nombre)} · ${d.piezas} piezas</div>
+    <p><b>${d.resultado === 'ok' ? `Armado ✓` : 'Ya estaba armado'}</b>${d.nuevas && d.nuevas < d.piezas ? ` · ${d.nuevas} piezas que faltaban` : ''}
+      ${d.ubicacion ? ` · queda en ${esc(d.ubicacion)}` : ''}</p>
+    <button type="button" class="principal" id="btnEtiquetaMueble">Imprimir la etiqueta del mueble</button>
+    <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+  $('btnEtiquetaMueble').onclick = () => window.open(C.pdf + '?' + new URLSearchParams({proyecto: d.proyecto.id, m: d.mueble, bultos: 0}), '_blank', 'noopener');
+  botonOtro(t, 'Escaneá una pieza o el mueble');
+}
+
+/* ---------- control de calidad: la lista del taller, Ok o Mal; cada Mal crea una tarea ---------- */
+async function leerControl(txt){
+  const r = await pedir('POST', 'control', {texto: txt, proyecto: estado.proyecto});
+  const d = r.datos;
+  if (r.ok && faltaProyecto(d, txt)){ $('tarjeta').hidden = true; return; }
+  if (!r.ok || d.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', d.error || 'No se pudo leer'); }
+  usarProyecto(d.proyecto);
+  SONIDOS.ok(); tarjetaControl(d);
+}
+const resumenControl = c => !c ? '<span class="faltan">Sin control de calidad</span>'
+  : c.ok ? `Control ok ✓ <span class="suave">· ${esc(c.por || '—')}, ${cuandoCorto(c.cuando)}</span>`
+  : `<span class="faltan">Control con observaciones: ${esc(c.mal.join(', '))}</span> <span class="suave">· ${esc(c.por || '—')}, ${cuandoCorto(c.cuando)}</span>`;
+function tarjetaControl(d){
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta'), resp = {};
+  t.innerHTML = `<h2>${esc(d.mueble)}</h2>
+    <div class="suave">${esc(d.proyecto.nombre)}</div>
+    ${d.armado ? '' : `<p class="faltan">Todavía no está armado (${d.armadas} de ${d.piezas} piezas).</p>`}
+    ${d.ultimo ? `<p>Último: ${resumenControl(d.ultimo)}</p>` : ''}
+    ${d.puntos.map(p => `<div class="punto" data-p="${p.id}">
+      <div class="fila-punto"><b>${esc(p.nombre)}</b>
+        <span class="okmal"><button type="button" data-v="1" aria-pressed="false">Ok</button><button type="button" data-v="0" aria-pressed="false">Mal</button></span></div>
+      <div class="detalle" hidden><textarea rows="2" maxlength="1000" placeholder="¿Qué pasa?"></textarea>
+        ${C.tareas ? campoFotos('foto' + p.id, 'Foto (opcional)') : ''}</div></div>`).join('')}
+    <p class="error" id="errControl" hidden></p>
+    <button type="button" class="principal" id="btnGuardarControl">Guardar el control</button>
+    <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+  t.querySelectorAll('.punto').forEach(el => el.querySelectorAll('[data-v]').forEach(b => b.onclick = () => {
+    resp[el.dataset.p] = b.dataset.v === '1';
+    el.querySelectorAll('[data-v]').forEach(x => x.setAttribute('aria-pressed', String(x === b)));
+    el.querySelector('.detalle').hidden = resp[el.dataset.p];
+  }));
+  $('btnGuardarControl').onclick = async () => {
+    const faltan = d.puntos.filter(p => !(p.id in resp));
+    if (faltan.length){ $('errControl').textContent = `Falta revisar: ${faltan.map(p => p.nombre).join(', ')}.`;
+      $('errControl').hidden = false; return; }
+    const resultados = d.puntos.map(p => ({punto: p.id, ok: resp[p.id],
+      nota: resp[p.id] ? '' : t.querySelector(`.punto[data-p="${p.id}"] textarea`).value.trim()}));
+    $('btnGuardarControl').disabled = true;
+    const r = await pedir('POST', 'control', {proyecto: d.proyecto.id, mueble: d.mueble, resultados});
+    if (!r.ok){ $('errControl').textContent = r.datos.error; $('errControl').hidden = false;
+      $('btnGuardarControl').disabled = false; SONIDOS.mal(); return; }
+    // la foto de cada punto mal va a la tarea que se creó
+    let fotosMal = 0;
+    for (const x of r.datos.control.resultados){
+      const input = $('foto' + x.punto);
+      if (x.tarea && input && input.files.length) fotosMal += await subirFotos(C.tareas + x.tarea + '/fotos', input.files);
+    }
+    const c = r.datos.control;
+    (c.ok ? SONIDOS.ok : SONIDOS.ya)();
+    t.innerHTML = `<h2>${esc(d.mueble)}</h2><p>${resumenControl(c)}</p>
+      ${r.datos.tareas.length ? `<p class="suave">Se ${r.datos.tareas.length > 1 ? `crearon ${r.datos.tareas.length} tareas` : 'creó una tarea'} del mueble. Se puede embalar igual.</p>` : ''}
+      ${fotosMal ? `<p class="error">${fotosMal} foto${fotosMal > 1 ? 's' : ''} no se pudo subir.</p>` : ''}
+      <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+    botonOtro(t, 'Escaneá el mueble armado');
+  };
+  botonOtro(t, 'Escaneá el mueble armado');
+}
+
+/* ---------- instalar en obra: mueble por mueble ---------- */
+async function leerInstalacion(txt){
+  const r = await pedir('POST', 'instalacion', {texto: txt, proyecto: estado.proyecto});
+  const d = r.datos;
+  if (r.ok && faltaProyecto(d, txt)){ $('tarjeta').hidden = true; return; }
+  if (!r.ok || d.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', d.error || 'No se pudo leer'); }
+  usarProyecto(d.proyecto);
+  SONIDOS.ok(); tarjetaInstalacion(d);
+}
+function tarjetaInstalacion(d){
+  $('aviso').hidden = true; $('tarjeta').hidden = false;
+  const t = $('tarjeta'), i = d.instalacion, b = d.bultos;
+  const cabeza = `<h2>${esc(d.mueble)}</h2>
+    <div class="suave">${esc(d.proyecto.nombre)} · ${b.total ? `${b.entregados} de ${b.total} bulto${b.total > 1 ? 's' : ''} entregado${b.entregados !== 1 ? 's' : ''}` : 'sin embalar'}</div>
+    <p>${resumenControl(d.control)}</p>`;
+  if (i){
+    t.innerHTML = cabeza + `<p><b>Instalado ✓</b> · ${esc(i.por || '—')}, ${cuandoCorto(i.cuando)}</p>
+      ${i.nota ? `<p>${esc(i.nota)}</p>` : ''}${i.motivo ? `<p class="suave">Faltaba: ${esc(i.motivo)}</p>` : ''}
+      ${i.fotos.length ? `<div class="fotos">${i.fotos.map(f => `<a href="${C.api}fotos-de-instalacion/${f}" target="_blank" rel="noopener"><img src="${C.api}fotos-de-instalacion/${f}" alt="Foto de la instalación"></a>`).join('')}</div>` : ''}
+      ${C.gestiona ? '<button type="button" id="btnDesinstalar">Deshacer la instalación</button>' : ''}
+      <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+    if ($('btnDesinstalar')) $('btnDesinstalar').onclick = async () => {
+      if (!confirm(`¿Deshacer la instalación de ${d.mueble}?`)) return;
+      const r = await pedir('POST', 'desinstalar', {proyecto: d.proyecto.id, mueble: d.mueble});
+      if (!r.ok) return alert(r.datos.error);
+      const r2 = await pedir('POST', 'instalacion', {proyecto: d.proyecto.id, mueble: d.mueble});
+      if (r2.ok) tarjetaInstalacion(r2.datos);
+    };
+    return botonOtro(t, 'Escaneá el mueble o un bulto');
+  }
+  t.innerHTML = cabeza + `
+    ${d.tareas.length ? `<div class="suave">${d.tareas.length} tarea${d.tareas.length > 1 ? 's' : ''} sin instalar:</div>${htmlTareas(d.tareas)}` : ''}
+    ${d.faltan.length ? `<p class="faltan">Falta${d.faltan.length > 1 ? 'n' : ''} ${d.faltan.length}:</p>
+      <ul class="lista">${d.faltan.map(f => `<li><span>${esc(f)}</span></li>`).join('')}</ul>
+      <label class="campo" for="motivoInst">Para marcarlo instalado igual, ¿por qué?</label>
+      <textarea id="motivoInst" rows="2" maxlength="1000" placeholder="El bulto 2 llega mañana, la tarea se hace en la próxima visita…"></textarea>` : ''}
+    <label class="campo" for="notaInst">Nota (opcional)</label>
+    <textarea id="notaInst" rows="2" maxlength="1000"></textarea>
+    ${campoFotos('fotosInst', 'Fotos (opcional)')}
+    <p class="error" id="errInst" hidden></p>
+    <button type="button" class="principal" id="btnInstalar">Instalado</button>
+    <button type="button" id="btnOtro">Escanear otro mueble</button>`;
+  conectarTareas(t, d.tareas);
+  $('btnInstalar').onclick = async () => {
+    const motivo = $('motivoInst') ? $('motivoInst').value.trim() : '';
+    if (d.faltan.length && !motivo){ $('errInst').textContent = 'Escribí el motivo para marcarlo instalado con faltantes.';
+      $('errInst').hidden = false; $('motivoInst').focus(); return; }
+    $('btnInstalar').disabled = true;
+    const r = await pedir('POST', 'instalar', {proyecto: d.proyecto.id, mueble: d.mueble, nota: $('notaInst').value.trim(), motivo});
+    if (!r.ok){ $('errInst').textContent = r.datos.error; $('errInst').hidden = false; $('btnInstalar').disabled = false;
+      SONIDOS.mal(); return; }
+    let nueva = r.datos;
+    if ($('fotosInst').files.length){
+      const mal = await subirFotos(`${C.api}instalaciones/${nueva.instalacion.id}/fotos`, $('fotosInst').files);
+      const r2 = await pedir('POST', 'instalacion', {proyecto: d.proyecto.id, mueble: d.mueble});
+      if (r2.ok) nueva = r2.datos;
+      if (mal) alert(`${mal} foto${mal > 1 ? 's' : ''} no se pudo subir.`);
+    }
+    SONIDOS.ok(); tarjetaInstalacion(nueva);
+  };
+  botonOtro(t, 'Escaneá el mueble o un bulto');
 }
 
 /* ---------- carga y entrega ---------- */

@@ -8,6 +8,14 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     GET  puesto/api/mueble?proyecto=&mueble=
     POST puesto/api/terminar               {proyecto, mueble, bultos, motivo, ubicacion?}
     POST puesto/api/tareas                 {texto, proyecto?}          tareas sin instalar de una pieza o mueble
+    POST puesto/api/armar                  {texto, proyecto?, ubicacion?}   el mueble entero en la etapa de armado
+    POST puesto/api/control                {texto, proyecto?} lee; {proyecto, mueble, resultados} guarda
+    POST puesto/api/instalacion            {texto, proyecto?} o {proyecto, mueble}   la tarjeta de instalar
+    POST puesto/api/instalar               {proyecto, mueble, nota, motivo}
+    POST puesto/api/desinstalar            {proyecto, mueble}          dueño u oficina
+    POST puesto/api/instalaciones/<id>/fotos   cuerpo = la imagen
+    GET  puesto/api/fotos-de-instalacion/<id>
+    GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (Lista y 3D de entrega)
     POST puesto/api/reabrir                {proyecto, mueble}
     GET  puesto/api/cargas/<id>
     POST puesto/api/cargas/<id>/bulto      {texto, entregar?}
@@ -15,13 +23,17 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     GET  visor/api/avance?proyecto=<id>
 """
 from django.http import Http404
+from django.shortcuts import get_object_or_404
 
+from talleres.archivos import abrir_de_taller
 from talleres.roles import Rol
-from trabajos.api import Rechazo, api, leer_json, responder, solo, uno
+from trabajos.api import (EXTENSION, MAX_FOTO, TIPOS_FOTO, UN_ANIO, Rechazo, api, imagen_valida, leer_json,
+                          responder, solo, uno)
 
-from . import acciones
+from . import acciones, entrega
 from .calculo import avance, piezas_de, piezas_nuevas, ubicaciones
-from .models import Ubicacion
+from .models import FotoDeInstalacion, Marca, Ubicacion
+from .pasos import PASOS, pasos
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
@@ -60,8 +72,17 @@ def marcar(request, taller):
 
 @api
 def deshacer(request, taller):
+    """Una marca, o varias (`marcas`: lo que marcó "Armado" de un mueble entero)."""
     solo(request, 'POST')
-    return responder(200, acciones.deshacer(request.user, entero(leer_json(request).get('marca'))))
+    d = leer_json(request)
+    if isinstance(d.get('marcas'), list):
+        ids = [entero(x) for x in d['marcas'][:500]]
+        hechas = [acciones.deshacer(request.user, i) for i in ids if Marca.objects.filter(
+            pk=i, deshecha_en__isnull=True).exists()] if all(isinstance(i, int) for i in ids) else None
+        if hechas is None:
+            raise Rechazo(400, 'marcas no válidas')
+        return responder(200, {'resultado': 'ok', 'deshechas': len(hechas)})
+    return responder(200, acciones.deshacer(request.user, entero(d.get('marca'))))
 
 
 @api
@@ -163,3 +184,98 @@ def avance_visor(request, taller):
         'lugares': lugares if Ubicacion.objects.exists() else None,
         'nuevas': [x['panel']['id'] for x in piezas_nuevas(p, piezas)],
     })
+
+
+# ---------------------------------------------------------------- ficha 18: del armado a la instalación
+
+@api
+def armar(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    return responder(200, entrega.armar_mueble(request.user, request.taller.slug, texto_de(d), proyecto_de(d),
+                                               ubicacion_de(d)))
+
+
+@api
+def control(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    if 'resultados' in d:
+        return responder(200, entrega.controlar(request.user, request.taller, entero(d.get('proyecto')),
+                                                d.get('mueble'), d.get('resultados')))
+    return responder(200, entrega.control_leido(request.taller.slug, texto_de(d), proyecto_de(d)))
+
+
+def tarjeta_instalacion(request, datos, abiertas):
+    if datos.get('resultado') == 'error':
+        return responder(200, datos)
+    return responder(200, {**datos, 'tareas': [uno(request, t.pk) for t in abiertas]})
+
+
+@api
+def instalacion(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    if 'mueble' in d:
+        return tarjeta_instalacion(request, *entrega.estado_instalacion(
+            acciones.proyecto_o_rechazo(entero(d.get('proyecto'))), d.get('mueble')))
+    return tarjeta_instalacion(request, *entrega.instalacion_leida(request.taller.slug, texto_de(d), proyecto_de(d)))
+
+
+@api
+def instalar(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    proyecto, _ = entrega.instalar(request.user, entero(d.get('proyecto')), d.get('mueble'), d.get('nota'),
+                                   d.get('motivo'))
+    return tarjeta_instalacion(request, *entrega.estado_instalacion(proyecto, d.get('mueble')))
+
+
+@api
+def desinstalar(request, taller):
+    solo(request, 'POST')
+    if request.membresia.rol not in GESTION:
+        raise Rechazo(403, 'Deshacer una instalación es del dueño o la oficina.')
+    d = leer_json(request)
+    return responder(200, entrega.desinstalar(request.user, entero(d.get('proyecto')), d.get('mueble')))
+
+
+@api
+def fotos_de_instalacion(request, taller, id):
+    """Como las fotos de las tareas (trabajos.api.fotos): el formato real de la imagen, hasta 12 MB."""
+    solo(request, 'POST')
+    tipo = (request.content_type or '').strip().lower()
+    if tipo not in TIPOS_FOTO:
+        raise Rechazo(415, 'formato de imagen no admitido')
+    largo = int(request.META.get('CONTENT_LENGTH') or 0)
+    if largo <= 0 or largo > MAX_FOTO:
+        raise Rechazo(413, 'imagen vacía o demasiado grande')
+    i = entrega.instalacion_o_rechazo(id)
+    datos = request.read(MAX_FOTO + 1)
+    if not datos or len(datos) > MAX_FOTO:
+        raise Rechazo(413, 'imagen vacía o demasiado grande')
+    formato = imagen_valida(datos, tipo)
+    f = entrega.guardar_foto(request.user, request.taller, i, datos, EXTENSION[formato])
+    return responder(200, {'resultado': 'ok', 'foto': f.pk})
+
+
+@api
+def foto_de_instalacion(request, taller, id):
+    solo(request, 'GET')
+    f = get_object_or_404(FotoDeInstalacion, pk=id)
+    r = abrir_de_taller(request, f.archivo.name)
+    r['Cache-Control'] = f'private, max-age={UN_ANIO}, immutable'
+    return r
+
+
+@api
+def entrega_visor(request, taller):
+    """El paso de cada mueble, para la Lista de entrega y "Colorear por entrega" del visor."""
+    solo(request, 'GET')
+    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+    piezas = piezas_de(p)
+    if not piezas:
+        raise Http404()
+    d = pasos(p, piezas)
+    return responder(200, {'proyecto': acciones.proyecto_a_dic(p), 'muebles': d['muebles'], 'totales': d['totales'],
+                           'pasos': [{'clave': k, 'nombre': n, 'color': c} for k, n, c in PASOS]})
