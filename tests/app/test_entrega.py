@@ -212,3 +212,52 @@ def test_rutas_de_entrega_de_a_no_andan_desde_b(cliente_de, t, pa):
                     ('desinstalar', {'proyecto': pa.pk, 'mueble': m})]:
         assert post(cb, f'/taller-b/puesto/api/{ruta}', d).status_code == 404, ruta
     assert cb.get(f'/taller-b/visor/api/entrega?proyecto={pa.pk}').status_code == 404
+
+
+# ---------------------------------------------------------------- Lista de entrega y pantalla del proyecto
+
+def test_lista_de_entrega(cliente_de, t, pa):
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    entregar_todo(c, t, pa, m)
+    r = c.get(f'/taller-a/proyectos/{pa.pk}/entrega/')
+    assert r.status_code == 200
+    html = r.content.decode()
+    assert m in html and 'Entregado' in html and 'Marcar instalado' not in html          # el armador no marca acá
+    fila, = [x for x in r.context['muebles'] if x['nombre'] == m]
+    assert fila['paso'] == 'entregado' and fila['paso_nombre'] == 'Entregado'
+    assert 'Entregado' in c.get(f'/taller-a/proyectos/{pa.pk}/entrega/?filas=1').content.decode()
+    assert c.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'instalar'}).status_code == 403
+    # la oficina marca instalado desde la Lista, y lo deshace
+    o = cliente_de(t.oficina_a)
+    assert 'Marcar instalado' in o.get(f'/taller-a/proyectos/{pa.pk}/entrega/').content.decode()
+    o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'instalar', 'nota': 'Ok'})
+    assert paso(t.A, pa, m)['paso'] == 'instalado'
+    o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'desinstalar'})
+    assert paso(t.A, pa, m)['paso'] == 'entregado'
+    # con faltantes y sin motivo, avisa y no marca
+    otro = next(x for x in sorted(set(p['panel']['mueble'] for p in piezas_del_proyecto())) if x != m)
+    r = o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': otro, 'accion': 'instalar'}, follow=True)
+    assert 'motivo' in r.content.decode() and paso(t.A, pa, otro)['paso'] == 'sin_armar'
+    # la pantalla del proyecto lleva a la Lista y al 3D
+    html = o.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
+    assert f'/taller-a/proyectos/{pa.pk}/entrega/' in html and 'entrega=1' in html
+    # desde B, nada
+    assert cliente_de(t.dueno_b).get(f'/taller-b/proyectos/{pa.pk}/entrega/').status_code == 404
+
+
+def piezas_del_proyecto():
+    from etiquetas import claves
+    from tests.app.test_etiquetas import GRONDONA
+    return claves.piezas(GRONDONA)
+
+
+def test_visor_api_entrega(cliente_de, t, pa):
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    marcar_todas(t.A, pa, m, etapas(t.A)['Armada'])
+    d = c.get(f'/taller-a/visor/api/entrega?proyecto={pa.pk}').json()
+    assert [p['clave'] for p in d['pasos']] == ['sin_armar', 'armado', 'controlado', 'embalado', 'cargado', 'entregado',
+                                                'instalado']
+    assert d['muebles'][m]['paso'] == 'armado' and d['totales']['armado'] == 1
+    assert sum(d['totales'].values()) == len(d['muebles'])

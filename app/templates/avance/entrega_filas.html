@@ -1,0 +1,38 @@
+{# Las filas de la Lista de entrega (avance/entrega.html): también se piden solas para actualizarla (?filas=1). #}
+<div class="barra-pasos" role="img" aria-label="{% for p in pasos %}{{ p.nombre }} {{ p.n }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+  {% for p in pasos %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}
+</div>
+<div class="leyenda">{% for p in pasos %}<span><i style="background:{{ p.color }}"></i>{{ p.nombre }} <b>{{ p.n }}</b></span>{% endfor %}</div>
+<ul class="muebles">
+{% for m in muebles %}
+  <li class="mueble" id="{{ m.ancla }}" style="--c:{{ m.color }}">
+    <div class="cabeza"><strong>{{ m.nombre }}</strong><span class="paso">{{ m.paso_nombre }}</span></div>
+    <div class="pasos">
+      <span class="{% if m.armado %}si{% endif %}">{% if m.armado %}✓{% else %}–{% endif %} Armado{% if not m.armado and m.armadas %} {{ m.armadas }}/{{ m.piezas }}{% endif %}</span>
+      <span class="{% if m.control.ok %}si{% elif m.control %}obs{% endif %}">{% if m.control.ok %}✓{% elif m.control %}⚠{% else %}–{% endif %} Control{% if m.control and not m.control.ok %}: {{ m.control.mal|join:", " }}{% endif %}</span>
+      <span class="{% if m.fin %}si{% endif %}">{% if m.fin %}✓{% else %}–{% endif %} Embalado{% if m.bultos.total %} ({{ m.bultos.total }} bulto{{ m.bultos.total|pluralize }}){% endif %}</span>
+      <span class="{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}si{% elif m.bultos.cargados %}obs{% endif %}">{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}✓{% else %}–{% endif %} Cargado{% if m.bultos.total %} {{ m.bultos.cargados }}/{{ m.bultos.total }}{% endif %}</span>
+      <span class="{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}si{% elif m.bultos.entregados %}obs{% endif %}">{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}✓{% else %}–{% endif %} Entregado{% if m.bultos.total %} {{ m.bultos.entregados }}/{{ m.bultos.total }}{% endif %}</span>
+      <span class="{% if m.instalacion %}si{% endif %}">{% if m.instalacion %}✓{% else %}–{% endif %} Instalado</span>
+    </div>
+    {% if m.instalacion %}
+    <div class="meta">Instalado por {{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}{% if m.instalacion.nota %} · {{ m.instalacion.nota }}{% endif %}{% if m.instalacion.motivo %} · faltaba: {{ m.instalacion.motivo }}{% endif %}{% if m.instalacion.fotos %} · {{ m.instalacion.fotos|length }} foto{{ m.instalacion.fotos|length|pluralize }}{% endif %}</div>
+    {% if m.instalacion.fotos %}<div class="fotos">{% for f in m.instalacion.fotos %}<a href="{% url 'taller:avance:foto_de_instalacion' taller=request.taller.slug id=f %}" target="_blank" rel="noopener"><img src="{% url 'taller:avance:foto_de_instalacion' taller=request.taller.slug id=f %}" alt="Foto de la instalación de {{ m.nombre }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
+    {% endif %}
+    {% if gestiona %}
+    {% if m.instalacion %}
+    <form method="post" class="acciones" onsubmit="return confirm('¿Deshacer la instalación de {{ m.nombre|escapejs }}?')">{% csrf_token %}
+      <input type="hidden" name="mueble" value="{{ m.nombre }}"><button class="secundario" name="accion" value="desinstalar">Deshacer la instalación</button></form>
+    {% else %}
+    <details><summary>Marcar instalado</summary>
+      <form method="post">{% csrf_token %}<input type="hidden" name="mueble" value="{{ m.nombre }}">
+        <label for="motivo-{{ m.ancla }}">Si falta algo (bultos sin entregar, tareas abiertas), ¿por qué se marca igual?</label>
+        <textarea id="motivo-{{ m.ancla }}" name="motivo" rows="2" maxlength="1000"></textarea>
+        <label for="nota-{{ m.ancla }}">Nota</label><textarea id="nota-{{ m.ancla }}" name="nota" rows="2" maxlength="1000"></textarea>
+        <div class="acciones"><button name="accion" value="instalar">Instalado</button></div>
+      </form></details>
+    {% endif %}
+    {% endif %}
+  </li>
+{% endfor %}
+</ul>

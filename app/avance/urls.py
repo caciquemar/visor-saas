@@ -27,6 +27,7 @@ urlpatterns = [
     path('visor/api/avance', api.avance_visor, name='avance_visor'),
     path('proyectos/<int:id>/cargas/nueva/', vistas.nueva_carga, name='nueva_carga'),
     path('cargas/<int:id>/', vistas.carga, name='carga'),
+    path('proyectos/<int:id>/entrega/', vistas.entrega, name='entrega'),
     path('etapas/', vistas.etapas, name='etapas'),
     path('procesos/', vistas.procesos, name='procesos'),
     path('tablero/', vistas.tablero, name='tablero'),

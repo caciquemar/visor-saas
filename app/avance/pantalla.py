@@ -3,6 +3,7 @@ from proyectos.models import Version
 
 from .calculo import avance, piezas_de, piezas_nuevas
 from .models import Bulto, Carga, FinDeMueble, Marca
+from .pasos import pasos
 
 
 def del_proyecto(proyecto):
@@ -15,6 +16,7 @@ def del_proyecto(proyecto):
     if not piezas:
         return None
     a = avance(proyecto, piezas)
+    entrega = pasos(proyecto, piezas, a)['muebles']
     bultos = {}
     for b in Bulto.objects.filter(proyecto=proyecto, fin__anulado_en__isnull=True).order_by('numero'):
         bultos.setdefault(b.mueble, []).append(b)
@@ -22,7 +24,8 @@ def del_proyecto(proyecto):
     for nombre, m in sorted(a['muebles'].items(), key=lambda kv: kv[0].lower()):
         muebles.append({'nombre': nombre, 'pct': m['pct'], 'piezas': m['piezas'],
                         'etapas': [(e.nombre, m['por_etapa'][e.pk]) for e in a['etapas']], 'fin': m['fin'],
-                        'bultos': bultos.get(nombre, [])})
+                        'bultos': bultos.get(nombre, []), 'control': entrega[nombre]['control'],
+                        'instalacion': entrega[nombre]['instalacion']})
     return {
         'etapas': a['etapas'], 'total': a['total'], 'muebles': muebles, 'sueltas': a['sueltas'],
         'nuevas': piezas_nuevas(proyecto, piezas),

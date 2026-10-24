@@ -1,0 +1,51 @@
+{% extends 'base.html' %}
+{% block titulo %}Entrega · {{ proyecto.nombre }}{% endblock %}
+{% block cabeza %}
+<style>
+  .barra-pasos { display:flex; height:1rem; border-radius:99px; overflow:hidden; background:var(--borde); margin:.5rem 0; }
+  .barra-pasos i { display:block; height:100%; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:.3rem 1rem; font-size:.9rem; color:var(--suave); }
+  .leyenda i { display:inline-block; width:.8rem; height:.8rem; border-radius:3px; margin-right:.3rem; vertical-align:-.1rem; }
+  .leyenda b { color:var(--texto); }
+  .muebles { list-style:none; padding:0; margin:1rem 0 0; display:grid; gap:.6rem; }
+  .mueble { background:var(--panel); border:1px solid var(--borde); border-left:6px solid var(--c); border-radius:10px;
+            padding:.75rem; scroll-margin-top:1rem; }
+  .mueble .cabeza { display:flex; gap:.5rem; align-items:baseline; justify-content:space-between; flex-wrap:wrap; }
+  .mueble .paso { font-size:.85rem; font-weight:700; padding:.1rem .55rem; border-radius:99px; background:var(--c);
+                  color:#1d1d1b; white-space:nowrap; }
+  .mueble .pasos { display:flex; flex-wrap:wrap; gap:.25rem .9rem; margin-top:.4rem; font-size:.9rem; color:var(--suave); }
+  .mueble .pasos .si { color:var(--ok); font-weight:600; }
+  .mueble .pasos .obs { color:var(--error); font-weight:600; }
+  .mueble .meta { font-size:.85rem; color:var(--suave); margin-top:.4rem; }
+  .mueble details { margin-top:.5rem; }
+  .mueble details summary { cursor:pointer; color:var(--acento); font-weight:600; }
+  .mueble textarea { font:inherit; width:100%; padding:.5rem; border:1px solid var(--borde); border-radius:8px;
+                     background:var(--fondo); color:inherit; }
+  .boton.secundario-enlace { background:transparent; color:var(--texto); border:1px solid var(--borde); }
+  .fotos { display:flex; gap:.4rem; flex-wrap:wrap; margin-top:.4rem; }
+  .fotos img { width:4.5rem; height:4.5rem; object-fit:cover; border-radius:8px; border:1px solid var(--borde); }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=proyecto.pk %}">{{ proyecto.nombre }}</a></p>
+<h1>Entrega</h1>
+<div class="acciones" style="margin:0 0 .5rem">
+  <a class="boton" href="{{ visor }}">Ver en 3D</a>
+  <a class="boton secundario-enlace" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=instalar&amp;p={{ proyecto.pk }}">Mi puesto</a>
+</div>
+<p class="suave" style="margin:0">Del armado a la instalación, mueble por mueble. Se actualiza sola.</p>
+<div id="filas">{% include 'avance/entrega_filas.html' %}</div>
+<script>
+(() => {
+  // cada 15 s, solo las filas; no mientras alguien está escribiendo o con un formulario abierto
+  const filas = document.getElementById('filas');
+  setInterval(async () => {
+    if (document.hidden || filas.querySelector('details[open]') || filas.contains(document.activeElement)) return;
+    try {
+      const r = await fetch(location.pathname + '?filas=1', {credentials: 'same-origin'});
+      if (r.ok) filas.innerHTML = await r.text();
+    } catch (e) {}
+  }, 15000);
+})();
+</script>
+{% endblock %}

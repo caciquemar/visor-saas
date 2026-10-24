@@ -13,7 +13,9 @@ from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.db.models import Count, Q
 from django.middleware.csrf import get_token
+from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils.text import slugify
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
@@ -23,6 +25,9 @@ from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
 
 from . import acciones
+from . import entrega as entrega_
+from .calculo import piezas_de
+from .pasos import PASOS, pasos
 from .tablero import tablero as armar_tablero
 from .models import Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, puntos_de_control
 
@@ -175,6 +180,45 @@ def procesos(request, taller):
 def tablero(request, taller):
     ver_terminados = request.GET.get('terminados') == '1'
     return render(request, 'avance/tablero.html', {**armar_tablero(ver_terminados), 'ver_terminados': ver_terminados})
+
+
+@miembro
+def entrega(request, taller, id):
+    """Lista de entrega del proyecto (ficha 18): cada mueble con sus pasos, del armado a la instalación. Se actualiza
+    sola (`?filas=1` devuelve solo las filas). El dueño y la oficina marcan instalado o lo deshacen desde acá."""
+    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
+    gestiona = request.membresia.rol in (Rol.DUENO, Rol.OFICINA)
+    if request.method == 'POST':
+        if not gestiona:
+            raise PermissionDenied('Marcar o deshacer una instalación desde acá es del dueño o la oficina.')
+        mueble = request.POST.get('mueble', '')
+        try:
+            if request.POST.get('accion') == 'desinstalar':
+                entrega_.desinstalar(request.user, proyecto.pk, mueble)
+                messages.success(request, f'{mueble}: se deshizo la instalación.')
+            else:
+                entrega_.instalar(request.user, proyecto.pk, mueble, request.POST.get('nota', ''),
+                                  request.POST.get('motivo', ''))
+                messages.success(request, f'{mueble}: instalado.')
+        except Rechazo as e:
+            messages.error(request, f'{mueble}: {e.error}')
+        return redirect(url(request, 'entrega', id=proyecto.pk) + '#' + slugify(mueble))
+    piezas = piezas_de(proyecto) if proyecto.version_actual else []
+    if not piezas:
+        raise Http404()
+    d = pasos(proyecto, piezas)
+    total = len(d['muebles']) or 1
+    colores, nombres = {k: c for k, _, c in PASOS}, {k: n for k, n, _ in PASOS}
+    contexto = {
+        'proyecto': proyecto, 'gestiona': gestiona,
+        'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']])
+                    for n, m in d['muebles'].items()],
+        'pasos': [{'clave': k, 'nombre': nombre_, 'color': c, 'n': d['totales'][k], 'pct': d['totales'][k] * 100 / total}
+                  for k, nombre_, c in PASOS],
+        'visor': reverse('taller:proyectos:visor', kwargs={'taller': taller}) + f'?p={proyecto.pk}&entrega=1',
+    }
+    plantilla = 'avance/entrega_filas.html' if request.GET.get('filas') == '1' else 'avance/entrega.html'
+    return render(request, plantilla, contexto)
 
 
 @con_rol(Rol.DUENO, Rol.OFICINA)
