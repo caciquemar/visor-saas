@@ -27,10 +27,10 @@ from trabajos.api import Rechazo
 from . import acciones
 from . import entrega as entrega_
 from .calculo import piezas_de
-from .pasos import PASOS, pasos
+from .pasos import pasos
 from .tablero import tablero as armar_tablero
-from .models import (Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, procesos as procesos_del_taller,
-                     puntos_de_control)
+from .models import (Carga, Control, Etapa, PuntoDeControl, Ubicacion, etapas_del_taller, fijo,
+                     procesos as procesos_del_taller, puntos_de_control)
 
 
 def url(request, nombre, **kwargs):
@@ -41,17 +41,18 @@ def url(request, nombre, **kwargs):
 def puesto(request, taller):
     proyectos = (Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO)
                  .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
-    cargas = Carga.objects.exclude(estado=Carga.Estado.ENTREGADA).select_related('proyecto')
+    cargas = Carga.objects.filter(estado=Carga.Estado.ARMANDO).select_related('proyecto')     # las que se cargan
     base = f'/{request.taller.slug}/'
     config = {
         'csrf': get_token(request),
         'yo': str(request.user),
         'gestiona': request.membresia.rol in (Rol.DUENO, Rol.OFICINA),
         'proyectos': [{'id': p.pk, 'nombre': p.nombre} for p in proyectos],
-        'etapas': [{'id': e.pk, 'nombre': e.nombre} for e in etapas_del_taller() if e.activa],
+        'procesos': [{'id': e.pk, 'nombre': e.nombre, 'tipo': e.tipo, 'por_mueble': e.por_mueble}
+                     for e in procesos_del_taller() if e.activa],
         'ubicaciones': [{'id': u.pk, 'nombre': u.nombre} for u in Ubicacion.objects.filter(activa=True)],
         'tareas': base + 'visor/api/trabajos/' if permite(request.taller, 'trabajos') else None,
-        'procesos': base + 'procesos/' if request.membresia.rol in (Rol.DUENO, Rol.OFICINA) else None,
+        'urlProcesos': base + 'procesos/' if request.membresia.rol in (Rol.DUENO, Rol.OFICINA) else None,
         'cargas': [{'id': c.pk, 'proyecto': c.proyecto_id, 'nombre': f'{c.proyecto.nombre} · carga {c.pk}',
                     'estado': c.estado} for c in cargas],
         'api': base + 'puesto/api/',
@@ -92,6 +93,7 @@ def carga(request, taller, id):
             error = e.error
     return render(request, 'avance/carga.html', {
         'carga': c, 'datos': acciones.carga_a_dic(c), 'error': error,
+        'con_instalacion': fijo(Etapa.Tipo.INSTALACION) is not None,
         'puesto': url(request, 'puesto') + f'?c={c.pk}',
     }, status=400 if error else 200)
 
@@ -228,14 +230,16 @@ def entrega(request, taller, id):
         raise Http404()
     d = pasos(proyecto, piezas)
     total = len(d['muebles']) or 1
-    colores, nombres = {k: c for k, _, c in PASOS}, {k: n for k, n, _ in PASOS}
+    colores, nombres = {k: c for k, _, c in d['pasos']}, {k: n for k, n, _ in d['pasos']}
     contexto = {
         'proyecto': proyecto, 'gestiona': gestiona,
         'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']])
                     for n, m in d['muebles'].items()],
         'pasos': [{'clave': k, 'nombre': nombre_, 'color': c, 'n': d['totales'][k],
                    'pct': f"{d['totales'][k] * 100 / total:.2f}"}       # texto con punto: va a CSS
-                  for k, nombre_, c in PASOS],
+                  for k, nombre_, c in d['pasos']],
+        'con_control': d['con_control'], 'con_carga': 'cargado' in colores, 'con_embalaje': 'embalado' in colores,
+        'con_instalacion': 'instalado' in colores, 'con_armado': 'armado' in colores,
         'visor': reverse('taller:proyectos:visor', kwargs={'taller': taller}) + f'?p={proyecto.pk}&entrega=1',
     }
     plantilla = 'avance/entrega_filas.html' if request.GET.get('filas') == '1' else 'avance/entrega.html'

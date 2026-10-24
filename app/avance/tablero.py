@@ -13,7 +13,7 @@ from trabajos.models import Trabajo
 
 from .calculo import avance, pct, piezas_de, ubicaciones
 from .models import Bulto, Marca, Movimiento, Ubicacion, etapas_activas
-from .pasos import ORDEN, PASOS, pasos
+from .pasos import pasos, pasos_activos
 
 
 def proyectos_listos():
@@ -35,7 +35,9 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
     t = a['total']
     pasos_ = pasos(p, piezas, a)
     entrega = pasos_['totales']
-    instalados = entrega['instalado']
+    # el último paso prendido (Instalado, o Entregado / el que quede si se apagaron): con todo ahí, está terminado
+    final = pasos_['pasos'][-1][0]
+    instalados = entrega[final] if len(pasos_['pasos']) > 1 else 0
     return {
         'proyecto': p, 'pct': t['pct'], 'piezas': t['piezas'], 'pasos': t['pasos'], 'hechos': t['hechos'],
         'etapas': [{'nombre': e.nombre, 'hechas': t['por_etapa'][e.pk],
@@ -45,26 +47,27 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
         'entregados': bultos.get(Bulto.Estado.ENTREGADO, 0),
         'ubicadas': len(ubicaciones(p)[0]) if hay_ubicaciones else None,
         'ultima': ultima,
-        # instalar es el último paso: con todo instalado está terminado aunque falten marcas de etapas
         'en_curso': instalados < muebles,
-        'instalados': instalados, 'entrega': barra(entrega, muebles), 'controles': pasos_['controles'],
+        'instalados': instalados, 'entrega': barra(entrega, muebles, pasos_['pasos']),
+        'controles': pasos_['controles'],
         'por_etapa': t['por_etapa'],
     }
 
 
-def barra(totales, total):
+def barra(totales, total, lista):
     """Los pasos con cuántos muebles hay en cada uno, para una barra apilada (el ancho como texto con punto: CSS)."""
     return [{'clave': k, 'nombre': n, 'color': c, 'n': totales.get(k, 0),
-             'pct': f'{totales.get(k, 0) * 100 / (total or 1):.2f}'} for k, n, c in PASOS]
+             'pct': f'{totales.get(k, 0) * 100 / (total or 1):.2f}'} for k, n, c in lista]
 
 
 def tablero(ver_terminados=False):
     etapas = etapas_activas()
+    lista = pasos_activos()
     hay_ubicaciones = Ubicacion.objects.exists()
     todos = [x for x in (de_un_proyecto(p, etapas, hay_ubicaciones) for p in proyectos_listos()) if x]
     en_curso = [x for x in todos if x['en_curso']]
     # los que se movieron hace poco, arriba; los que nunca se tocaron, al final
-    lista = sorted(todos if ver_terminados else en_curso,
+    mostrados = sorted(todos if ver_terminados else en_curso,
                    key=lambda x: (x['ultima'] is None, -(x['ultima'].timestamp() if x['ultima'] else 0)))
     hoy = timezone.localdate()
     desde_hoy = timezone.make_aware(datetime.combine(hoy, time.min))
@@ -85,13 +88,16 @@ def tablero(ver_terminados=False):
     vencidas = [t for t in Trabajo.objects.exclude(estado=Trabajo.Estado.INSTALADO).filter(limite__lt=hoy)
                 if t.vencido(hoy)]
     return {
-        'proyectos': lista, 'etapas': etapas, 'por_etapa': por_etapa,
+        'proyectos': mostrados, 'etapas': etapas, 'por_etapa': por_etapa,
         'en_curso': len(en_curso), 'terminados': len(todos) - len(en_curso),
         'pct': pct(sum(x['hechos'] for x in en_curso), sum(x['pasos'] for x in en_curso)),
         'piezas': piezas_en_curso, 'hoy': sum(hoy_por_etapa.values()), 'semana': sum(semana_por_etapa.values()),
         'vencidas': len(vencidas), 'hay_ubicaciones': hay_ubicaciones,
-        'entrega': barra({k: sum(x['entrega'][ORDEN.index(k)]['n'] for x in en_curso) for k in ORDEN},
-                         sum(x['muebles'] for x in en_curso)),
+        'entrega': barra({k: sum(p['n'] for x in en_curso for p in x['entrega'] if p['clave'] == k) for k, _, _ in lista},
+                         sum(x['muebles'] for x in en_curso), lista),
+        'con_control': any(k == 'controlado' for k, _, _ in lista),
+        'con_instalacion': any(k == 'instalado' for k, _, _ in lista),
+        'final': lista[-1][1] if len(lista) > 1 else '',
         'por_instalar': sum(x['muebles'] - x['instalados'] for x in en_curso),
         'controles': {k: sum(x['controles'][k] for x in en_curso) for k in ('ok', 'obs', 'sin')},
         'cuello': max(por_etapa[1:], key=lambda e: e['esperando'], default=None) if piezas_en_curso else None,

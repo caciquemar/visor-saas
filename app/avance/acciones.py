@@ -18,7 +18,8 @@ from proyectos.models import Proyecto
 from trabajos.api import Rechazo, hora, nombre
 
 from .calculo import (avance, etiqueta_de, faltan_en, leer, marcas_vigentes, numero, piezas_de)
-from .models import Bulto, Carga, Control, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas
+from .models import (Bulto, Carga, Control, Etapa, FinDeMueble, Marca, Movimiento, Ubicacion, Ubicado, etapas_activas,
+                     fijo)
 from .pasos import control_a_dic
 
 MAX_MOTIVO = 1000
@@ -82,6 +83,14 @@ def etapa_o_rechazo(etapa_id):
     e = next((e for e in etapas_activas() if e.pk == etapa_id), None)
     if e is None:
         raise Rechazo(400, 'Esa etapa no existe o está apagada. Elegí otra.')
+    return e
+
+
+def proceso_prendido(tipo):
+    """El proceso fijo de ese tipo, o Rechazo si está apagado en Procesos."""
+    e = fijo(tipo)
+    if e is None:
+        raise Rechazo(400, 'Ese proceso está apagado en Procesos.')
     return e
 
 
@@ -230,6 +239,8 @@ def mueble_leido(slug, texto, proyecto_id=None):
 
 
 def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
+    """Embalar el mueble en `bultos` bultos. Sin correlatividad (ficha 19): las piezas que faltaban en el armado quedan
+    anotadas, pero no frenan."""
     proyecto = proyecto_o_rechazo(proyecto_id)
     ubicacion = ubicacion_o_rechazo(ubicacion_id)
     if not isinstance(mueble, str):
@@ -241,9 +252,6 @@ def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
     estado = estado_del_mueble(proyecto, mueble, piezas)
     if estado['fin']:
         raise Rechazo(409, f'{mueble} ya está embalado.')
-    if estado['faltan'] and not motivo:
-        raise Rechazo(400, f'Faltan {len(estado["faltan"])} piezas sin marcar en {estado["etapa"]}: '
-                           'escribí el motivo para terminar igual.')
     ahora = timezone.now()
     faltantes = [f'{p["num"] or "s/n"} {p["nombre"]}'.strip() for p in estado['faltan']]
     try:
@@ -424,58 +432,46 @@ def tareas_de_lo_leido(slug, texto, proyecto_id=None):
             tareas_abiertas(proyecto, piezas, mueble, pieza))
 
 
-def bulto_leido(usuario, slug, carga_id, texto, entregar=False):
-    """Cargar (o entregar, en obra) el bulto de la etiqueta leída."""
+def bulto_leido(usuario, slug, carga_id, texto):
+    """Cargar el bulto de la etiqueta leída. Sin correlatividad (ficha 19): la etiqueta del mueble o de una de sus
+    piezas sirve si el mueble tiene un solo bulto, y un mueble sin embalar se embala ahí con 1 bulto."""
+    proceso_prendido(Etapa.Tipo.CARGA)
     carga = carga_o_rechazo(carga_id)
-    if not entregar and carga.estado != Carga.Estado.ARMANDO:
+    if carga.estado != Carga.Estado.ARMANDO:
         return error('Esta carga ya salió: no se le suman bultos.')
-    if entregar and carga.estado != Carga.Estado.SALIO:
-        return error('La carga todavía no salió a obra.' if carga.estado == Carga.Estado.ARMANDO
-                     else 'Esta carga ya está entregada.')
-    lectura = leer(texto, slug)
-    if lectura is None or 'numero' in lectura:
-        return error('Escaneá la etiqueta del bulto (la del mueble con "Bulto 1 de 3").')
-    if lectura.get('ajena'):
-        return error('Esta etiqueta es de otro taller.')
-    e = etiqueta_de(lectura['codigo'])
-    if e is None:
-        return error('Esta etiqueta no es de este taller.')
-    if e.tipo != e.Tipo.MUEBLE or not lectura['bulto']:
-        return error('Es la etiqueta de una pieza. Escaneá la del bulto.')
-    mueble, n = e.clave.get('mueble'), lectura['bulto']
-    base = {'mueble': mueble, 'numero': n}
-    if e.proyecto_id != carga.proyecto_id:
-        return error(f'Este bulto es de otro proyecto: {e.proyecto.nombre}.', **base)
+    leido = que_se_leyo(slug, texto, carga.proyecto_id)
+    if isinstance(leido, dict):
+        return leido
+    proyecto, _, mueble, _ = leido
+    lectura = leer(texto, slug) or {}
+    n = lectura.get('bulto')
+    base = {'mueble': mueble, 'numero': n or 1}
+    if proyecto.pk != carga.proyecto_id:
+        return error(f'Esto es de otro proyecto: {proyecto.nombre}.', **base)
     if mueble not in muebles_de(carga):
         return error(f'{mueble} no va en esta carga.', **base)
     fin = FinDeMueble.objects.filter(proyecto=carga.proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if fin is None:
-        return error(f'{mueble} no está embalado.', **base)
+        sin_embalaje = fijo(Etapa.Tipo.EMBALAJE) is None
+        terminar(usuario, carga.proyecto_id, mueble, 1, 'Sin embalaje' if sin_embalaje else 'Embalado al cargar')
+        fin = FinDeMueble.objects.get(proyecto=carga.proyecto, mueble=mueble, anulado_en__isnull=True)
+    if not n:
+        if fin.bultos > 1:
+            return error(f'{mueble} tiene {fin.bultos} bultos: escaneá la etiqueta de cada bulto.', **base)
+        n = 1
     b = fin.lista_de_bultos.select_related('carga', 'cargado_por', 'entregado_por').filter(numero=n).first()
     if b is None:
         return error(f'{mueble} tiene {fin.bultos} bultos: esta etiqueta (bulto {n}) es de una impresión vieja.',
                      **base)
     base['de'] = fin.bultos
     ahora = timezone.now()
-    if entregar:
-        if b.carga_id != carga.pk:
-            return error('Este bulto no vino en esta carga.', **base)
-        if b.estado == b.Estado.ENTREGADO:
-            r = {'resultado': 'ya', 'ya': {'por': nombre(b.entregado_por), 'cuando': hora(b.entregado_en)}}
-        else:
-            mover(b, b.Estado.ENTREGADO, usuario, carga, ahora)
-            r = {'resultado': 'ok'}
-            if not carga.bultos.exclude(estado=Bulto.Estado.ENTREGADO).exists():
-                carga.estado, carga.entregada_por, carga.entregada_en = Carga.Estado.ENTREGADA, usuario, ahora
-                carga.save(update_fields=['estado', 'entregada_por', 'entregada_en'])
+    if b.carga_id == carga.pk:
+        r = {'resultado': 'ya', 'ya': {'por': nombre(b.cargado_por), 'cuando': hora(b.cargado_en)}}
+    elif b.estado != b.Estado.EMBALADO:
+        return error(f'Este bulto ya está en otra carga ({b.carga.get_estado_display().lower()}).', **base)
     else:
-        if b.carga_id == carga.pk:
-            r = {'resultado': 'ya', 'ya': {'por': nombre(b.cargado_por), 'cuando': hora(b.cargado_en)}}
-        elif b.estado != b.Estado.EMBALADO:
-            return error(f'Este bulto ya está en otra carga ({b.carga.get_estado_display().lower()}).', **base)
-        else:
-            mover(b, b.Estado.CARGADO, usuario, carga, ahora)
-            r = {'resultado': 'ok'}
+        mover(b, b.Estado.CARGADO, usuario, carga, ahora)
+        r = {'resultado': 'ok'}
     return {**r, **base, 'bulto': b.pk, 'carga': carga_a_dic(carga)}
 
 
@@ -495,17 +491,23 @@ def deshacer_bulto(usuario, carga_id, bulto_id):
 
 
 def salir(usuario, carga, motivo):
-    """"Salió a obra": con faltantes, solo confirmando con un motivo."""
+    """"Salió a obra". Sin correlatividad (ficha 19): sale igual con faltantes y quedan anotados (con el motivo, si lo
+    escribieron). Sin el proceso de instalación, la carga queda entregada."""
     if carga.estado != Carga.Estado.ARMANDO:
         raise Rechazo(409, 'Esta carga ya salió.')
     motivo = motivo_de(motivo)
     c = contenido(carga)
     if not any(b.carga_id == carga.pk for b in c['bultos']):
         raise Rechazo(400, 'La carga está vacía: escaneá los bultos antes de salir.')
-    if c['faltantes'] and not motivo:
-        raise Rechazo(400, f'Faltan {len(c["faltantes"])}: escribí el motivo para salir igual.')
-    carga.estado, carga.salio_por, carga.salio_en = Carga.Estado.SALIO, usuario, timezone.now()
+    ahora = timezone.now()
+    carga.estado, carga.salio_por, carga.salio_en = Carga.Estado.SALIO, usuario, ahora
     carga.faltantes, carga.motivo = c['faltantes'], motivo if c['faltantes'] else ''
     carga.save(update_fields=['estado', 'salio_por', 'salio_en', 'faltantes', 'motivo'])
+    if fijo(Etapa.Tipo.INSTALACION) is None:
+        # sin el proceso de instalación, salir a obra es entregar (ficha 19: ya no hay "Entregar en obra")
+        for b in carga.bultos.filter(estado=Bulto.Estado.CARGADO):
+            mover(b, Bulto.Estado.ENTREGADO, usuario, carga, ahora)
+        carga.estado, carga.entregada_por, carga.entregada_en = Carga.Estado.ENTREGADA, usuario, ahora
+        carga.save(update_fields=['estado', 'entregada_por', 'entregada_en'])
     return carga
 

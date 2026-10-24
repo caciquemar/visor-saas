@@ -213,15 +213,14 @@ def terminar(c, proyecto, mueble, bultos=1, motivo=''):
                 {'proyecto': proyecto.pk, 'mueble': mueble, 'bultos': bultos, 'motivo': motivo})
 
 
-def test_fin_de_fabricacion_con_faltantes_pide_motivo(cliente_de, t, pa):
+def test_embalar_con_faltantes_no_pide_motivo(cliente_de, t, pa):
+    """Ficha 19: sin correlatividad, embalar sin armar no frena; quedan anotadas las piezas que faltaban."""
     m = mueble_chico()
     c = cliente_de(t.armador_a)
     e = etiqueta(t.A, pa, mueble=m)
     d = post(c, '/taller-a/puesto/api/mueble', {'texto': qr(e, 1)}).json()
     assert d['mueble'] == m and d['etapa'] == 'Armado' and len(d['faltan']) == len(piezas_del(m)) and d['fin'] is None
-    r = terminar(c, pa, m, 2)
-    assert r.status_code == 400 and 'motivo' in r.json()['error']
-    d = terminar(c, pa, m, 2, 'el frente va después').json()
+    d = terminar(c, pa, m, 2).json()
     assert d['fin']['bultos'] == 2 and d['fin']['por'] == 'Arturo' and len(d['fin']['faltantes']) == len(piezas_del(m))
     assert [b['estado'] for b in d['fin']['lista']] == ['embalado', 'embalado']
     assert terminar(c, pa, m, 1, 'otra vez').status_code == 409
@@ -259,26 +258,28 @@ def test_carga_con_un_bulto_de_menos(cliente_de, t, pa):
     assert d['carga']['faltantes'] == [f'{m} · bulto 2 de 2', f'{otro} · sin terminar']
     assert post(c, bulto, {'texto': qr(e, 1)}).json()['resultado'] == 'ya'
     assert 'impresión vieja' in post(c, bulto, {'texto': qr(e, 3)}).json()['error']
-    assert 'pieza' in post(c, bulto, {'texto': etiqueta(t.A, pa, una_pieza()).codigo}).json()['error']
-    # no sale con faltantes sin un motivo
+    # la etiqueta de una pieza del mueble no alcanza si tiene más de un bulto
+    pieza = next(x for x in piezas_del(m))
+    assert 'cada bulto' in post(c, bulto, {'texto': etiqueta(t.A, pa, pieza).codigo}).json()['error']
+    # sale con faltantes (sin correlatividad, ficha 19): quedan anotados
     pagina = c.get(f'/taller-a/cargas/{carga.pk}/').content.decode()
     assert 'Faltan 2' in pagina and f'{m} · bulto 2 de 2' in pagina
-    r = c.post(f'/taller-a/cargas/{carga.pk}/', {'motivo': ''})
-    assert r.status_code == 400 and 'motivo' in r.content.decode()
-    c.post(f'/taller-a/cargas/{carga.pk}/', {'motivo': 'el bulto 2 va mañana'})
+    c.post(f'/taller-a/cargas/{carga.pk}/', {'motivo': ''})
     with con_taller(t.A):
         carga.refresh_from_db()
         assert carga.estado == 'salio' and carga.salio_por == t.armador_a and carga.salio_en
         assert carga.faltantes == [f'{m} · bulto 2 de 2', f'{otro} · sin terminar']
         b = Bulto.objects.get(numero=1)
         assert b.estado == 'cargado' and b.cargado_por == t.armador_a and b.carga == carga
-    # una vez que salió no se le suman bultos; en obra se entrega
+    # una vez que salió no se le suman bultos; al instalar el mueble, sus bultos quedan entregados
     assert post(c, bulto, {'texto': qr(e, 2)}).json()['resultado'] == 'error'
-    d = post(c, bulto, {'texto': qr(e, 1), 'entregar': True}).json()
-    assert d['resultado'] == 'ok' and d['carga']['estado'] == 'entregada'
+    d = post(c, '/taller-a/puesto/api/instalar', {'texto': qr(e)}).json()
+    assert d['resultado'] == 'ok' and d['bultos']['entregados'] == 2
     with con_taller(t.A):
         assert [(x.de, x.a) for x in Movimiento.objects.filter(bulto__numero=1)] == [
             ('', 'embalado'), ('embalado', 'cargado'), ('cargado', 'entregado')]
+        carga.refresh_from_db()
+        assert carga.estado == 'entregada'            # no le queda nada por entregar
         assert estado_del_pedido(pa)['estado'] == 'en_fabricacion'
 
 

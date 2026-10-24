@@ -22,7 +22,7 @@
 
 <div class="acciones">
   {% if carga.estado == 'armando' %}<a class="boton" href="{{ puesto }}&modo=carga">Escanear bultos</a>{% endif %}
-  {% if carga.estado == 'salio' %}<a class="boton" href="{{ puesto }}&modo=entrega">Escanear la entrega en obra</a>{% endif %}
+  {% if carga.estado == 'salio' %}<a class="boton" href="{{ puesto }}&modo=instalar">Instalar en obra</a>{% endif %}
 </div>
 
 {% if datos.faltantes and carga.estado == 'armando' %}
@@ -47,10 +47,11 @@
 <h2>Salió a obra</h2>
 <form method="post" class="caja">{% csrf_token %}
   {% if datos.faltantes %}
-  <p class="falta" style="margin-top:0">Faltan {{ datos.faltantes|length }}. Para salir igual, escribí por qué.</p>
-  <label for="motivo">Motivo</label>
-  <textarea id="motivo" name="motivo" rows="2" maxlength="1000" required></textarea>
+  <p class="falta" style="margin-top:0">Faltan {{ datos.faltantes|length }}. Sale igual y queda anotado qué faltaba.</p>
+  <label for="motivo">Motivo (opcional)</label>
+  <textarea id="motivo" name="motivo" rows="2" maxlength="1000"></textarea>
   {% else %}<p style="margin-top:0">Está todo cargado.</p>{% endif %}
+  <p class="suave">Los bultos quedan entregados al instalar cada mueble{% if not con_instalacion %} (sin instalación, al salir){% endif %}.</p>
   {% if error %}<p class="error">{{ error }}</p>{% endif %}
   <div class="acciones"><button type="submit">Salió a obra</button></div>
 </form>
@@ -58,7 +59,7 @@
 <h2>Salida</h2>
 <p>Salió a obra: {{ carga.salio_por|default:"—" }}, {{ carga.salio_en|date:"j/n H:i" }}.
   {% if carga.faltantes %}<br><span class="falta">Salió con {{ carga.faltantes|length }} faltante{{ carga.faltantes|length|pluralize }}</span>
-  ({{ carga.faltantes|join:", " }}). Motivo: {{ carga.motivo }}{% endif %}</p>
+  ({{ carga.faltantes|join:", " }}).{% if carga.motivo %} Motivo: {{ carga.motivo }}{% endif %}{% endif %}</p>
 {% if carga.entregada_en %}<p>Entregada: {{ carga.entregada_por|default:"—" }}, {{ carga.entregada_en|date:"j/n H:i" }}.</p>{% endif %}
 {% endif %}
 {% endblock %}

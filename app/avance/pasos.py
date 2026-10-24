@@ -3,23 +3,44 @@ entregado → instalado. Lo usan la Lista de entrega, el 3D ("Colorear por entre
 tablero y el estado del pedido, así las cuentas son las mismas en todos lados.
 
 El paso es el más avanzado que tiene: un mueble con algún bulto en el camión está "cargado" aunque le falten bultos
-(los números x/y lo dicen)."""
+(los números x/y lo dicen).
+
+Ficha 19: los pasos salen de los procesos fijos prendidos, con el nombre que les puso el taller. "Entregado" solo existe
+si Instalar en obra está apagado (con instalación, los bultos se entregan al instalar y el mueble sigue "cargado" hasta
+entonces)."""
 from trabajos.api import hora, nombre
 
 from .calculo import avance, piezas_de
-from .models import Bulto, Control, Instalacion, etapas_activas
+from .models import Anotacion, Bulto, Control, Etapa, Instalacion, etapas_activas, procesos
 
-# (clave, nombre, color): el mismo color en la Lista, el 3D y el tablero
-PASOS = [
-    ('sin_armar', 'Sin armar', '#CFD8DC'),
-    ('armado', 'Armado', '#F2C94C'),
-    ('controlado', 'Control', '#56CCF2'),
-    ('embalado', 'Embalado', '#F2994A'),
-    ('cargado', 'Cargado', '#2F80ED'),
-    ('entregado', 'Entregado', '#9B51E0'),
-    ('instalado', 'Instalado', '#27AE60'),
+# (clave, nombre, color, proceso fijo del que sale): el mismo color en la Lista, el 3D y el tablero
+TODOS = [
+    ('sin_armar', 'Sin armar', '#CFD8DC', None),
+    ('armado', 'Armado', '#F2C94C', Etapa.Tipo.ARMADO),
+    ('controlado', 'Control', '#56CCF2', Etapa.Tipo.CONTROL),
+    ('embalado', 'Embalado', '#F2994A', Etapa.Tipo.EMBALAJE),
+    ('cargado', 'Cargado', '#2F80ED', Etapa.Tipo.CARGA),
+    ('entregado', 'Entregado', '#9B51E0', None),
+    ('instalado', 'Instalado', '#27AE60', Etapa.Tipo.INSTALACION),
 ]
-ORDEN = [p[0] for p in PASOS]
+
+
+def pasos_activos():
+    """[(clave, nombre, color)] de los pasos según los procesos prendidos, con el nombre del proceso (Armado se llama
+    como el taller lo llamó). "Entregado" solo sin instalación y con carga."""
+    prendidos = {e.tipo: e for e in procesos() if e.fijo and e.activa}
+    salida = []
+    for clave, nombre_, color, tipo in TODOS:
+        if clave == 'entregado':
+            if Etapa.Tipo.INSTALACION in prendidos or Etapa.Tipo.CARGA not in prendidos:
+                continue
+        elif tipo is not None:
+            if tipo not in prendidos:
+                continue
+            if clave == 'armado':
+                nombre_ = prendidos[tipo].nombre
+        salida.append((clave, nombre_, color))
+    return salida
 
 
 def quien_cuando(por, cuando):
@@ -40,6 +61,12 @@ def instalacion_a_dic(i):
             'faltantes': i.faltantes, 'fotos': [f.pk for f in i.fotos.all()]}
 
 
+def anotacion_a_dic(a):
+    return {'id': a.pk, 'mueble': a.mueble, 'panel': a.panel, 'pieza': a.pieza,
+            'proceso': a.proceso.nombre if a.proceso_id else '', 'texto': a.texto, 'tarea': a.tarea_id,
+            **quien_cuando(a.por, a.cuando), 'fotos': [f.pk for f in a.fotos.all()]}
+
+
 def pasos(proyecto, piezas=None, a=None):
     """{'muebles': {nombre: {...}}, 'totales': {paso: cuántos}, 'controles': {ok, obs, sin}}. Cada mueble: piezas,
     armadas, armado (todas en la etapa de armado), control, fin, bultos (total, cargados, entregados), instalacion y
@@ -47,6 +74,8 @@ def pasos(proyecto, piezas=None, a=None):
     controla después sigue en su paso, pero su control tiene que verse igual."""
     piezas = piezas_de(proyecto) if piezas is None else piezas
     a = avance(proyecto, piezas) if a is None else a
+    activos = pasos_activos()
+    hay = {p[0] for p in activos}
     activas = etapas_activas()
     armado = activas[-1] if activas else None
     controles = {}
@@ -57,24 +86,29 @@ def pasos(proyecto, piezas=None, a=None):
         bultos.setdefault(b.mueble, []).append(b)
     instalaciones = {i.mueble: i for i in Instalacion.objects.filter(proyecto=proyecto, anulado_en__isnull=True)
                      .select_related('por').prefetch_related('fotos')}
-    muebles, totales, controles_ = {}, {p: 0 for p in ORDEN}, {'ok': 0, 'obs': 0, 'sin': 0}
+    anotaciones = {}
+    for x in (Anotacion.objects.filter(proyecto=proyecto).select_related('por', 'proceso')
+              .prefetch_related('fotos').order_by('-cuando', '-pk')):
+        anotaciones.setdefault(x.mueble, []).append(anotacion_a_dic(x))
+    muebles, totales, controles_ = {}, {p[0]: 0 for p in activos}, {'ok': 0, 'obs': 0, 'sin': 0}
     for n, m in sorted(a['muebles'].items(), key=lambda kv: kv[0].lower()):
         armadas = m['por_etapa'][armado.pk] if armado else 0
         bs = bultos.get(n, [])
         cargados = sum(1 for b in bs if b.estado in (Bulto.Estado.CARGADO, Bulto.Estado.ENTREGADO))
         entregados = sum(1 for b in bs if b.estado == Bulto.Estado.ENTREGADO)
         inst, c, fin = instalaciones.get(n), controles.get(n), m['fin']
-        if inst:
+        # el más avanzado de los pasos prendidos (sin correlatividad: puede estar instalado sin control, por ejemplo)
+        if inst and 'instalado' in hay:
             paso = 'instalado'
-        elif bs and entregados == len(bs):
+        elif bs and entregados == len(bs) and 'entregado' in hay:
             paso = 'entregado'
-        elif cargados:
+        elif cargados and 'cargado' in hay:
             paso = 'cargado'
-        elif fin:
+        elif fin and 'embalado' in hay:
             paso = 'embalado'
-        elif c:
+        elif c and 'controlado' in hay:
             paso = 'controlado'
-        elif m['piezas'] and armadas == m['piezas']:
+        elif m['piezas'] and armadas == m['piezas'] and 'armado' in hay:
             paso = 'armado'
         else:
             paso = 'sin_armar'
@@ -84,6 +118,7 @@ def pasos(proyecto, piezas=None, a=None):
             'piezas': m['piezas'], 'armadas': armadas, 'armado': bool(m['piezas']) and armadas == m['piezas'],
             'control': control_a_dic(c), 'fin': quien_cuando(fin.por, fin.cuando) if fin else None,
             'bultos': {'total': len(bs), 'cargados': cargados, 'entregados': entregados},
-            'instalacion': instalacion_a_dic(inst), 'paso': paso,
+            'instalacion': instalacion_a_dic(inst), 'paso': paso, 'anotaciones': anotaciones.get(n, []),
         }
-    return {'muebles': muebles, 'totales': totales, 'controles': controles_}
+    return {'muebles': muebles, 'totales': totales, 'controles': controles_, 'pasos': activos,
+            'con_control': 'controlado' in hay}

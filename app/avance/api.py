@@ -8,17 +8,23 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     GET  puesto/api/mueble?proyecto=&mueble=
     POST puesto/api/terminar               {proyecto, mueble, bultos, motivo, ubicacion?}
     POST puesto/api/tareas                 {texto, proyecto?}          tareas sin instalar de una pieza o mueble
-    POST puesto/api/armar                  {texto, proyecto?, ubicacion?}   el mueble entero en la etapa de armado
+    POST puesto/api/armar                  {texto, proyecto?, ubicacion?, etapa?}   el mueble entero en Armado (o en un
+                                           proceso del taller por mueble)
+    POST puesto/api/embalar                {texto, proyecto?, ubicacion?}   embalado al escanear, con 1 bulto
+    POST puesto/api/bultos                 {proyecto, mueble, bultos}   corregir la cantidad (ningún bulto cargado)
     POST puesto/api/control                {texto, proyecto?} lee; {proyecto, mueble, resultados} guarda
-    POST puesto/api/instalacion            {texto, proyecto?} o {proyecto, mueble}   la tarjeta de instalar
-    POST puesto/api/instalar               {proyecto, mueble, nota, motivo}
+    POST puesto/api/instalacion            {proyecto, mueble}          la tarjeta de instalar
+    POST puesto/api/instalar               {texto, proyecto?}          instalado al escanear
     POST puesto/api/desinstalar            {proyecto, mueble}          dueño u oficina
     POST puesto/api/instalaciones/<id>/fotos   cuerpo = la imagen
     GET  puesto/api/fotos-de-instalacion/<id>
-    GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (Lista y 3D de entrega)
+    POST puesto/api/anotar                 {proyecto, mueble, panel?, proceso?, texto, tarea?}   anotación
+    POST puesto/api/anotaciones/<id>/fotos cuerpo = la imagen
+    GET  puesto/api/fotos-de-anotacion/<id>
+    GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (Lista y 3D de entrega), con sus anotaciones
     POST puesto/api/reabrir                {proyecto, mueble}
     GET  puesto/api/cargas/<id>
-    POST puesto/api/cargas/<id>/bulto      {texto, entregar?}
+    POST puesto/api/cargas/<id>/bulto      {texto}
     POST puesto/api/cargas/<id>/deshacer   {bulto}
     GET  visor/api/avance?proyecto=<id>
 """
@@ -32,8 +38,8 @@ from trabajos.api import (EXTENSION, MAX_FOTO, TIPOS_FOTO, UN_ANIO, Rechazo, api
 
 from . import acciones, entrega
 from .calculo import avance, piezas_de, piezas_nuevas, ubicaciones
-from .models import FotoDeInstalacion, Marca, Ubicacion
-from .pasos import PASOS, pasos
+from .models import FotoDeAnotacion, FotoDeInstalacion, Marca, Ubicacion
+from .pasos import pasos
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
@@ -136,8 +142,7 @@ def carga(request, taller, id):
 def bulto(request, taller, id):
     solo(request, 'POST')
     d = leer_json(request)
-    return responder(200, acciones.bulto_leido(request.user, request.taller.slug, id, texto_de(d),
-                                               entregar=d.get('entregar') is True))
+    return responder(200, acciones.bulto_leido(request.user, request.taller.slug, id, texto_de(d)))
 
 
 @api
@@ -193,7 +198,23 @@ def armar(request, taller):
     solo(request, 'POST')
     d = leer_json(request)
     return responder(200, entrega.armar_mueble(request.user, request.taller.slug, texto_de(d), proyecto_de(d),
-                                               ubicacion_de(d)))
+                                               ubicacion_de(d), entero(d.get('etapa')) if d.get('etapa') else None))
+
+
+@api
+def embalar(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    return responder(200, entrega.embalar(request.user, request.taller.slug, texto_de(d), proyecto_de(d),
+                                          ubicacion_de(d)))
+
+
+@api
+def bultos(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    return responder(200, entrega.cambiar_bultos(request.user, entero(d.get('proyecto')), d.get('mueble'),
+                                                 d.get('bultos')))
 
 
 @api
@@ -216,19 +237,16 @@ def tarjeta_instalacion(request, datos, abiertas):
 def instalacion(request, taller):
     solo(request, 'POST')
     d = leer_json(request)
-    if 'mueble' in d:
-        return tarjeta_instalacion(request, *entrega.estado_instalacion(
-            acciones.proyecto_o_rechazo(entero(d.get('proyecto'))), d.get('mueble')))
-    return tarjeta_instalacion(request, *entrega.instalacion_leida(request.taller.slug, texto_de(d), proyecto_de(d)))
+    return tarjeta_instalacion(request, *entrega.estado_instalacion(
+        acciones.proyecto_o_rechazo(entero(d.get('proyecto'))), d.get('mueble')))
 
 
 @api
 def instalar(request, taller):
     solo(request, 'POST')
     d = leer_json(request)
-    proyecto, _ = entrega.instalar(request.user, entero(d.get('proyecto')), d.get('mueble'), d.get('nota'),
-                                   d.get('motivo'))
-    return tarjeta_instalacion(request, *entrega.estado_instalacion(proyecto, d.get('mueble')))
+    return tarjeta_instalacion(request, *entrega.instalar_leido(request.user, request.taller.slug, texto_de(d),
+                                                                proyecto_de(d)))
 
 
 @api
@@ -244,18 +262,9 @@ def desinstalar(request, taller):
 def fotos_de_instalacion(request, taller, id):
     """Como las fotos de las tareas (trabajos.api.fotos): el formato real de la imagen, hasta 12 MB."""
     solo(request, 'POST')
-    tipo = (request.content_type or '').strip().lower()
-    if tipo not in TIPOS_FOTO:
-        raise Rechazo(415, 'formato de imagen no admitido')
-    largo = int(request.META.get('CONTENT_LENGTH') or 0)
-    if largo <= 0 or largo > MAX_FOTO:
-        raise Rechazo(413, 'imagen vacía o demasiado grande')
     i = entrega.instalacion_o_rechazo(id)
-    datos = request.read(MAX_FOTO + 1)
-    if not datos or len(datos) > MAX_FOTO:
-        raise Rechazo(413, 'imagen vacía o demasiado grande')
-    formato = imagen_valida(datos, tipo)
-    f = entrega.guardar_foto(request.user, request.taller, i, datos, EXTENSION[formato])
+    datos, extension = imagen_del_pedido(request)
+    f = entrega.guardar_foto(request.user, request.taller, i, datos, extension)
     return responder(200, {'resultado': 'ok', 'foto': f.pk})
 
 
@@ -278,4 +287,48 @@ def entrega_visor(request, taller):
         raise Http404()
     d = pasos(p, piezas)
     return responder(200, {'proyecto': acciones.proyecto_a_dic(p), 'muebles': d['muebles'], 'totales': d['totales'],
-                           'pasos': [{'clave': k, 'nombre': n, 'color': c} for k, n, c in PASOS]})
+                           'pasos': [{'clave': k, 'nombre': n, 'color': c} for k, n, c in d['pasos']],
+                           'con_control': d['con_control']})
+
+
+# ---------------------------------------------------------------- ficha 19: anotaciones
+
+@api
+def anotar(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    panel = d.get('panel') if isinstance(d.get('panel'), str) else ''
+    return responder(200, entrega.anotar(request.user, request.taller, entero(d.get('proyecto')), d.get('mueble'),
+                                         panel, entero(d.get('proceso')), d.get('texto'), d.get('tarea') is True))
+
+
+def imagen_del_pedido(request):
+    """Los bytes de la imagen del cuerpo y su extensión real, como las fotos de las tareas (hasta 12 MB)."""
+    tipo = (request.content_type or '').strip().lower()
+    if tipo not in TIPOS_FOTO:
+        raise Rechazo(415, 'formato de imagen no admitido')
+    largo = int(request.META.get('CONTENT_LENGTH') or 0)
+    if largo <= 0 or largo > MAX_FOTO:
+        raise Rechazo(413, 'imagen vacía o demasiado grande')
+    datos = request.read(MAX_FOTO + 1)
+    if not datos or len(datos) > MAX_FOTO:
+        raise Rechazo(413, 'imagen vacía o demasiado grande')
+    return datos, EXTENSION[imagen_valida(datos, tipo)]
+
+
+@api
+def fotos_de_anotacion(request, taller, id):
+    solo(request, 'POST')
+    a = entrega.anotacion_o_rechazo(id)
+    datos, extension = imagen_del_pedido(request)
+    f = entrega.guardar_foto_de_anotacion(request.user, request.taller, a, datos, extension)
+    return responder(200, {'resultado': 'ok', 'foto': f.pk})
+
+
+@api
+def foto_de_anotacion(request, taller, id):
+    solo(request, 'GET')
+    f = get_object_or_404(FotoDeAnotacion, pk=id)
+    r = abrir_de_taller(request, f.archivo.name)
+    r['Cache-Control'] = f'private, max-age={UN_ANIO}, immutable'
+    return r

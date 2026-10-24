@@ -337,3 +337,42 @@ class FotoDeInstalacion(DatoDeTaller):
         verbose_name = 'foto de instalación'
         verbose_name_plural = 'fotos de instalación'
         ordering = ['pk']
+
+
+# ---------------------------------------------------------------- ficha 19: anotaciones de lo escaneado
+
+class Anotacion(DatoDeTaller):
+    """Una nota (con fotos) pegada a lo que se escaneó en Mi puesto: el mueble, y la pieza si fue una pieza, en un
+    proceso. Con "Hay que arreglarlo", además crea una tarea del mueble o de la pieza (`tarea`)."""
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='anotaciones')
+    mueble = models.CharField('mueble', max_length=200)
+    panel = models.CharField('pieza (id del panel)', max_length=300, blank=True)
+    pieza = models.CharField('pieza', max_length=200, blank=True)                 # "0048 Suelo", para mostrar
+    proceso = models.ForeignKey(Etapa, on_delete=models.SET_NULL, null=True, blank=True, related_name='anotaciones')
+    texto = models.TextField('texto', max_length=2000, blank=True)
+    tarea = models.ForeignKey('trabajos.Trabajo', on_delete=models.SET_NULL, null=True, blank=True,
+                              related_name='anotaciones')
+    por = quien()
+    cuando = models.DateTimeField('cuándo')
+
+    class Meta:
+        verbose_name = 'anotación'
+        verbose_name_plural = 'anotaciones'
+        ordering = ['cuando', 'pk']
+        indexes = [models.Index(fields=['taller', 'proyecto'])]
+
+    def __str__(self):
+        return f'{self.mueble}: {self.texto[:40]}'
+
+
+class FotoDeAnotacion(DatoDeTaller):
+    anotacion = models.ForeignKey(Anotacion, on_delete=models.CASCADE, related_name='fotos')
+    archivo = models.ImageField('archivo', upload_to=ruta_de_taller, max_length=300)
+    tamano = models.PositiveIntegerField('tamaño', default=0)
+    subida_por = quien(nombre='subida por')
+    creada = models.DateTimeField('subida', auto_now_add=True)
+
+    class Meta:
+        verbose_name = 'foto de anotación'
+        verbose_name_plural = 'fotos de anotaciones'
+        ordering = ['pk']

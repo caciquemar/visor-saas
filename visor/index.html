@@ -148,6 +148,8 @@ header h1,.btn-muebles{flex:none}
   border-radius:12px;padding:8px 10px;font:500 13px var(--sans);color:var(--tinta-2);display:grid;gap:3px;
   box-shadow:0 4px 14px rgba(27,38,48,.12);pointer-events:none}
 .leyenda-entrega[hidden]{display:none}
+.anotaciones{margin-top:8px;display:grid;gap:3px}
+.anotaciones .nota{font-size:12px;color:var(--tinta-2)}
 .leyenda-entrega b{color:var(--tinta)}
 .leyenda-entrega i{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:6px;vertical-align:-1px}
 #escena canvas{display:block;width:100%;height:100%;touch-action:none}
@@ -2146,6 +2148,7 @@ async function cargarEntrega(){
   if (d) ENT.colores = Object.fromEntries(d.pasos.map(x => [x.clave, new THREE.Color(x.color)]));
   leyendaEntrega(); pintar();
   if (seleccion && seleccion.soloMueble && panelMueble) $('pmAvance').innerHTML = avanceMueble(panelMueble);
+  if (seleccion && seleccion.mallas.length && !seleccion.soloMueble) avanceFicha();
 }
 function colorEntrega(mueble){
   const m = ENT.on && ENT.datos && ENT.datos.muebles[mueble];
@@ -2168,7 +2171,19 @@ function pasoMueble(nombre){
   const detalle = m.instalacion ? ` (${esc(m.instalacion.por || '—')}, ${fecha(m.instalacion.cuando)})`
     : b.total && ['cargado', 'entregado'].includes(m.paso) ? ` · ${b.cargados} de ${b.total} bulto${b.total > 1 ? 's' : ''}${m.paso === 'entregado' ? ' entregados' : ' en camión'}`
     : m.control && !m.control.ok ? ` · control: ${esc(m.control.mal.join(', '))}` : '';
-  return `<div>Paso: <b style="color:${x.color === '#CFD8DC' ? 'inherit' : x.color}">${esc(x.nombre)}</b>${detalle}</div>`;
+  return `<div>Paso: <b style="color:${x.color === '#CFD8DC' ? 'inherit' : x.color}">${esc(x.nombre)}</b>${detalle}</div>`
+    + htmlAnotaciones(m.anotaciones.filter(a => !a.panel));
+}
+// anotaciones de Mi puesto (ficha 19): las del mueble en su bloque, las de una pieza en su ficha
+function htmlAnotaciones(lista){
+  if (!lista || !lista.length) return '';
+  return `<div class="anotaciones"><b>Anotaciones</b>${lista.slice(0, 5).map(a => `<div>${esc(a.texto)}
+    <span class="nota">· ${a.proceso ? esc(a.proceso) + ', ' : ''}${esc(a.por || '—')}, ${fecha(a.cuando)}${a.tarea ? ' · tarea' : ''}${a.fotos.length ? ` · ${pl(a.fotos.length, 'foto', 'fotos')}` : ''}</span></div>`).join('')}
+    ${lista.length > 5 ? `<div class="nota">y ${lista.length - 5} más</div>` : ''}</div>`;
+}
+function anotacionesDePieza(p){
+  const m = ENT.datos && ENT.datos.muebles[p.mueble];
+  return m ? htmlAnotaciones(m.anotaciones.filter(a => a.panel === p.id)) : '';
 }
 const TONO_ARMADA = new THREE.Color('#7BC47F');
 function avanceMueble(nombre){
@@ -2195,7 +2210,8 @@ function avanceFicha(){
     + (d.nuevas.includes(p.id) ? '<br>Pieza nueva en esta versión' : '')
     + (d.lugares && d.lugares[p.id] ? `<br>Está en: <b>${esc(d.lugares[p.id].lugar)}</b>${d.lugares[p.id].por
         ? ` (${esc(d.lugares[p.id].por)}, ${esc(fecha(d.lugares[p.id].cuando))})` : ''}`
-      : d.lugares ? '<br>Sin ubicar' : '');
+      : d.lugares ? '<br>Sin ubicar' : '')
+    + anotacionesDePieza(p);
 }
 const jsonApi = (metodo, cuerpo) => ({method: metodo, headers: {'Content-Type': 'application/json'}, body: JSON.stringify(cuerpo)});
 let pedidoLista = 0;

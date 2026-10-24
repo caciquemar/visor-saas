@@ -8,26 +8,29 @@
   <li class="mueble" id="{{ m.ancla }}" style="--c:{{ m.color }}">
     <div class="cabeza"><strong>{{ m.nombre }}</strong><span class="paso">{{ m.paso_nombre }}</span></div>
     <div class="pasos">
-      <span class="{% if m.armado %}si{% endif %}">{% if m.armado %}✓{% else %}–{% endif %} Armado{% if not m.armado and m.armadas %} {{ m.armadas }}/{{ m.piezas }}{% endif %}</span>
-      <span class="{% if m.control.ok %}si{% elif m.control %}obs{% endif %}">{% if m.control.ok %}✓{% elif m.control %}⚠{% else %}–{% endif %} Control{% if m.control and not m.control.ok %}: {{ m.control.mal|join:", " }}{% endif %}</span>
-      <span class="{% if m.fin %}si{% endif %}">{% if m.fin %}✓{% else %}–{% endif %} Embalado{% if m.bultos.total %} ({{ m.bultos.total }} bulto{{ m.bultos.total|pluralize }}){% endif %}</span>
-      <span class="{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}si{% elif m.bultos.cargados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}✓{% else %}–{% endif %} Cargado{% if m.bultos.total %} {{ m.bultos.cargados }}/{{ m.bultos.total }}{% endif %}</span>
-      <span class="{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}si{% elif m.bultos.entregados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}✓{% else %}–{% endif %} Entregado{% if m.bultos.total %} {{ m.bultos.entregados }}/{{ m.bultos.total }}{% endif %}</span>
-      <span class="{% if m.instalacion %}si{% endif %}">{% if m.instalacion %}✓{% else %}–{% endif %} Instalado</span>
+      {% if con_armado %}<span class="{% if m.armado %}si{% endif %}">{% if m.armado %}✓{% else %}–{% endif %} Armado{% if not m.armado and m.armadas %} {{ m.armadas }}/{{ m.piezas }}{% endif %}</span>{% endif %}
+      {% if con_control %}<span class="{% if m.control.ok %}si{% elif m.control %}obs{% endif %}">{% if m.control.ok %}✓{% elif m.control %}⚠{% else %}–{% endif %} Control{% if m.control and not m.control.ok %}: {{ m.control.mal|join:", " }}{% endif %}</span>{% endif %}
+      {% if con_embalaje %}<span class="{% if m.fin %}si{% endif %}">{% if m.fin %}✓{% else %}–{% endif %} Embalado{% if m.bultos.total %} ({{ m.bultos.total }} bulto{{ m.bultos.total|pluralize }}){% endif %}</span>{% endif %}
+      {% if con_carga %}<span class="{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}si{% elif m.bultos.cargados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.cargados == m.bultos.total %}✓{% else %}–{% endif %} Cargado{% if m.bultos.total %} {{ m.bultos.cargados }}/{{ m.bultos.total }}{% endif %}</span>{% endif %}
+      {% if con_carga and not con_instalacion %}<span class="{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}si{% elif m.bultos.entregados %}parcial{% endif %}">{% if m.bultos.total and m.bultos.entregados == m.bultos.total %}✓{% else %}–{% endif %} Entregado{% if m.bultos.total %} {{ m.bultos.entregados }}/{{ m.bultos.total }}{% endif %}</span>{% endif %}
+      {% if con_instalacion %}<span class="{% if m.instalacion %}si{% endif %}">{% if m.instalacion %}✓{% else %}–{% endif %} Instalado</span>{% endif %}
     </div>
     {% if m.instalacion %}
     <div class="meta">Instalado por {{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}{% if m.instalacion.nota %} · {{ m.instalacion.nota }}{% endif %}{% if m.instalacion.motivo %} · faltaba: {{ m.instalacion.motivo }}{% endif %}{% if m.instalacion.fotos %} · {{ m.instalacion.fotos|length }} foto{{ m.instalacion.fotos|length|pluralize }}{% endif %}</div>
     {% if m.instalacion.fotos %}<div class="fotos">{% for f in m.instalacion.fotos %}<a href="{% url 'taller:avance:foto_de_instalacion' taller=request.taller.slug id=f %}" target="_blank" rel="noopener"><img src="{% url 'taller:avance:foto_de_instalacion' taller=request.taller.slug id=f %}" alt="Foto de la instalación de {{ m.nombre }}" loading="lazy"></a>{% endfor %}</div>{% endif %}
     {% endif %}
-    {% if gestiona %}
+    {% if m.anotaciones %}<ul class="anotaciones">{% for a in m.anotaciones %}
+      <li>{% if a.pieza %}<b>{{ a.pieza }}</b> · {% endif %}{{ a.texto }}
+        <span class="suave">· {% if a.proceso %}{{ a.proceso }}, {% endif %}{{ a.por|default:"—" }}, {{ a.cuando }}{% if a.tarea %} · <a href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}&amp;t={{ a.tarea }}">tarea</a>{% endif %}</span>
+        {% if a.fotos %}<span class="fotos">{% for f in a.fotos %}<a href="{% url 'taller:avance:foto_de_anotacion' taller=request.taller.slug id=f %}" target="_blank" rel="noopener"><img src="{% url 'taller:avance:foto_de_anotacion' taller=request.taller.slug id=f %}" alt="Foto de la anotación" loading="lazy"></a>{% endfor %}</span>{% endif %}
+      </li>{% endfor %}</ul>{% endif %}
+    {% if gestiona and con_instalacion %}
     {% if m.instalacion %}
     <form method="post" class="acciones" onsubmit="return confirm('¿Deshacer la instalación de {{ m.nombre|escapejs }}?')">{% csrf_token %}
       <input type="hidden" name="mueble" value="{{ m.nombre }}"><button class="secundario" name="accion" value="desinstalar">Deshacer la instalación</button></form>
     {% else %}
     <details><summary>Marcar instalado</summary>
       <form method="post">{% csrf_token %}<input type="hidden" name="mueble" value="{{ m.nombre }}">
-        <label for="motivo-{{ m.ancla }}">Si falta algo (bultos sin entregar, tareas abiertas), ¿por qué se marca igual?</label>
-        <textarea id="motivo-{{ m.ancla }}" name="motivo" rows="2" maxlength="1000"></textarea>
         <label for="nota-{{ m.ancla }}">Nota</label><textarea id="nota-{{ m.ancla }}" name="nota" rows="2" maxlength="1000"></textarea>
         <div class="acciones"><button name="accion" value="instalar">Instalado</button></div>
       </form></details>

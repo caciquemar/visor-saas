@@ -140,7 +140,8 @@ def test_control_con_un_punto_mal_crea_la_tarea_y_deja_embalar(cliente_de, t, pa
 
 # ---------------------------------------------------------------- instalación en obra
 
-def entregar_todo(c, t, pa, m, bultos=1):
+def cargar_y_salir(c, t, pa, m, bultos=1):
+    """Embalado en `bultos`, cargado entero y salido a obra (ya no hay "Entregar en obra": se entrega al instalar)."""
     terminar(c, pa, m, bultos, 'prueba')
     c.post(f'/taller-a/proyectos/{pa.pk}/cargas/nueva/', {'todo': '0', 'mueble': [m]})
     with con_taller(t.A):
@@ -149,48 +150,49 @@ def entregar_todo(c, t, pa, m, bultos=1):
     for n in range(1, bultos + 1):
         post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/bulto', {'texto': qr(e, n)})
     c.post(f'/taller-a/cargas/{carga.pk}/', {'motivo': ''})
-    for n in range(1, bultos + 1):
-        post(c, f'/taller-a/puesto/api/cargas/{carga.pk}/bulto', {'texto': qr(e, n), 'entregar': True})
+    return carga
 
 
-def test_instalar_sin_faltantes_y_deshacer_solo_gestion(cliente_de, t, pa):
+def test_instalar_al_escanear_entrega_los_bultos_y_deshacer_solo_gestion(cliente_de, t, pa):
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    entregar_todo(c, t, pa, m)
-    assert paso(t.A, pa, m)['paso'] == 'entregado'
-    d = post(c, '/taller-a/puesto/api/instalacion', {'texto': qr(etiqueta(t.A, pa, mueble=m), 1)}).json()
-    assert d['faltan'] == [] and d['bultos'] == {'total': 1, 'cargados': 1, 'entregados': 1} and d['instalacion'] is None
-    d = post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m, 'nota': 'Quedó nivelado'}).json()
-    assert d['instalacion']['nota'] == 'Quedó nivelado' and d['instalacion']['por'] == 'Arturo'
+    carga = cargar_y_salir(c, t, pa, m)
+    assert paso(t.A, pa, m)['paso'] == 'cargado'           # con instalación prendida no hay "entregado"
+    d = post(c, '/taller-a/puesto/api/instalar', {'texto': qr(etiqueta(t.A, pa, mueble=m), 1)}).json()
+    assert d['resultado'] == 'ok' and d['instalacion']['por'] == 'Arturo'
+    assert d['bultos'] == {'total': 1, 'cargados': 1, 'entregados': 1}
+    with con_taller(t.A):
+        carga.refresh_from_db()
+        assert carga.estado == 'entregada'
     assert paso(t.A, pa, m)['paso'] == 'instalado'
-    assert post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m}).status_code == 409
+    # otra vez: ya estaba, no se duplica
+    d = post(c, '/taller-a/puesto/api/instalar', {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()
+    assert d['resultado'] == 'ya'
+    with con_taller(t.A):
+        assert Instalacion.objects.filter(anulado_en__isnull=True).count() == 1
     assert post(c, '/taller-a/puesto/api/desinstalar', {'proyecto': pa.pk, 'mueble': m}).status_code == 403
     assert post(cliente_de(t.oficina_a), '/taller-a/puesto/api/desinstalar',
                 {'proyecto': pa.pk, 'mueble': m}).json()['resultado'] == 'ok'
-    assert paso(t.A, pa, m)['paso'] == 'entregado'
+    assert paso(t.A, pa, m)['paso'] == 'cargado'
 
 
-def test_instalar_con_faltantes_pide_motivo(cliente_de, t, pa):
+def test_instalar_sin_embalar_registra_igual(cliente_de, t, pa):
+    """Sin correlatividad: instalar un mueble que no pasó por nada lo registra."""
     from trabajos.models import Trabajo
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    terminar(c, pa, m, 2, 'prueba')
     with con_taller(t.A):
         Trabajo.objects.create(proyecto=pa, texto='Falta un tirador', muebles=[m])
-    d = post(c, '/taller-a/puesto/api/instalacion', {'proyecto': pa.pk, 'mueble': m}).json()
-    assert d['faltan'] == ['Bulto 1 de 2 sin entregar', 'Bulto 2 de 2 sin entregar', 'Tarea: Falta un tirador']
-    assert [x['texto'] for x in d['tareas']] == ['Falta un tirador']
-    r = post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m, 'motivo': ''})
-    assert r.status_code == 400 and 'motivo' in r.json()['error']
-    d = post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m, 'motivo': 'Se lo llevaron ellos'}).json()
-    assert d['instalacion']['motivo'] == 'Se lo llevaron ellos' and len(d['instalacion']['faltantes']) == 3
+    d = post(c, '/taller-a/puesto/api/instalar', {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()
+    assert d['resultado'] == 'ok' and [x['texto'] for x in d['tareas']] == ['Falta un tirador']
+    assert paso(t.A, pa, m)['paso'] == 'instalado'
 
 
 def test_fotos_de_la_instalacion(cliente_de, t, pa):
     from tests.app.test_trabajos import imagen
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    d = post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m, 'motivo': 'x'}).json()
+    d = post(c, '/taller-a/puesto/api/instalar', {'texto': qr(etiqueta(t.A, pa, mueble=m))}).json()
     url = f'/taller-a/puesto/api/instalaciones/{d["instalacion"]["id"]}/fotos'
     assert c.post(url, b'no es una foto', content_type='image/jpeg').status_code == 415
     r = c.post(url, imagen(), content_type='image/jpeg')
@@ -208,7 +210,9 @@ def test_rutas_de_entrega_de_a_no_andan_desde_b(cliente_de, t, pa):
     cb = cliente_de(t.dueno_b)
     for ruta, d in [('armar', {'texto': '1', 'proyecto': pa.pk}), ('control', {'proyecto': pa.pk, 'mueble': m,
                                                                               'resultados': []}),
-                    ('instalacion', {'proyecto': pa.pk, 'mueble': m}), ('instalar', {'proyecto': pa.pk, 'mueble': m}),
+                    ('embalar', {'texto': '1', 'proyecto': pa.pk}), ('bultos', {'proyecto': pa.pk, 'mueble': m,
+                                                                               'bultos': 2}),
+                    ('instalacion', {'proyecto': pa.pk, 'mueble': m}), ('instalar', {'texto': '1', 'proyecto': pa.pk}),
                     ('desinstalar', {'proyecto': pa.pk, 'mueble': m})]:
         assert post(cb, f'/taller-b/puesto/api/{ruta}', d).status_code == 404, ruta
     assert cb.get(f'/taller-b/visor/api/entrega?proyecto={pa.pk}').status_code == 404
@@ -219,14 +223,14 @@ def test_rutas_de_entrega_de_a_no_andan_desde_b(cliente_de, t, pa):
 def test_lista_de_entrega(cliente_de, t, pa):
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    entregar_todo(c, t, pa, m)
+    cargar_y_salir(c, t, pa, m)
     r = c.get(f'/taller-a/proyectos/{pa.pk}/entrega/')
     assert r.status_code == 200
     html = r.content.decode()
-    assert m in html and 'Entregado' in html and 'Marcar instalado' not in html          # el armador no marca acá
+    assert m in html and 'Cargado' in html and 'Marcar instalado' not in html          # el armador no marca acá
     fila, = [x for x in r.context['muebles'] if x['nombre'] == m]
-    assert fila['paso'] == 'entregado' and fila['paso_nombre'] == 'Entregado'
-    assert 'Entregado' in c.get(f'/taller-a/proyectos/{pa.pk}/entrega/?filas=1').content.decode()
+    assert fila['paso'] == 'cargado' and fila['paso_nombre'] == 'Cargado'
+    assert 'Cargado' in c.get(f'/taller-a/proyectos/{pa.pk}/entrega/?filas=1').content.decode()
     assert c.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'instalar'}).status_code == 403
     # la oficina marca instalado desde la Lista, y lo deshace
     o = cliente_de(t.oficina_a)
@@ -234,11 +238,11 @@ def test_lista_de_entrega(cliente_de, t, pa):
     o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'instalar', 'nota': 'Ok'})
     assert paso(t.A, pa, m)['paso'] == 'instalado'
     o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': m, 'accion': 'desinstalar'})
-    assert paso(t.A, pa, m)['paso'] == 'entregado'
-    # con faltantes y sin motivo, avisa y no marca
+    assert paso(t.A, pa, m)['paso'] == 'cargado'
+    # sin correlatividad: un mueble que no pasó por nada se marca igual
     otro = next(x for x in sorted(set(p['panel']['mueble'] for p in piezas_del_proyecto())) if x != m)
-    r = o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': otro, 'accion': 'instalar'}, follow=True)
-    assert 'motivo' in r.content.decode() and paso(t.A, pa, otro)['paso'] == 'sin_armar'
+    o.post(f'/taller-a/proyectos/{pa.pk}/entrega/', {'mueble': otro, 'accion': 'instalar'})
+    assert paso(t.A, pa, otro)['paso'] == 'instalado'
     # la pantalla del proyecto lleva a la Lista y al 3D
     html = o.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
     assert f'/taller-a/proyectos/{pa.pk}/entrega/' in html and 'entrega=1' in html
@@ -257,8 +261,7 @@ def test_visor_api_entrega(cliente_de, t, pa):
     c = cliente_de(t.armador_a)
     marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     d = c.get(f'/taller-a/visor/api/entrega?proyecto={pa.pk}').json()
-    assert [p['clave'] for p in d['pasos']] == ['sin_armar', 'armado', 'controlado', 'embalado', 'cargado', 'entregado',
-                                                'instalado']
+    assert [p['clave'] for p in d['pasos']] == ['sin_armar', 'armado', 'controlado', 'embalado', 'cargado', 'instalado']
     assert d['muebles'][m]['paso'] == 'armado' and d['totales']['armado'] == 1
     assert sum(d['totales'].values()) == len(d['muebles'])
 
@@ -269,8 +272,8 @@ def test_tablero_y_estado_del_pedido_con_la_entrega(cliente_de, t, pa):
     from avance.estado import estado_del_pedido
     m = mueble_chico()
     c = cliente_de(t.armador_a)
-    entregar_todo(c, t, pa, m)
-    post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m})
+    cargar_y_salir(c, t, pa, m)
+    post(c, '/taller-a/puesto/api/instalar', {'texto': qr(etiqueta(t.A, pa, mueble=m))})
     ctx = c.get('/taller-a/tablero/').context
     total = len(ctx['proyectos'][0]['entrega']) and ctx['proyectos'][0]['muebles']
     assert ctx['proyectos'][0]['instalados'] == 1 and ctx['por_instalar'] == total - 1
