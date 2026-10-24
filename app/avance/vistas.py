@@ -23,6 +23,7 @@ from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
 
 from . import acciones
+from .tablero import tablero as armar_tablero
 from .models import Carga, Etapa, Ubicacion, etapas_del_taller
 
 
@@ -149,6 +150,12 @@ def procesos(request, taller):
     return render(request, 'avance/procesos.html', {
         'etapas': etapas, 'ubicaciones': ubicaciones,
         'armado': next((e for e in reversed(etapas or []) if e.activa), None)})
+
+
+@miembro
+def tablero(request, taller):
+    ver_terminados = request.GET.get('terminados') == '1'
+    return render(request, 'avance/tablero.html', {**armar_tablero(ver_terminados), 'ver_terminados': ver_terminados})
 
 
 @con_rol(Rol.DUENO, Rol.OFICINA)

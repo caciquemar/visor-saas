@@ -21,4 +21,5 @@ urlpatterns = [
     path('cargas/<int:id>/', vistas.carga, name='carga'),
     path('etapas/', vistas.etapas, name='etapas'),
     path('procesos/', vistas.procesos, name='procesos'),
+    path('tablero/', vistas.tablero, name='tablero'),
 ]

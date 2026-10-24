@@ -493,3 +493,29 @@ def test_el_visor_ve_donde_esta_cada_pieza(cliente_de, t, pa):
     assert d['lugares'][x['panel']['id']]['lugar'] == 'Estante A' and d['lugares'][x['panel']['id']]['por'] == 'Arturo'
     assert d['muebles'][m]['lugares'] == [['Estante A', 1]]
     assert d['muebles'][m]['sin_lugar'] == claves.muebles(GRONDONA)[m] - 1
+
+
+def test_tablero_de_control(cliente_de, t, pa):
+    from trabajos.models import Trabajo
+    from datetime import date
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    corte = etapas(t.A)['Cortada']
+    for x in piezas_del(m)[:2]:
+        marcar(c, etiqueta(t.A, pa, x).codigo, corte)
+    with con_taller(t.A):
+        Trabajo.objects.create(proyecto=pa, texto='Vencida', limite=date(2020, 1, 1))
+    r = c.get('/taller-a/tablero/')
+    assert r.status_code == 200
+    ctx = r.context
+    total = len(claves.piezas(GRONDONA))
+    assert ctx['en_curso'] == 1 and ctx['piezas'] == total and ctx['hoy'] == 2 and ctx['vencidas'] == 1
+    cortada = ctx['por_etapa'][0]
+    assert (cortada['nombre'], cortada['hechas'], cortada['faltan']) == ('Cortada', 2, total - 2)
+    assert ctx['cuello']['nombre'] == 'Canteada' and ctx['cuello']['esperando'] == 2
+    fila, = ctx['proyectos']
+    assert fila['proyecto'] == pa and fila['en_curso'] and fila['ultima'] is not None
+    assert pa.nombre in r.content.decode()
+    # B no ve nada de A
+    rb = cliente_de(t.dueno_b).get('/taller-b/tablero/')
+    assert pa.nombre not in rb.content.decode() and rb.context['vencidas'] == 0

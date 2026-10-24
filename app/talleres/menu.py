@@ -24,6 +24,7 @@ SECCIONES = [
         ('Mi puesto', 'taller:avance:puesto',
          'Escaneá las etiquetas para marcar cada etapa, dejar las piezas en su lugar, terminar un mueble o cargar.',
          TODOS),
+        ('Tablero de control', 'taller:avance:tablero', 'El avance de cada proyecto, por etapa y en general.', TODOS),
         ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.', GESTION),
     ]),
     ('configuracion', 'Configuración', 'Materiales, equipo y marca del taller.', [

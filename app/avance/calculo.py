@@ -12,7 +12,7 @@ from etiquetas.datos import proyecto_de, version_actual
 from etiquetas.models import Etiqueta, huella
 from proyectos.models import Version
 
-from .models import FinDeMueble, Marca, etapas_activas, Ubicado
+from .models import FinDeMueble, Marca, Ubicado, etapas_activas
 
 CODIGO = re.compile(r'^[2-9A-HJ-NP-Z]{8}$', re.I)          # como etiquetas.models.ALFABETO, 8 caracteres
 

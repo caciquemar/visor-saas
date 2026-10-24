@@ -1,0 +1,97 @@
+{% extends 'base.html' %}
+{% block titulo %}Tablero de control{% endblock %}
+{% block cabeza %}
+<style>
+  .indicadores { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit, minmax(9.5rem, 1fr)); }
+  .indicador { background:var(--panel); border:1px solid var(--borde); border-radius:12px; padding:.8rem 1rem; }
+  .indicador .valor { font-size:2rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
+  .indicador .nombre { color:var(--suave); font-size:.9rem; }
+  .indicador a { text-decoration:none; color:inherit; }
+  .indicador.alerta .valor { color:var(--error); }
+  .barra { height:.55rem; border-radius:99px; background:var(--borde); overflow:hidden; }
+  .barra i { display:block; height:100%; background:var(--acento); }
+  .etapas { display:grid; gap:.6rem; }
+  .etapa { display:grid; grid-template-columns:1fr auto; gap:.3rem .75rem; align-items:baseline; }
+  .etapa .barra { grid-column:1 / -1; }
+  .etapa .cifras { font-size:.85rem; color:var(--suave); text-align:right; font-variant-numeric:tabular-nums; }
+  .etapa .cifras b { color:var(--texto); }
+  .cuello { margin-top:.75rem; padding:.6rem .8rem; border-radius:8px; border:1px solid var(--error); }
+  .proyectos { display:grid; gap:.75rem; }
+  .proyecto h3 { margin:0; font-size:1.05rem; display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
+  .proyecto h3 a { color:inherit; }
+  .proyecto h3 .pct { margin-left:auto; font-size:1.3rem; }
+  .proyecto .barra { margin:.4rem 0 .6rem; height:.7rem; }
+  .mini { display:grid; gap:.3rem .75rem; grid-template-columns:repeat(auto-fit, minmax(8rem, 1fr)); font-size:.85rem; }
+  .mini .barra { height:.35rem; margin:.15rem 0 0; }
+  .meta { margin-top:.6rem; font-size:.85rem; color:var(--suave); }
+  .meta b { color:var(--texto); }
+  form.filtro label { display:flex; gap:.4rem; align-items:center; font-weight:400; margin:0; }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:seccion' taller=request.taller.slug seccion='produccion' %}">Producción</a></p>
+<h1>Tablero de control</h1>
+
+<div class="indicadores">
+  <div class="indicador"><div class="valor">{{ en_curso }}</div><div class="nombre">proyecto{{ en_curso|pluralize }} en curso</div></div>
+  <div class="indicador"><div class="valor">{{ pct }}%</div><div class="nombre">avance de todos juntos</div>
+    <div class="barra" style="margin-top:.4rem"><i style="width:{{ pct }}%"></i></div></div>
+  <div class="indicador"><div class="valor">{{ hoy }}</div><div class="nombre">pieza{{ hoy|pluralize }} marcada{{ hoy|pluralize }} hoy</div></div>
+  <div class="indicador"><div class="valor">{{ semana }}</div><div class="nombre">en los últimos 7 días</div></div>
+  <div class="indicador{% if vencidas %} alerta{% endif %}"><a href="{% url 'taller:trabajos:lista' taller=request.taller.slug %}?estado=vencido">
+    <div class="valor">{{ vencidas }}</div><div class="nombre">tarea{{ vencidas|pluralize }} vencida{{ vencidas|pluralize }}</div></a></div>
+</div>
+
+<h2>Por etapa</h2>
+<div class="caja">
+  {% if piezas %}
+  <div class="etapas">
+    {% for e in por_etapa %}
+    <div class="etapa">
+      <strong>{{ e.nombre }}</strong>
+      <div class="cifras"><b>{{ e.pct }}%</b> · faltan {{ e.faltan }} · hoy {{ e.hoy }}</div>
+      <div class="barra" title="{{ e.hechas }} de {{ piezas }}"><i style="width:{{ e.pct }}%"></i></div>
+    </div>
+    {% endfor %}
+  </div>
+  {% if cuello and cuello.esperando %}
+  <div class="cuello"><strong>Donde se amontona:</strong> {{ cuello.esperando }} pieza{{ cuello.esperando|pluralize }}
+    ya pasaron la etapa anterior y esperan {{ cuello.nombre|lower }}.</div>
+  {% endif %}
+  <p class="suave" style="margin:.75rem 0 0">De las {{ piezas }} piezas de los proyectos en curso. En los últimos 7 días:
+    {% for e in por_etapa %}{{ e.nombre|lower }} {{ e.semana }}{% if not forloop.last %} · {% endif %}{% endfor %}.</p>
+  {% else %}
+  <p class="suave" style="margin:0">No hay proyectos en curso.</p>
+  {% endif %}
+</div>
+
+<h2 style="display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap">Por proyecto
+  <form class="filtro" method="get" style="font-size:1rem;font-weight:400">
+    <label><input type="checkbox" name="terminados" value="1"{% if ver_terminados %} checked{% endif %}
+                  onchange="this.form.submit()"> Ver también los terminados{% if terminados %} ({{ terminados }}){% endif %}</label>
+  </form></h2>
+<div class="proyectos">
+  {% for x in proyectos %}
+  <div class="caja proyecto">
+    <h3><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=x.proyecto.pk %}#avance">{{ x.proyecto.nombre }}</a>
+      {% if x.proyecto.cliente %}<span class="suave" style="font-weight:400;font-size:.9rem">{{ x.proyecto.cliente }}</span>{% endif %}
+      {% if not x.en_curso %}<span class="estado listo">Terminado</span>{% endif %}
+      <span class="pct">{{ x.pct }}%</span></h3>
+    <div class="barra"><i style="width:{{ x.pct }}%"></i></div>
+    <div class="mini">
+      {% for e in x.etapas %}<div>{{ e.nombre }} <span class="suave">{{ e.hechas }}/{{ x.piezas }}</span>
+        <div class="barra"><i style="width:{{ e.pct }}%"></i></div></div>{% endfor %}
+    </div>
+    <div class="meta">
+      <b>{{ x.terminados }}/{{ x.muebles }}</b> mueble{{ x.muebles|pluralize }} terminado{{ x.muebles|pluralize }}
+      {% if x.embalados or x.cargados or x.entregados %} · bultos: {{ x.embalados }} embalado{{ x.embalados|pluralize }},
+        {{ x.cargados }} cargado{{ x.cargados|pluralize }}, {{ x.entregados }} entregado{{ x.entregados|pluralize }}{% endif %}
+      {% if x.ubicadas is not None %} · {{ x.ubicadas }} de {{ x.piezas }} piezas ubicadas{% endif %}
+      · {% if x.ultima %}último movimiento {{ x.ultima|date:"j/n H:i" }}{% else %}sin movimiento todavía{% endif %}
+    </div>
+  </div>
+  {% empty %}
+  <div class="caja"><p class="suave" style="margin:0">{% if ver_terminados %}No hay proyectos listos.{% else %}No hay proyectos en curso.{% endif %}</p></div>
+  {% endfor %}
+</div>
+{% endblock %}
