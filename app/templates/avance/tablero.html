@@ -25,6 +25,12 @@
   .mini .barra { height:.35rem; margin:.15rem 0 0; }
   .meta { margin-top:.6rem; font-size:.85rem; color:var(--suave); }
   .meta b { color:var(--texto); }
+  .barra-pasos { display:flex; height:1rem; border-radius:99px; overflow:hidden; background:var(--borde); }
+  .barra-pasos.chica { height:.5rem; margin:.5rem 0 .2rem; }
+  .barra-pasos i { display:block; height:100%; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:.3rem 1rem; font-size:.9rem; color:var(--suave); margin-top:.5rem; }
+  .leyenda i { display:inline-block; width:.8rem; height:.8rem; border-radius:3px; margin-right:.3rem; vertical-align:-.1rem; }
+  .leyenda b { color:var(--texto); }
   form.filtro label { display:flex; gap:.4rem; align-items:center; font-weight:400; margin:0; }
 </style>
 {% endblock %}
@@ -38,6 +44,7 @@
     <div class="barra" style="margin-top:.4rem"><i style="width:{{ pct }}%"></i></div></div>
   <div class="indicador"><div class="valor">{{ hoy }}</div><div class="nombre">pieza{{ hoy|pluralize }} marcada{{ hoy|pluralize }} hoy</div></div>
   <div class="indicador"><div class="valor">{{ semana }}</div><div class="nombre">en los últimos 7 días</div></div>
+  <div class="indicador"><div class="valor">{{ por_instalar }}</div><div class="nombre">mueble{{ por_instalar|pluralize }} por instalar</div></div>
   <div class="indicador{% if vencidas %} alerta{% endif %}"><a href="{% url 'taller:trabajos:lista' taller=request.taller.slug %}?estado=vencido">
     <div class="valor">{{ vencidas }}</div><div class="nombre">tarea{{ vencidas|pluralize }} vencida{{ vencidas|pluralize }}</div></a></div>
 </div>
@@ -65,6 +72,16 @@
   {% endif %}
 </div>
 
+<h2>Entrega</h2>
+<div class="caja">
+  {% if piezas %}
+  <div class="barra-pasos" role="img" aria-label="{% for p in entrega %}{{ p.nombre }} {{ p.n }}{% if not forloop.last %}, {% endif %}{% endfor %}">
+    {% for p in entrega %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}</div>
+  <div class="leyenda">{% for p in entrega %}<span><i style="background:{{ p.color }}"></i>{{ p.nombre }} <b>{{ p.n }}</b></span>{% endfor %}</div>
+  <p class="suave" style="margin:.75rem 0 0">Muebles de los proyectos en curso, del armado a la instalación.</p>
+  {% else %}<p class="suave" style="margin:0">No hay proyectos en curso.</p>{% endif %}
+</div>
+
 <h2 style="display:flex;gap:1rem;align-items:baseline;flex-wrap:wrap">Por proyecto
   <form class="filtro" method="get" style="font-size:1rem;font-weight:400">
     <label><input type="checkbox" name="terminados" value="1"{% if ver_terminados %} checked{% endif %}
@@ -73,7 +90,7 @@
 <div class="proyectos">
   {% for x in proyectos %}
   <div class="caja proyecto">
-    <h3><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=x.proyecto.pk %}#avance">{{ x.proyecto.nombre }}</a>
+    <h3><a href="{% url 'taller:avance:entrega' taller=request.taller.slug id=x.proyecto.pk %}">{{ x.proyecto.nombre }}</a>
       {% if x.proyecto.cliente %}<span class="suave" style="font-weight:400;font-size:.9rem">{{ x.proyecto.cliente }}</span>{% endif %}
       {% if not x.en_curso %}<span class="estado listo">Terminado</span>{% endif %}
       <span class="pct">{{ x.pct }}%</span></h3>
@@ -82,8 +99,9 @@
       {% for e in x.etapas %}<div>{{ e.nombre }} <span class="suave">{{ e.hechas }}/{{ x.piezas }}</span>
         <div class="barra"><i style="width:{{ e.pct }}%"></i></div></div>{% endfor %}
     </div>
+    <div class="barra-pasos chica">{% for p in x.entrega %}{% if p.n %}<i style="width:{{ p.pct }}%;background:{{ p.color }}" title="{{ p.nombre }}: {{ p.n }}"></i>{% endif %}{% endfor %}</div>
     <div class="meta">
-      <b>{{ x.terminados }}/{{ x.muebles }}</b> mueble{{ x.muebles|pluralize }} terminado{{ x.muebles|pluralize }}
+      <b>{{ x.terminados }}/{{ x.muebles }}</b> embalado{{ x.muebles|pluralize }} · <b>{{ x.instalados }}/{{ x.muebles }}</b> instalado{{ x.muebles|pluralize }}
       {% if x.embalados or x.cargados or x.entregados %} · bultos: {{ x.embalados }} embalado{{ x.embalados|pluralize }},
         {{ x.cargados }} cargado{{ x.cargados|pluralize }}, {{ x.entregados }} entregado{{ x.entregados|pluralize }}{% endif %}
       {% if x.ubicadas is not None %} · {{ x.ubicadas }} de {{ x.piezas }} piezas ubicadas{% endif %}

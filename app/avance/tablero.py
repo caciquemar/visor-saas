@@ -2,7 +2,7 @@
 y en general. Se arma en el servidor con `calculo.avance` de cada proyecto (las mismas cuentas que el visor y la
 pantalla del proyecto).
 
-En curso: tiene versión lista y le falta algo (pasos de etapas, muebles sin terminar o bultos sin entregar)."""
+En curso: tiene versión lista y le falta instalar algún mueble (instalar es el último paso). "Entrega" (ficha 18): cuántos muebles hay en cada paso, del armado a la instalación."""
 from datetime import datetime, time, timedelta
 
 from django.db.models import Count, Max
@@ -13,6 +13,7 @@ from trabajos.models import Trabajo
 
 from .calculo import avance, pct, piezas_de, ubicaciones
 from .models import Bulto, Marca, Movimiento, Ubicacion, etapas_activas
+from .pasos import ORDEN, PASOS, pasos
 
 
 def proyectos_listos():
@@ -28,11 +29,12 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
     bultos = dict(Bulto.objects.filter(proyecto=p, fin__anulado_en__isnull=True)
                   .values_list('estado').annotate(n=Count('pk')))
     muebles = len(a['muebles'])
-    sin_entregar = sum(n for e, n in bultos.items() if e != Bulto.Estado.ENTREGADO)
     ultima = max(filter(None, [
         Marca.objects.filter(proyecto=p).aggregate(x=Max('cuando'))['x'],
         Movimiento.objects.filter(bulto__proyecto=p).aggregate(x=Max('cuando'))['x']]), default=None)
     t = a['total']
+    entrega = pasos(p, piezas, a)['totales']
+    instalados = entrega['instalado']
     return {
         'proyecto': p, 'pct': t['pct'], 'piezas': t['piezas'], 'pasos': t['pasos'], 'hechos': t['hechos'],
         'etapas': [{'nombre': e.nombre, 'hechas': t['por_etapa'][e.pk],
@@ -42,9 +44,17 @@ def de_un_proyecto(p, etapas, hay_ubicaciones):
         'entregados': bultos.get(Bulto.Estado.ENTREGADO, 0),
         'ubicadas': len(ubicaciones(p)[0]) if hay_ubicaciones else None,
         'ultima': ultima,
-        'en_curso': t['hechos'] < t['pasos'] or t['terminados'] < muebles or sin_entregar > 0,
+        # instalar es el último paso: con todo instalado está terminado aunque falten marcas de etapas
+        'en_curso': instalados < muebles,
+        'instalados': instalados, 'entrega': barra(entrega, muebles),
         'por_etapa': t['por_etapa'],
     }
+
+
+def barra(totales, total):
+    """Los pasos con cuántos muebles hay en cada uno, para una barra apilada (el ancho como texto con punto: CSS)."""
+    return [{'clave': k, 'nombre': n, 'color': c, 'n': totales.get(k, 0),
+             'pct': f'{totales.get(k, 0) * 100 / (total or 1):.2f}'} for k, n, c in PASOS]
 
 
 def tablero(ver_terminados=False):
@@ -79,5 +89,8 @@ def tablero(ver_terminados=False):
         'pct': pct(sum(x['hechos'] for x in en_curso), sum(x['pasos'] for x in en_curso)),
         'piezas': piezas_en_curso, 'hoy': sum(hoy_por_etapa.values()), 'semana': sum(semana_por_etapa.values()),
         'vencidas': len(vencidas), 'hay_ubicaciones': hay_ubicaciones,
+        'entrega': barra({k: sum(x['entrega'][ORDEN.index(k)]['n'] for x in en_curso) for k in ORDEN},
+                         sum(x['muebles'] for x in en_curso)),
+        'por_instalar': sum(x['muebles'] - x['instalados'] for x in en_curso),
         'cuello': max(por_etapa[1:], key=lambda e: e['esperando'], default=None) if piezas_en_curso else None,
     }

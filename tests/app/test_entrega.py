@@ -261,3 +261,28 @@ def test_visor_api_entrega(cliente_de, t, pa):
                                                 'instalado']
     assert d['muebles'][m]['paso'] == 'armado' and d['totales']['armado'] == 1
     assert sum(d['totales'].values()) == len(d['muebles'])
+
+
+# ---------------------------------------------------------------- tablero y estado del pedido
+
+def test_tablero_y_estado_del_pedido_con_la_entrega(cliente_de, t, pa):
+    from avance.estado import estado_del_pedido
+    m = mueble_chico()
+    c = cliente_de(t.armador_a)
+    entregar_todo(c, t, pa, m)
+    post(c, '/taller-a/puesto/api/instalar', {'proyecto': pa.pk, 'mueble': m})
+    ctx = c.get('/taller-a/tablero/').context
+    total = len(ctx['proyectos'][0]['entrega']) and ctx['proyectos'][0]['muebles']
+    assert ctx['proyectos'][0]['instalados'] == 1 and ctx['por_instalar'] == total - 1
+    assert {p['clave']: p['n'] for p in ctx['entrega']}['instalado'] == 1
+    with con_taller(t.A):
+        e = estado_del_pedido(pa)
+    assert e['estado'] != 'instalado' and [x['instalado'] for x in e['muebles'] if x['nombre'] == m] == [True]
+    # con todos los muebles instalados, el pedido queda instalado y el proyecto sale de "en curso"
+    with con_taller(t.A):
+        for n in pasos_.pasos(pa)['muebles']:
+            if n != m:
+                Instalacion.objects.create(proyecto=pa, mueble=n, cuando=timezone.now())
+        assert estado_del_pedido(pa)['estado'] == 'instalado'
+    ctx = c.get('/taller-a/tablero/').context
+    assert ctx['en_curso'] == 0 or all(x['proyecto'] != pa for x in ctx['proyectos'])
