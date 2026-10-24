@@ -323,3 +323,13 @@ El QR lleva solo `URL_APP/<taller>/e/<código>` (el bulto suma `/<n>`; todos los
 código). Con el slug del taller, el middleware de siempre filtra: un QR de otro taller da 404. El PDF se arma con
 **reportlab** (también dibuja el QR, sin otra dependencia). Cualquiera del taller imprime (el armador repone una
 etiqueta perdida) y el formato elegido queda guardado para el taller.
+
+## 2026-10-24 · Inicio por secciones, "Tareas" y Producción (ficha 17)
+Pedidos de Martín con dibujos. El Inicio tiene un botón por sección (Armado, Proyectos, Producción, Configuración) y el
+menú ☰ los mismos grupos (`talleres/menu.py`, `SECCIONES`). "Trabajos" se llama **Tareas** en todo lo que se ve (el
+código y las direcciones siguen con `trabajos`). En Producción: **Mi puesto** sin elegir proyecto (lo dice la
+etiqueta; para números de mecanizado, el de la última pieza leída o se pide), **Ubicación** = dónde queda la pieza o
+el bulto en el taller (historial `Ubicado`; dónde está algo es su último registro vigente; al cargar el camión sale
+del taller), **Tareas** como un modo más de Mi puesto, **Procesos** (etapas del dueño + ubicaciones de dueño y
+oficina) y **Tablero de control**. En el tablero, "en curso" = versión lista y le falta algo (etapas, muebles sin
+terminar o bultos sin entregar); "donde se amontona" = la etapa con más piezas que ya pasaron la anterior.

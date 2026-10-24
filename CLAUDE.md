@@ -313,6 +313,12 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-24: **"Trabajos" pasa a llamarse "Tareas" (pedido de Martín).** Solo lo que se ve: menú, Inicio, pantalla,
   visor, mensajes y administración, con los estados en femenino (Hecha, Instalada, Vencida; migración 0002 sin cambios
   en la base). El código, la API y las direcciones siguen con `trabajo`/`trabajos` (`/<taller>/trabajos/`).
+- 2026-10-24: **ficha 17 hecha: Producción** (pedido de Martín, con su dibujo). Producción = Mi puesto, Tablero de
+  control y Procesos; Etapas sale de Configuración y queda en Procesos junto con las **ubicaciones** (`Ubicacion`,
+  `Ubicado`: dónde queda cada pieza o bulto). Mi puesto: Etapa ▾ (etapas, fin, cargar, entregar, Tareas), Ubicación ▾ y
+  Escanear, sin elegir proyecto (`falta_proyecto` para números de mecanizado sin etiqueta antes). Visor: "Está en …"
+  en la pieza y "Piezas en …" en el mueble. Tablero en `avance/tablero.py`. Ver `docs/sesiones/17-produccion.md` y
+  `docs/decisiones.md`. Probado en el navegador integrado en formato celular (sin cámara: códigos escritos).
 
 ## Pendientes
 
