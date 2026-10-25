@@ -347,6 +347,11 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-25: **ficha 23 hecha: Equipo y roles.** Roles propios del taller con permisos (`talleres/permisos.py`,
   `Rol`, `con_permiso`), "Agregar persona" único, desactivar como baja, invitaciones con Reenviar y Anular. **Dueño
   pasa a llamarse Administrador** (en el código, la base del rol es `admin`). Ver `docs/sesiones/23-equipo-roles.md`.
+- 2026-10-25: **veta de las texturas (pedido de Martín).** En Materiales, "Veta de la imagen" (Automática,
+  Horizontal, Vertical, Sin veta) y flecha sobre la muestra; la automática se detecta al subir (`veta_de_imagen`,
+  `Material.veta_detectada`, migración `proyectos 0009`, que lee las ya subidas) y detecta "sin veta" en lisos y
+  simétricos. Va al conversor en `materiales.json`; el probador manda `alto` y `girar` (visor y `glb_ar`). Arreglado
+  de paso el formulario de Materiales, que no dejaba guardar con una textura ya cargada. Ver `docs/decisiones.md`.
 
 ## Pendientes
 
@@ -405,9 +410,6 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
 - Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con
   los usuarios del taller (o dejarlos vacíos) y el proyecto va por nombre (puede haber dos iguales).
-- Formulario de materiales (ficha 03): con una textura ya cargada, guardar solo el ancho o el color falla con "Subí la
-  imagen en JPG, PNG o WEBP" (`FormMaterial.clean_textura` revisa el archivo que ya estaba). Mismo arreglo que
-  `FormMarca.clean_logo`: revisar solo si es un `UploadedFile`.
 - Ficha 12, prueba en papel y con celular (Martín, cuando haya impresora y celular; en el NAS ya se ve bien desde
   la PC): imprimir A4 y térmica, leer con la cámara del celular (sin sesión: entrar con PIN y volver a la etiqueta)
   y con el escáner del visor, y ajustar márgenes si hace falta. La etiqueta de bulto cuenta las

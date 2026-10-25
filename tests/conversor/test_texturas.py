@@ -37,6 +37,34 @@ def test_veta_vertical_se_gira(tmp_path):
     assert 'color' not in info
 
 
+def test_veta_elegida_manda_sobre_la_detectada(tmp_path):
+    img = rayada(tmp_path / 'nogal.png', 300, 100, vertical=True)
+    t = texturas(tmp_path, tmp_path)
+    assert t.procesar(img, 600, False, 'h')['ancho'] == 600          # no se gira aunque parezca vertical
+    assert t.procesar(img, 600, False, 'n')['ancho'] == 600          # sin veta: tampoco
+    otra = rayada(tmp_path / 'roble.png', 300, 100, vertical=False)
+    assert (t.procesar(otra, 600, False, 'v')['ancho'], t.procesar(otra, 600, False, 'v')['alto']) == (200, 600)
+
+
+def test_veta_de_imagen(tmp_path):
+    from conversor.polyboard_a_app import veta_de_imagen
+    assert veta_de_imagen(Image.open(rayada(tmp_path / 'h.png', 60, 30, vertical=False))) == 'h'
+    assert veta_de_imagen(Image.open(rayada(tmp_path / 'v.png', 60, 30, vertical=True))) == 'v'
+    assert veta_de_imagen(Image.new('RGB', (30, 60), (200, 200, 200))) == 'n'      # liso, aunque sea alto
+    damero = Image.new('RGB', (64, 64))
+    for x in range(64):
+        for y in range(64):
+            damero.putpixel((x, y), (255,) * 3 if (x // 4 + y // 4) % 2 else (0,) * 3)
+    assert veta_de_imagen(damero) == 'n'                                             # simétrica
+
+
+def test_liso_alto_no_se_gira(tmp_path):
+    img = tmp_path / 'blanco.png'
+    Image.new('RGB', (100, 300), (240, 240, 240)).save(img)
+    info = texturas(tmp_path, tmp_path).procesar(img, 600, True)
+    assert (info['ancho'], info['alto']) == (600, 1800)
+
+
 def test_sin_escala_usa_un_metro(tmp_path):
     img = rayada(tmp_path / 'lino.jpg', 100, 50, vertical=False)
     info = texturas(tmp_path, tmp_path).procesar(img, None, True)

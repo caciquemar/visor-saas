@@ -290,3 +290,12 @@ def test_combinacion_con_rack_florencia(tmp_path):
     from conversor.polyboard_a_app import glb_ar
     colores = materiales_del_glb(glb_ar(d, d['paneles'], d['herrajes'], tmp_path, {}))
     assert any(cerca(c, lineal(BLANCO)) for c in colores) and any(cerca(c, lineal(NOGAL)) for c in colores)
+
+
+def test_opcion_con_veta_vertical_va_girada_y_con_su_alto():
+    from proyectos.models import Material
+    from proyectos.probador import info_de
+    m = Material(nombre='Nogal', textura='talleres/1/material/nogal.jpg', proporcion=2.0, veta_detectada='v')
+    assert info_de(m) == {'textura': 'opciones/None.jpg', 'ancho': 1000, 'alto': 2000, 'girar': 1}
+    m.veta, m.ancho_mm = 'h', 600                       # elegida a mano: manda sobre la detectada
+    assert info_de(m) == {'textura': 'opciones/None.jpg', 'ancho': 600, 'alto': 1200}

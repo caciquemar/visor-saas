@@ -10,6 +10,11 @@
   .material form label { margin-top:.5rem; }
   @media (max-width: 480px) { .material { grid-template-columns:1fr; } }
   input[type=color] { width:4rem; height:2.5rem; padding:.15rem; }
+  /* flecha de la veta sobre la muestra: doble punta, a lo largo de las fibras */
+  .con-veta { position:relative; width:7rem; height:7rem; }
+  .flecha-veta { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .flecha-veta svg { width:5rem; height:1.6rem; filter:drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+  .flecha-veta.v svg { transform:rotate(90deg); }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -47,7 +52,14 @@
 {% for m, form in materiales %}
 <div class="caja material{% if not m.textura %} falta{% endif %}">
   {% if m.textura %}
-    <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m }}">
+    <div class="con-veta">
+      <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m }}">
+      {% with veta=m.veta_efectiva %}{% if veta == 'h' or veta == 'v' %}
+      <span class="flecha-veta {{ veta }}" title="Veta {% if veta == 'h' %}horizontal{% else %}vertical{% endif %}">
+        <svg viewBox="0 0 100 20" aria-hidden="true"><path d="M2 10H98M2 10l12-8M2 10l12 8M98 10l-12-8M98 10l-12 8"
+          stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </span>{% endif %}{% endwith %}
+    </div>
   {% else %}
     <div class="muestra suave" {% if m.color %}style="background:{{ m.color }}"{% endif %}>Sin textura</div>
   {% endif %}
@@ -57,6 +69,8 @@
     <form method="post" enctype="multipart/form-data" action="{% url 'taller:proyectos:material' taller=request.taller.slug id=m.pk %}">{% csrf_token %}
       <label for="{{ form.textura.id_for_label }}">{% if m.textura %}Cambiar textura{% else %}Subir textura{% endif %}</label>
       {{ form.textura }}
+      <label for="{{ form.veta.id_for_label }}">Veta de la imagen</label>
+      {{ form.veta }}<span class="ayuda">{% if m.textura and not m.veta %}{% if m.veta_detectada == 'h' %}Detectada: horizontal. {% elif m.veta_detectada == 'v' %}Detectada: vertical. {% elif m.veta_detectada == 'n' %}Detectada: sin veta. {% endif %}{% endif %}{{ form.veta.help_text }}</span>
       <label for="{{ form.ancho_mm.id_for_label }}">{{ form.ancho_mm.label|capfirst }}</label>
       {{ form.ancho_mm }}<span class="ayuda">{{ form.ancho_mm.help_text }}</span>
       <label for="{{ form.color.id_for_label }}">Color</label>

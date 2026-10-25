@@ -510,7 +510,7 @@ class Texturas:
             rel, ancho = tex
             archivo = self.buscar(rel)
             if archivo:
-                info.update(self.procesar(archivo, ancho, 'color' not in info))
+                info.update(self.procesar(archivo, ancho, 'color' not in info, f.get('veta')))
                 info['origen'] = f"{origen}: {rel}"
             else:
                 self.avisos.append(f"{tipo[:-1]} {nombre}: no se encontró la imagen {rel} ({origen})")
@@ -526,19 +526,16 @@ class Texturas:
                 info['espesor'] = pb['espesor']
         return info
 
-    def procesar(self, archivo, ancho, con_color):
+    def procesar(self, archivo, ancho, con_color, veta=None):
         """Copia de máx. 512 px con la veta horizontal (a lo largo del eje U), en potencias de 2
-        para que se pueda repetir en cualquier celular. Devuelve textura, color y medidas en mm."""
-        from PIL import Image, ImageChops, ImageStat
+        para que se pueda repetir en cualquier celular. Devuelve textura, color y medidas en mm.
+        veta: 'h' o 'n' (sin veta) la deja como está, 'v' la gira; si falta, se adivina con veta_de_imagen."""
+        from PIL import Image, ImageStat
         im = Image.open(archivo)
         im = im.convert('RGBA').convert('RGB') if im.mode in ('P', 'LA', 'RGBA') else im.convert('RGB')
         w0, h0 = im.size
         mm_px = float(ancho or ANCHO_TEXTURA) / w0
-        # dirección de la veta: las fibras cambian poco a lo largo y mucho a lo ancho
-        g = im.convert('L'); g.thumbnail((256, 256))
-        dx = ImageStat.Stat(ImageChops.difference(g.crop((1, 0, g.width, g.height)), g.crop((0, 0, g.width - 1, g.height)))).mean[0]
-        dy = ImageStat.Stat(ImageChops.difference(g.crop((0, 1, g.width, g.height)), g.crop((0, 0, g.width, g.height - 1)))).mean[0]
-        if dx > dy * 1.25 or (dy <= dx * 1.25 and h0 > w0):   # veta vertical (o dudosa en imagen alta)
+        if (veta or veta_de_imagen(im)) == 'v':
             im = im.transpose(Image.Transpose.ROTATE_90)
         w, h = im.size
         k = min(1, 512 / max(w, h))
@@ -554,6 +551,16 @@ class Texturas:
             info['color'] = f"#{r:02X}{gg:02X}{b:02X}"
         info['ancho'], info['alto'] = round(w * mm_px), round(h * mm_px)   # mm que cubre la imagen ya girada
         return info
+
+def veta_de_imagen(im):
+    """'h', 'v' o 'n': hacia dónde van las fibras de una imagen de PIL. Cambian poco a lo largo y mucho a lo ancho;
+    si no se nota (lisos, simétricos), 'n': sin veta, la imagen queda como está."""
+    from PIL import ImageChops, ImageStat
+    g = im.convert('L'); g.thumbnail((256, 256))
+    dx = ImageStat.Stat(ImageChops.difference(g.crop((1, 0, g.width, g.height)), g.crop((0, 0, g.width - 1, g.height)))).mean[0]
+    dy = ImageStat.Stat(ImageChops.difference(g.crop((0, 1, g.width, g.height)), g.crop((0, 0, g.width, g.height - 1)))).mean[0]
+    return 'v' if dx > dy * 1.25 else 'h' if dy > dx * 1.25 else 'n'
+
 
 def resolver_materiales(paneles, tex):
     """Tableros y cantos usados, por separado (pueden llamarse igual):
@@ -823,7 +830,9 @@ def glb_ar(datos, paneles, herrajes, salida_data, usuario, con_textura=True, sin
         for a, b, c, n, _ in tris:
             mat = None if abs(_punto(n, eN)) > .9 else lado_y_canto(cantos, a, b, c, n)
             if abs(_punto(n, eN)) > .9 or (mat is not None and clave(mat) == clave(p['mat'])):
-                tri(cara, a, b, c, n, [(_punto(v, eL) / aU, _punto(v, eS) / aV) for v in (a, b, c)])
+                # 'girar': imagen sin procesar con la veta vertical (opciones del probador); su alto va a lo largo
+                tri(cara, a, b, c, n, [(_punto(v, eS) / aU, _punto(v, eL) / aV) if info.get('girar') else
+                                       (_punto(v, eL) / aU, _punto(v, eS) / aV) for v in (a, b, c)])
             elif mat is None:
                 tri(grupo('sin canto', lineal(sin_canto)), a, b, c, n)
             else:

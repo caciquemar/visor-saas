@@ -42,6 +42,16 @@ por taller). La sesión de PIN sigue igual (12 horas, solo ese taller), y con un
 siguiente sin tocar Salir (celular compartido). `/<taller>/pin/` ahora lleva a `/entrar/`.
 Reemplaza la pantalla de PIN del taller con la lista de nombres: ya no se ven los nombres sin sesión.
 
+## 2026-10-25 · Veta de las texturas
+Pedido de Martín: a las texturas les faltaba saber hacia dónde va la veta. Cada material tiene **Veta de la imagen**
+(Automática, Horizontal, Vertical, Sin veta) y una flecha doble sobre la muestra en Materiales. Automática: al subir
+la imagen se detecta con `veta_de_imagen` del conversor y queda guardada (`veta_detectada`), así la flecha muestra lo
+mismo que hace el conversor; lo elegido a mano manda. **Sin veta** (lisos y dibujos simétricos, también detectado
+solo cuando las fibras no se notan) no gira la imagen. Antes, una imagen sin dirección clara y más alta que ancha
+se tomaba como vertical. Al conversor le llega la veta en `materiales.json` (`"veta": "h" | "v" | "n"`). Las opciones
+del probador van sin procesar: llevan su alto (`proporcion`) y `girar` si la veta es vertical, y el visor y `glb_ar`
+cambian el sentido de la textura. Cambiar la veta pide "Volver a convertir".
+
 ## 2026-10-11 · Probador de colores: grupos y combinaciones de realidad aumentada
 Decisiones de Martín (ficha 14). (1) **Grupo = tableros que cambian juntos**, con un nombre para el cliente
 ("Frentes" = Roble; "Cuerpos" = Blanco + Blanco 15); el cliente elige un color por grupo. Descartado un selector por

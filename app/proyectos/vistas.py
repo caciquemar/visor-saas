@@ -375,7 +375,7 @@ def sin_canto(request, taller):
 @con_permiso('materiales')
 def material(request, taller, id):
     m = get_object_or_404(Material, pk=id)
-    tenia_textura = bool(m.textura)
+    tenia_textura, veta = bool(m.textura), m.veta
     form = FormMaterial(request.POST, request.FILES, instance=m)
     if not form.is_valid():
         messages.error(request, f'{m}: ' + ' '.join(e for errores in form.errors.values() for e in errores))
@@ -383,6 +383,9 @@ def material(request, taller, id):
     form.save()
     if m.textura and not tenia_textura:
         messages.success(request, f'Se guardó la textura de {m}. En los proyectos que la usan, tocá '
+                                  '"Volver a convertir" para verla.')
+    elif m.textura and m.veta != veta:
+        messages.success(request, f'Se guardó la veta de {m}. En los proyectos que la usan, tocá '
                                   '"Volver a convertir" para verla.')
     else:
         messages.success(request, f'Se guardó {m}.')

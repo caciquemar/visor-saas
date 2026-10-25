@@ -8,7 +8,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
-from conversor.polyboard_a_app import clave as clave_de_material
+from conversor.polyboard_a_app import clave as clave_de_material, veta_de_imagen
 from talleres.archivos import ruta_de_taller
 from talleres.separacion import DatoDeTaller
 
@@ -147,6 +147,9 @@ class Original(DatoDeTaller):
         return self.nombre
 
 
+VETAS = [('', 'Automática'), ('h', 'Horizontal'), ('v', 'Vertical'), ('n', 'Sin veta')]
+
+
 class Material(DatoDeTaller):
     """Un tablero o un canto. Van separados porque muchos se llaman igual y tienen otra imagen."""
     class Tipo(models.TextChoices):
@@ -160,6 +163,11 @@ class Material(DatoDeTaller):
     ancho_mm = models.PositiveIntegerField('ancho que cubre la imagen (mm)', null=True, blank=True)
     color = models.CharField('color', max_length=7, blank=True)
     textura = models.ImageField('textura', upload_to=ruta_de_taller, blank=True, max_length=300)
+    # Hacia dónde van las fibras en la imagen subida. Automática: la adivina veta_de_imagen al subirla y queda en
+    # veta_detectada, así la flecha de Materiales muestra lo mismo que hace el conversor.
+    veta = models.CharField('veta de la imagen', max_length=1, blank=True, choices=VETAS)
+    veta_detectada = models.CharField(max_length=1, blank=True, editable=False)
+    proporcion = models.FloatField(null=True, blank=True, editable=False)    # alto / ancho de la imagen
     creado = models.DateTimeField('creado', auto_now_add=True)
     actualizado = models.DateTimeField('actualizado', auto_now=True)
 
@@ -172,9 +180,34 @@ class Material(DatoDeTaller):
     def __str__(self):
         return f'{self.get_tipo_display().lower()} {self.nombre}'
 
+    @property
+    def veta_efectiva(self):
+        """'h', 'v' o 'n' (sin veta); '' si no hay imagen o no se pudo leer."""
+        return (self.veta or self.veta_detectada) if self.textura else ''
+
     def save(self, *args, **kwargs):
         self.clave = clave_de_material(self.nombre)
+        if not self.textura:
+            self.veta_detectada, self.proporcion = '', None
+        elif not self.textura._committed:          # imagen recién subida
+            analizar_textura(self, self.textura)
         super().save(*args, **kwargs)
+
+
+def analizar_textura(material, archivo):
+    """Llena veta_detectada y proporcion con la imagen. Si no se puede leer, quedan vacías (la flecha no sale)."""
+    from PIL import Image, UnidentifiedImageError
+    try:
+        archivo.seek(0)
+        with Image.open(archivo) as im:
+            material.proporcion = im.height / im.width
+            im.draft('RGB', (1024, 1024))          # JPEG grande: se lee achicado, no ocupa memoria de más
+            im.thumbnail((512, 512))               # veta_de_imagen mira 256 px igual
+            material.veta_detectada = veta_de_imagen(im.convert('RGB'))
+    except (OSError, ValueError, UnidentifiedImageError):
+        material.veta_detectada, material.proporcion = '', None
+    finally:
+        archivo.seek(0)
 
 
 class LinkCliente(DatoDeTaller):

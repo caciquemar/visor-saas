@@ -880,7 +880,9 @@ function mallaPanel(p){
   [...caras, ...finas].forEach(x => {
     const color = x.color || colTablero;
     [x.a, x.b, x.c].forEach(v => {
-      pos.push(v.x, v.y, v.z); uv.push(v.dot(eL) / aU, v.dot(eS) / aV); col.push(color.r, color.g, color.b);
+      // girar: imagen sin procesar con la veta vertical (opciones del probador); su alto va a lo largo de la veta
+      pos.push(v.x, v.y, v.z); col.push(color.r, color.g, color.b);
+      if (info && info.girar) uv.push(v.dot(eS) / aU, v.dot(eL) / aV); else uv.push(v.dot(eL) / aU, v.dot(eS) / aV);
     });
   });
   const g = new THREE.BufferGeometry();
@@ -1438,7 +1440,10 @@ function probadorSustituir(base, elecciones){
   d.materiales = d.materiales || {};
   elegidos.forEach(o => {
     const info = {};
-    if (o.textura){ info.textura = o.textura; if (o.ancho) info.ancho = o.ancho; }
+    if (o.textura){
+      info.textura = o.textura;
+      ['ancho', 'alto', 'girar'].forEach(k => { if (o[k]) info[k] = o[k]; });
+    }
     if (o.color) info.color = o.color;
     d.materiales[o.nombre] = info;
     if (d.cantos && o.color) d.cantos[o.nombre] = {color: o.color};

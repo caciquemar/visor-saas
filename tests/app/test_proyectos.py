@@ -259,7 +259,8 @@ def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
     llamada = falso.llamadas[1]
     archivo = f'{m.pk}.png'
-    assert llamada['materiales'] == {'tableros': {'Roble Kendal': {'textura': archivo, 'ancho': 2800}}, 'cantos': {}}
+    assert llamada['materiales'] == {'tableros': {'Roble Kendal': {'textura': archivo, 'ancho': 2800, 'veta': 'n'}},
+                                     'cantos': {}}             # png() es lisa: sin veta
     assert llamada['texturas'] == [archivo]
     assert version(t, 2).faltan_texturas == []
     with en_a(t):
@@ -290,7 +291,8 @@ def test_tablero_y_canto_con_el_mismo_nombre_no_se_mezclan(dueno_a, t, monkeypat
     assert 'Subiste texturas que faltaban</strong> (canto roble kendal)' in pagina
     assert 'Faltan texturas:</strong> tablero Roble Kendal' in pagina
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
-    assert falso.llamadas[1]['materiales'] == {'tableros': {}, 'cantos': {'roble kendal': {'textura': f'{canto.pk}.png'}}}
+    assert falso.llamadas[1]['materiales'] == {'tableros': {},
+                                               'cantos': {'roble kendal': {'textura': f'{canto.pk}.png', 'veta': 'n'}}}
     assert version(t, 2).faltan_texturas == [{'nombre': 'Roble Kendal', 'tipo': 'tablero'}]
     with en_a(t):
         tablero.refresh_from_db()
@@ -308,6 +310,37 @@ def test_textura_que_no_es_imagen_se_rechaza(dueno_a, t, monkeypatch):
     with en_a(t):
         m.refresh_from_db()
     assert not m.textura
+
+
+def rayada(vertical, ancho=64, alto=32):
+    im = Image.new('RGB', (ancho, alto))
+    for x in range(ancho):
+        for y in range(alto):
+            im.putpixel((x, y), (200, 150, 100) if ((x if vertical else y) % 8 < 4) else (120, 80, 40))
+    buf = io.BytesIO()
+    im.save(buf, 'PNG')
+    return SimpleUploadedFile('veta.png', buf.getvalue(), content_type='image/png')
+
+
+def test_veta_detectada_flecha_y_elegida_a_mano(dueno_a, t, monkeypatch):
+    falso = CorrerFalso(con_imagen={'tableros': {'Nogal': ['n.jpg', None]}})
+    monkeypatch.setattr(tareas, 'correr', falso)
+    subir(dueno_a, 'taller-a')
+    with en_a(t):
+        m = Material.objects.get()
+    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'textura': rayada(vertical=True), 'veta': '', 'color': ''})
+    with en_a(t):
+        m.refresh_from_db()
+    assert (m.veta, m.veta_detectada, m.proporcion) == ('', 'v', 0.5)
+    pagina = dueno_a.get('/taller-a/materiales/').content.decode()
+    assert 'flecha-veta v' in pagina and 'Detectada: vertical.' in pagina
+
+    # elegida a mano: manda sobre la detectada, avisa volver a convertir, y es la que va al conversor
+    r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'veta': 'n', 'color': ''}, follow=True)
+    assert 'Se guardó la veta de tablero Nogal' in r.content.decode()
+    assert 'flecha-veta' not in r.content.decode().split('<h2>Tableros</h2>')[1]
+    dueno_a.post(f'/taller-a/proyectos/{unico_proyecto(t).pk}/versiones/1/reconvertir/')
+    assert falso.llamadas[1]['materiales']['tableros']['Nogal']['veta'] == 'n'
 
 
 def test_color_del_material_va_al_conversor(dueno_a, t, monkeypatch):

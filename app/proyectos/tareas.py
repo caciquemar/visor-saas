@@ -106,6 +106,8 @@ def preparar(version, tmp):
             info['textura'] = archivo
             if m.ancho_mm:
                 info['ancho'] = m.ancho_mm
+            if m.veta_efectiva:                  # la misma que muestra la flecha de Materiales
+                info['veta'] = m.veta_efectiva
         if m.color:
             info['color'] = m.color
         if info:

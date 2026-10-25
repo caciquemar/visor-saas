@@ -61,8 +61,14 @@ def info_de(material):
     info = {}
     if material.textura:
         info['textura'] = textura_de(material)
-        if material.ancho_mm:
-            info['ancho'] = material.ancho_mm
+        # la imagen va como se subió (el conversor no la procesa): con su alto, y girada si la veta es vertical
+        ancho = material.ancho_mm or (1000 if material.proporcion else None)
+        if ancho:
+            info['ancho'] = ancho
+        if material.proporcion:
+            info['alto'] = round(ancho * material.proporcion)
+        if material.veta_efectiva == 'v':
+            info['girar'] = 1
     if material.color:
         info['color'] = material.color
     return info
