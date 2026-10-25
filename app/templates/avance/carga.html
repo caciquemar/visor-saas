@@ -12,7 +12,7 @@
 {% block contenido %}
 <p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto.pk %}?ver=produccion#avance">{{ carga.proyecto.nombre }}</a></p>
 <h1>Carga {{ carga.pk }} <span class="estado{% if carga.estado != 'armando' %} listo{% endif %}">{{ carga.get_estado_display }}</span></h1>
-<p class="suave" style="margin-top:-.5rem">{% if datos.completa %}Proyecto completo{% else %}{{ datos.muebles|join:", " }}{% endif %}
+<p class="suave" style="margin-top:-.5rem">{% if datos.completa %}Proyecto completo{% elif datos.libre %}Lo que se escanee{% else %}{{ muebles|length }} mueble{{ muebles|length|pluralize }}{% endif %}
   · armada por {{ carga.creada_por|default:"—" }}, {{ carga.creada_en|date:"j/n H:i" }}</p>
 
 <div class="cuentas">
@@ -28,22 +28,60 @@
       onsubmit="return confirm('¿Anular esta carga? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}<button class="secundario" type="submit">Anular</button></form>{% endif %}{% endif %}
 </div>
 
-{% if datos.faltantes and carga.estado == 'armando' %}
-<h2 class="falta">Faltan {{ datos.faltantes|length }}</h2>
-<ul>{% for f in datos.faltantes %}<li class="falta">{{ f }}</li>{% endfor %}</ul>
-{% endif %}
+{% include 'tabla_filtrable.html' %}
+<h2>Muebles</h2>
+<div class="filtros-tabla" data-tabla="tMuebles">
+  <input type="search" data-buscar placeholder="Buscar mueble" aria-label="Buscar mueble">
+  <select data-filtro aria-label="Filtrar muebles">
+    <option value="">Todos</option><option value="completo">Completos</option>
+    <option value="faltan">Con bultos que faltan</option><option value="sin_terminar">Sin terminar</option>
+  </select>
+  <span class="suave" data-cuenta></span>
+</div>
+<div class="caja tabla"><table id="tMuebles">
+  <thead><tr><th><button type="button" data-col="0">Mueble</button></th>
+    <th><button type="button" data-col="1" data-tipo="numero">En esta carga</button></th>
+    <th><button type="button" data-col="2" data-tipo="numero">Faltan</button></th>
+    <th><button type="button" data-col="3">Estado</button></th></tr></thead>
+  <tbody>
+  {% for m in muebles %}
+  <tr data-estado="{{ m.estado }}">
+    <td>{{ m.nombre }}</td>
+    <td data-valor="{{ m.en_esta }}">{% if m.bultos %}{{ m.en_esta }} de {{ m.bultos }}{% if m.otra %} <span class="suave">· {{ m.otra }} en otra</span>{% endif %}{% else %}—{% endif %}</td>
+    <td data-valor="{{ m.faltan }}">{% if m.faltan %}<span class="falta">{{ m.faltan }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+    <td>{% if m.estado == 'sin_terminar' %}<span class="falta">Sin terminar</span>{% elif m.estado == 'faltan' %}<span class="falta">Faltan bultos</span>{% elif m.entregados and m.entregados == m.en_esta %}<span class="estado listo">Entregado</span>{% else %}<span class="estado listo">Completo</span>{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="4" class="suave">Todavía no tiene muebles: se suman al escanear.</td></tr>
+  {% endfor %}
+  </tbody>
+</table></div>
 
 <h2>Bultos</h2>
-<div class="tabla"><table>
-  <tr><th>Mueble</th><th>Bulto</th><th>Estado</th><th>Quién y cuándo</th></tr>
+<div class="filtros-tabla" data-tabla="tBultos">
+  <input type="search" data-buscar placeholder="Buscar mueble o persona" aria-label="Buscar bulto">
+  <select data-filtro aria-label="Filtrar bultos">
+    <option value="">Todos</option><option value="en_esta">En esta carga</option><option value="cargado">Cargados</option>
+    <option value="entregado">Entregados</option><option value="falta">Faltan</option><option value="otra">En otra carga</option>
+  </select>
+  <span class="suave" data-cuenta></span>
+</div>
+<div class="caja tabla"><table id="tBultos">
+  <thead><tr><th><button type="button" data-col="0">Mueble</button></th>
+    <th><button type="button" data-col="1" data-tipo="numero">Bulto</button></th>
+    <th><button type="button" data-col="2">Estado</button></th>
+    <th><button type="button" data-col="3">Quién</button></th>
+    <th><button type="button" data-col="4">Cuándo</button></th></tr></thead>
+  <tbody>
   {% for b in datos.bultos %}
-  <tr><td>{{ b.mueble }}</td><td>{{ b.numero }} de {{ b.de }}</td>
-      <td>{% if b.en_esta %}{% if b.estado == 'entregado' %}Entregado{% else %}Cargado{% endif %}{% elif b.estado == 'embalado' %}<span class="falta">Falta</span>{% else %}En otra carga{% endif %}</td>
-      <td class="suave">{% if b.en_esta %}{{ b.por|default:"—" }}, {{ b.cuando_corto }}{% endif %}</td></tr>
+  <tr data-estado="{% if b.en_esta %}en_esta {% if b.estado == 'entregado' %}entregado{% else %}cargado{% endif %}{% elif b.estado == 'embalado' %}falta{% else %}otra{% endif %}">
+    <td>{{ b.mueble }}</td><td data-valor="{{ b.numero }}">{{ b.numero }} de {{ b.de }}</td>
+    <td>{% if b.en_esta %}{% if b.estado == 'entregado' %}<span class="estado listo">Entregado</span>{% else %}<span class="estado listo">Cargado</span>{% endif %}{% elif b.estado == 'embalado' %}<span class="falta">Falta</span>{% else %}<span class="suave">En otra carga</span>{% endif %}</td>
+    <td class="suave">{% if b.en_esta %}{{ b.por|default:"—" }}{% endif %}</td>
+    <td class="suave" data-valor="{{ b.cuando|default:'' }}">{% if b.en_esta %}{{ b.cuando_corto }}{% endif %}</td>
+  </tr>
+  {% empty %}<tr><td colspan="5" class="suave">Sin bultos todavía.</td></tr>
   {% endfor %}
-  {% for m in datos.sin_terminar %}
-  <tr><td>{{ m }}</td><td>—</td><td class="falta">Sin terminar</td><td></td></tr>
-  {% endfor %}
+  </tbody>
 </table></div>
 
 {% if carga.estado == 'armando' %}
@@ -61,8 +99,11 @@
 {% else %}
 <h2>Salida</h2>
 <p>Salió a obra: {{ carga.salio_por|default:"—" }}, {{ carga.salio_en|date:"j/n H:i" }}.
-  {% if carga.faltantes %}<br><span class="falta">Salió con {{ carga.faltantes|length }} faltante{{ carga.faltantes|length|pluralize }}</span>
-  ({{ carga.faltantes|join:", " }}).{% if carga.motivo %} Motivo: {{ carga.motivo }}{% endif %}{% endif %}</p>
+  {% if carga.faltantes %}<br><span class="falta">Salió con {{ carga.faltantes|length }} faltante{{ carga.faltantes|length|pluralize }}</span>{% if carga.motivo %}. Motivo: {{ carga.motivo }}{% endif %}{% endif %}</p>
+{% if carga.faltantes %}<div class="caja tabla"><table>
+  <thead><tr><th>Lo que faltó al salir</th></tr></thead>
+  <tbody>{% for f in carga.faltantes %}<tr><td>{{ f }}</td></tr>{% endfor %}</tbody>
+</table></div>{% endif %}
 {% if carga.entregada_en %}<p>Entregada: {{ carga.entregada_por|default:"—" }}, {{ carga.entregada_en|date:"j/n H:i" }}.</p>{% endif %}
 {% endif %}
 {% endblock %}

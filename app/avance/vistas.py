@@ -96,11 +96,31 @@ def carga(request, taller, id):
             return redirect(url(request, 'carga', id=c.pk))
         except Rechazo as e:
             error = e.error
+    datos = acciones.carga_a_dic(c)
     return render(request, 'avance/carga.html', {
-        'carga': c, 'datos': acciones.carga_a_dic(c), 'error': error,
+        'carga': c, 'datos': datos, 'error': error, 'muebles': muebles_de_la_carga(datos),
         'con_instalacion': fijo(Etapa.Tipo.INSTALACION) is not None,
         'puesto': url(request, 'puesto') + f'?c={c.pk}',
     }, status=400 if error else 200)
+
+
+def muebles_de_la_carga(datos):
+    """Por mueble de la carga: bultos, cuántos van en esta, entregados, en otra carga, cuántos faltan y su estado
+    (`completo`, `faltan` o `sin_terminar`)."""
+    salida = []
+    for m in datos['muebles']:
+        bs = [b for b in datos['bultos'] if b['mueble'] == m]
+        if m in datos['sin_terminar']:
+            salida.append({'nombre': m, 'bultos': 0, 'en_esta': 0, 'entregados': 0, 'otra': 0, 'faltan': 0,
+                           'estado': 'sin_terminar'})
+            continue
+        en_esta = sum(1 for b in bs if b['en_esta'])
+        otra = sum(1 for b in bs if not b['en_esta'] and b['estado'] != 'embalado')
+        faltan = len(bs) - en_esta - otra
+        salida.append({'nombre': m, 'bultos': len(bs), 'en_esta': en_esta, 'otra': otra, 'faltan': faltan,
+                       'entregados': sum(1 for b in bs if b['en_esta'] and b['estado'] == 'entregado'),
+                       'estado': 'faltan' if faltan else 'completo'})
+    return salida
 
 
 def usos_de_puntos():

@@ -263,7 +263,9 @@ def test_carga_con_un_bulto_de_menos(cliente_de, t, pa):
     assert 'cada bulto' in post(c, bulto, {'texto': etiqueta(t.A, pa, pieza).codigo}).json()['error']
     # sale con faltantes (sin correlatividad, ficha 19): quedan anotados
     pagina = c.get(f'/taller-a/cargas/{carga.pk}/').content.decode()
-    assert 'Faltan 2' in pagina and f'{m} · bulto 2 de 2' in pagina
+    assert 'Faltan 2' in pagina and 'Faltan bultos' in pagina           # el mueble, en la tabla de muebles
+    fila = pagina[pagina.index('<td data-valor="2">2 de 2</td>'):][:120]        # su bulto 2, en la de bultos
+    assert 'class="falta">Falta</span>' in fila
     c.post(f'/taller-a/cargas/{carga.pk}/', {'motivo': ''})
     with con_taller(t.A):
         carga.refresh_from_db()

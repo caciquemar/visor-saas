@@ -1,0 +1,60 @@
+{% comment %}Tablas con buscar, filtro y orden (se incluye una vez por página). Cada tabla:
+   <div class="filtros-tabla" data-tabla="ID"> con input[data-buscar], select[data-filtro] (valores de data-estado de
+   las filas; varios separados por espacio en la fila) y [data-cuenta]; en la tabla, <th><button data-col="N"
+   data-tipo="numero|texto"> y, si hace falta, <td data-valor="…"> para ordenar. Filtro y orden se recuerdan mientras
+   la pestaña está abierta (las pantallas que se recargan solas no los pierden).{% endcomment %}
+<style>
+  .filtros-tabla { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.5rem 0 .75rem; }
+  .filtros-tabla input { flex:1 1 10rem; min-width:0; margin:0; }
+  .filtros-tabla select { width:auto; margin:0; }
+  table th button[data-col] { background:none; border:0; padding:0; color:inherit; font:inherit; font-weight:600; cursor:pointer; }
+  table th[aria-sort=ascending] button::after { content:" ▲"; font-size:.7em; }
+  table th[aria-sort=descending] button::after { content:" ▼"; font-size:.7em; }
+</style>
+<script>
+document.addEventListener('DOMContentLoaded', () => document.querySelectorAll('.filtros-tabla').forEach(caja => {
+  const tabla = document.getElementById(caja.dataset.tabla), cuerpo = tabla.tBodies[0], filas = [...cuerpo.rows];
+  const buscar = caja.querySelector('[data-buscar]'), filtro = caja.querySelector('[data-filtro]');
+  const clave = 'tabla.' + location.pathname + '.' + tabla.id;
+  let v = {};
+  try { v = JSON.parse(sessionStorage.getItem(clave) || '{}'); } catch (e) {}
+  let col = v.col ?? null, sube = v.sube !== false;
+  if (filtro && v.filtro != null) filtro.value = v.filtro;
+  if (buscar && v.q) buscar.value = v.q;
+  const valor = (f, i, numero) => {
+    const c = f.cells[i], x = c.dataset.valor ?? c.textContent.trim();
+    return numero ? parseFloat(x) || 0 : x.toLowerCase();
+  };
+  function aplicar() {
+    const q = buscar ? buscar.value.trim().toLowerCase() : '', fv = filtro ? filtro.value : '';
+    let n = 0;
+    filas.forEach(f => {
+      const ve = (!fv || (f.dataset.estado || '').split(' ').includes(fv)) && (!q || f.textContent.toLowerCase().includes(q));
+      f.hidden = !ve; if (ve) n++;
+    });
+    if (col != null) {
+      const b = tabla.querySelector(`th button[data-col="${col}"]`), numero = b && b.dataset.tipo === 'numero';
+      filas.slice().sort((a, c) => {
+        const x = valor(a, col, numero), y = valor(c, col, numero);
+        const r = numero ? x - y : x.localeCompare(y, 'es', {numeric: true});
+        return sube ? r : -r;
+      }).forEach(f => cuerpo.appendChild(f));
+    }
+    tabla.querySelectorAll('th').forEach(th => {
+      const b = th.querySelector('button[data-col]');
+      if (b && String(col) === b.dataset.col) th.setAttribute('aria-sort', sube ? 'ascending' : 'descending');
+      else th.removeAttribute('aria-sort');
+    });
+    const cuenta = caja.querySelector('[data-cuenta]');
+    if (cuenta) cuenta.textContent = `${n} de ${filas.length}`;
+    try { sessionStorage.setItem(clave, JSON.stringify({col, sube, filtro: fv, q})); } catch (e) {}
+  }
+  tabla.querySelectorAll('th button[data-col]').forEach(b => b.onclick = () => {
+    if (String(col) === b.dataset.col) sube = !sube; else { col = +b.dataset.col; sube = b.dataset.tipo !== 'numero'; }
+    aplicar();
+  });
+  if (buscar) buscar.oninput = aplicar;
+  if (filtro) filtro.onchange = aplicar;
+  aplicar();
+}));
+</script>
