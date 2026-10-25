@@ -11,51 +11,160 @@
 </div>
 {% endif %}
 {% if avance.sueltas %}<p class="suave">{{ avance.sueltas }} marca{{ avance.sueltas|pluralize }} de piezas que ya no están en esta versión (no cuentan).</p>{% endif %}
+<div class="filtros-muebles">
+  <input type="search" id="buscarMueble" placeholder="Buscar mueble" aria-label="Buscar mueble">
+  <select id="filtroMueble" aria-label="Filtrar muebles">
+    <option value="">Todos</option>
+    <option value="sin_terminar">Sin terminar</option>
+    <option value="terminados">Terminados (100%)</option>
+    <option value="qa_obs">QA con observaciones</option>
+    <option value="qa_sin">Sin QA</option>
+    <option value="sin_cargar">Sin cargar</option>
+    <option value="cargados">Cargados</option>
+    <option value="sin_instalar">Sin instalar</option>
+    <option value="instalados">Instalados</option>
+  </select>
+  <span class="suave" id="cuantosMuebles"></span>
+</div>
 <div class="caja tabla">
-  <table>
-    <thead><tr><th>Mueble</th><th>Avance</th><th>Control</th><th>Embalaje</th><th>Instalado</th></tr></thead>
+  <table class="muebles">
+    <thead><tr>
+      <th aria-sort="ascending"><button type="button" data-orden="nombre">Mueble</button></th>
+      <th><button type="button" data-orden="pct">Avance</button></th>
+      <th><button type="button" data-orden="qa">QA</button></th>
+      <th><button type="button" data-orden="carga">Cargado</button></th>
+      <th><button type="button" data-orden="inst">Instalado</button></th>
+    </tr></thead>
     <tbody>
     {% for m in avance.muebles %}
-      <tr>
-        <td>{{ m.nombre }}<br><span class="suave" style="font-size:.85rem">{% for nombre, n in m.etapas %}{{ nombre }} {{ n }}/{{ m.piezas }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></td>
+      <tr tabindex="0" data-det="det{{ forloop.counter }}" data-nombre="{{ m.nombre|lower }}" data-pct="{{ m.pct }}"
+          data-qa="{% if m.control.ok %}2{% elif m.control %}1{% else %}0{% endif %}"
+          data-carga="{% if m.carga.total %}{% widthratio m.carga.cargados m.carga.total 100 %}{% else %}-1{% endif %}"
+          data-inst="{% if m.instalacion %}1{% else %}0{% endif %}">
+        <td><strong>{{ m.nombre }}</strong>{% if m.paso %}<br><span class="suave" style="font-size:.85rem">{{ m.paso }}</span>{% endif %}</td>
         <td><strong>{{ m.pct }}%</strong></td>
-        <td>{% if m.control.ok %}<span class="estado listo">Ok</span>{% elif m.control %}<span class="estado error" title="{{ m.control.mal|join:', ' }}">Con observaciones</span>{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if m.fin %}Embalado <span class="suave">· {{ m.fin.por|default:"—" }}, {{ m.fin.cuando|date:"j/n H:i" }}</span>
-              {% if m.fin.motivo %}<br><span class="error">Faltaban {{ m.fin.faltantes|length }}:</span> <span class="suave">{{ m.fin.motivo }}</span>{% endif %}
-              <br><span class="suave">{% for b in m.bultos %}Bulto {{ b.numero }}: {{ b.get_estado_display|lower }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
-            {% else %}<a href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=fin&p={{ proyecto.pk }}&m={{ m.nombre|urlencode }}">Embalar</a>{% endif %}</td>
-        <td>{% if m.instalacion %}<span class="estado listo">Instalado</span><br><span class="suave" style="font-size:.85rem">{{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if m.control.ok %}<span class="estado listo">Ok</span>{% elif m.control %}<span class="estado error">Obs.</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if m.carga.total %}<span{% if m.carga.cargados == m.carga.total %} class="estado listo"{% endif %}>{{ m.carga.cargados }}/{{ m.carga.total }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if m.instalacion %}<span class="estado listo">Sí</span>{% else %}<span class="suave">—</span>{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
+  <p class="suave" id="sinMuebles" hidden style="margin:.75rem">Ningún mueble con ese filtro.</p>
 </div>
+
+{# el detalle de cada mueble, para la ventana #}
+{% for m in avance.muebles %}
+<template id="det{{ forloop.counter }}">
+  <h2 style="margin-top:0">{{ m.nombre }}</h2>
+  <p class="suave" style="margin-top:0">{{ m.pct }}%{% if m.paso %} · {{ m.paso }}{% endif %} · {{ m.piezas }} pieza{{ m.piezas|pluralize }}</p>
+  <h3>Procesos</h3>
+  <ul class="det-lista">{% for nombre, n in m.etapas %}<li><span>{{ nombre }}</span><span{% if n == m.piezas %} class="estado listo"{% endif %}>{{ n }}/{{ m.piezas }}</span></li>{% endfor %}</ul>
+  <h3>Control de calidad</h3>
+  {% if m.control %}
+    <p style="margin:0">{% if m.control.ok %}<span class="estado listo">Ok</span>{% else %}<span class="estado error">Con observaciones</span>{% endif %}
+      <span class="suave">· {{ m.control.por|default:"—" }}, {{ m.control.cuando }}</span></p>
+    <ul class="det-lista">{% for r in m.control.resultados %}<li><span>{{ r.nombre }}{% if r.nota %} <span class="suave">— {{ r.nota }}</span>{% endif %}</span><span class="estado {% if r.ok %}listo{% else %}error{% endif %}">{% if r.ok %}Ok{% else %}Mal{% endif %}</span></li>{% endfor %}</ul>
+  {% else %}<p class="suave" style="margin:0">Sin control.</p>{% endif %}
+  <h3>Embalaje y carga</h3>
+  {% if m.fin %}
+    <p style="margin:0">Embalado <span class="suave">· {{ m.fin.por|default:"—" }}, {{ m.fin.cuando|date:"j/n H:i" }}</span></p>
+    {% if m.fin.motivo %}<p style="margin:.25rem 0 0"><span class="error">Faltaban {{ m.fin.faltantes|length }}:</span> <span class="suave">{{ m.fin.motivo }}</span></p>{% endif %}
+    <ul class="det-lista">{% for b in m.bultos %}<li><span>Bulto {{ b.numero }}</span><span{% if b.estado != 'embalado' %} class="estado listo"{% endif %}>{{ b.get_estado_display }}</span></li>{% endfor %}</ul>
+  {% else %}<p class="suave" style="margin:0">Sin embalar.</p>{% endif %}
+  <h3>Instalación</h3>
+  {% if m.instalacion %}
+    <p style="margin:0"><span class="estado listo">Instalado</span> <span class="suave">· {{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}</span></p>
+    {% if m.instalacion.nota %}<p style="margin:.25rem 0 0">{{ m.instalacion.nota }}</p>{% endif %}
+    {% if m.instalacion.fotos %}<p class="suave" style="margin:.25rem 0 0">{{ m.instalacion.fotos|length }} foto{{ m.instalacion.fotos|length|pluralize }}</p>{% endif %}
+  {% else %}<p class="suave" style="margin:0">Sin instalar.</p>{% endif %}
+  {% if m.anotaciones %}
+  <h3>Anotaciones</h3>
+  <ul class="det-lista">{% for x in m.anotaciones|slice:":10" %}<li><span>{{ x.texto|default:"(con foto)" }} <span class="suave">· {% if x.proceso %}{{ x.proceso }} · {% endif %}{{ x.por|default:"—" }}, {{ x.cuando }}</span></span></li>{% endfor %}</ul>
+  {% endif %}
+  <div class="acciones">
+    {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}&m={{ m.nombre|urlencode }}">Ver 3D</a>{% endif %}
+    <button type="button" class="secundario" data-cerrar>Cerrar</button>
+  </div>
+</template>
+{% endfor %}
+<dialog id="detalleMueble" aria-label="Detalle del mueble"><div id="detalleCuerpo"></div></dialog>
+<script>
+(function () {
+  const tabla = document.querySelector('table.muebles'), cuerpo = tabla.tBodies[0];
+  const filas = [...cuerpo.rows], dlg = document.getElementById('detalleMueble');
+  const filtros = {
+    sin_terminar: f => +f.dataset.pct < 100, terminados: f => +f.dataset.pct >= 100,
+    qa_obs: f => f.dataset.qa === '1', qa_sin: f => f.dataset.qa === '0',
+    sin_cargar: f => +f.dataset.carga < 100, cargados: f => +f.dataset.carga >= 100,
+    sin_instalar: f => f.dataset.inst === '0', instalados: f => f.dataset.inst === '1'};
+  const buscar = document.getElementById('buscarMueble'), filtro = document.getElementById('filtroMueble');
+  const guardado = (() => { try { return JSON.parse(sessionStorage.getItem('muebles.vista') || '{}'); } catch (e) { return {}; } })();
+  let orden = guardado.orden || 'nombre', sube = guardado.sube !== false;
+  filtro.value = guardado.filtro || '';
+  function aplicar() {
+    const q = buscar.value.trim().toLowerCase(), ok = filtros[filtro.value] || (() => true);
+    let n = 0;
+    filas.forEach(f => { const ve = ok(f) && (!q || f.dataset.nombre.includes(q)); f.hidden = !ve; if (ve) n++; });
+    const valor = f => orden === 'nombre' ? f.dataset.nombre : +f.dataset[orden];
+    filas.slice().sort((a, b) => {
+      const x = valor(a), y = valor(b);
+      const c = typeof x === 'string' ? x.localeCompare(y, 'es', {numeric: true}) : x - y;
+      return (sube ? c : -c) || a.dataset.nombre.localeCompare(b.dataset.nombre, 'es', {numeric: true});
+    }).forEach(f => cuerpo.appendChild(f));
+    tabla.querySelectorAll('th').forEach(th => {
+      const b = th.querySelector('button');
+      if (b.dataset.orden === orden) th.setAttribute('aria-sort', sube ? 'ascending' : 'descending');
+      else th.removeAttribute('aria-sort');
+    });
+    document.getElementById('cuantosMuebles').textContent = `${n} de ${filas.length}`;
+    document.getElementById('sinMuebles').hidden = n > 0;
+    try { sessionStorage.setItem('muebles.vista', JSON.stringify({orden, sube, filtro: filtro.value})); } catch (e) {}
+  }
+  tabla.querySelectorAll('th button').forEach(b => b.onclick = () => {
+    if (orden === b.dataset.orden) sube = !sube; else { orden = b.dataset.orden; sube = orden === 'nombre'; }
+    aplicar();
+  });
+  buscar.oninput = aplicar; filtro.onchange = aplicar;
+  function abrir(f) {
+    const det = document.getElementById(f.dataset.det);
+    const c = document.getElementById('detalleCuerpo');
+    c.replaceChildren(det.content.cloneNode(true));
+    c.querySelector('[data-cerrar]').onclick = () => dlg.close();
+    dlg.showModal();
+  }
+  filas.forEach(f => {
+    f.onclick = () => abrir(f);
+    f.onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); abrir(f); } };
+  });
+  dlg.addEventListener('click', e => { if (e.target === dlg) dlg.close(); });     // tocar afuera cierra
+  aplicar();
+})();
+</script>
 
 <h3 style="margin-top:1.5rem" id="cargas">Cargas</h3>
 {% if avance.cargas %}
 <div class="caja tabla" style="margin-bottom:1rem">
-  <table>
-    <thead><tr><th>Carga</th><th>Estado</th><th>Muebles</th><th>Bultos</th><th></th></tr></thead>
+  <table class="cargas">
+    <thead><tr><th>Carga</th><th>Estado</th><th>Q muebles</th></tr></thead>
     <tbody>
     {% for c in avance.cargas %}
-      <tr>
+      <tr data-href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}" tabindex="0">
         <td><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a><br>
-          <span class="suave" style="font-size:.85rem">{{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></td>
-        <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
-          {% if c.estado == 'anulada' %}<br><span class="suave" style="font-size:.85rem">{{ c.anulada_por|default:"—" }}, {{ c.anulada_en|date:"j/n H:i" }}</span>{% endif %}</td>
-        <td>{% if c.libre %}<span class="suave">lo que se escaneó:</span> {% endif %}{% if c.muebles %}{{ c.muebles|join:", " }}{% elif c.libre %}—{% else %}proyecto completo{% endif %}</td>
-        <td>{% if c.resumen %}{{ c.resumen.cargados }} de {{ c.resumen.total }}{% if c.resumen.faltantes and c.estado != 'armando' %}<br><span class="suave" style="font-size:.85rem">{{ c.resumen.faltantes|length }} para otro envío</span>{% endif %}{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if c.estado == 'armando' %}
-          <a href="{% url 'taller:avance:modificar_carga' taller=request.taller.slug id=c.pk %}">Modificar</a>
-          {% if gestiona %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=c.pk %}"
-                onsubmit="return confirm('¿Anular la carga {{ c.pk }}? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}
-            <button class="secundario" type="submit" style="padding:.3rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}
-        {% endif %}</td>
+          <span class="suave" style="font-size:.85rem">{{ c.creada_en|date:"j/n H:i" }}</span></td>
+        <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span></td>
+        <td>{% if c.resumen %}{{ c.resumen.muebles|length }}{% else %}{{ c.muebles|length }}{% endif %}</td>
       </tr>
     {% endfor %}
     </tbody>
   </table>
 </div>
+<script>
+  document.querySelectorAll('table.cargas tbody tr').forEach(f => {
+    f.onclick = e => { if (!e.target.closest('a')) location.href = f.dataset.href; };
+    f.onkeydown = e => { if (e.key === 'Enter') location.href = f.dataset.href; };
+  });
+</script>
 {% endif %}
 <details class="caja"{% if not avance.cargas %} open{% endif %}>
   <summary>Nueva carga</summary>

@@ -20,12 +20,23 @@ def del_proyecto(proyecto):
     bultos = {}
     for b in Bulto.objects.filter(proyecto=proyecto, fin__anulado_en__isnull=True).order_by('numero'):
         bultos.setdefault(b.mueble, []).append(b)
+    def corta(d):                 # '2026-10-24 15:46' (como lo da la API) → '24/10 15:46'
+        if d and d.get('cuando'):
+            fecha, _, h = d['cuando'].partition(' ')
+            _, mes, dia = fecha.split('-')
+            d = {**d, 'cuando': f'{int(dia)}/{int(mes)} {h}'}
+        return d
+
+    nombres_de_pasos = {k: n for k, n, _ in pasos_activos()}
+    nombres_de_pasos.setdefault('sin_armar', 'Sin armar')
     muebles = []
     for nombre, m in sorted(a['muebles'].items(), key=lambda kv: kv[0].lower()):
         muebles.append({'nombre': nombre, 'pct': m['pct'], 'piezas': m['piezas'],
                         'etapas': [(e.nombre, m['por_etapa'][e.pk]) for e in a['etapas']], 'fin': m['fin'],
-                        'bultos': bultos.get(nombre, []), 'control': entrega[nombre]['control'],
-                        'instalacion': entrega[nombre]['instalacion']})
+                        'bultos': bultos.get(nombre, []), 'control': corta(entrega[nombre]['control']),
+                        'instalacion': corta(entrega[nombre]['instalacion']), 'carga': entrega[nombre]['bultos'],
+                        'paso': nombres_de_pasos.get(entrega[nombre]['paso'], ''),
+                        'anotaciones': entrega[nombre]['anotaciones']})
     return {
         'etapas': a['etapas'], 'total': a['total'], 'muebles': muebles, 'sueltas': a['sueltas'],
         'pct_str': f"{a['total']['pct']:.2f}",
