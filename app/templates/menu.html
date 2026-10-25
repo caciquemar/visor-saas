@@ -39,6 +39,7 @@
     {% for x in menu %}<a href="{{ x.url }}"{% if x.seccion %} class="seccion"{% elif x.sub %} class="sub"{% endif %}{% if x.actual %} aria-current="page"{% endif %}>{% icono x.icono %}<span>{{ x.nombre }}</span></a>
     {% empty %}<a href="{% url 'inicio' %}">Mis talleres</a>{% endfor %}
     <div class="quien">{{ user }}</div>
+    {% if request.taller %}<a href="{% url 'taller:cuenta' taller=request.taller.slug %}"{% if request.resolver_match.url_name == 'cuenta' %} aria-current="page"{% endif %}>Mi cuenta</a>{% endif %}
     <a href="{% url 'entrar' %}?cambiar=1">Cambiar de persona</a>
     <form method="post" action="{% url 'salir' %}">{% csrf_token %}<button type="submit">Salir</button></form>
   </nav>

@@ -133,6 +133,7 @@ def visor(request, taller):
         'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}),
                    'api': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}) + 'api/'},
         'salir': reverse('salir'),
+        'cuenta': reverse('taller:cuenta', kwargs={'taller': request.taller.slug}),
         'cambiar': reverse('entrar') + '?cambiar=1',         # celular compartido: entra otro
     })
 

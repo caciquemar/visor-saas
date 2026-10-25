@@ -341,6 +341,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   comprometida, pedido, notas), en desarrollo / en producción (en desarrollo no aparece en Mi puesto, Tablero, visor ni
   Tareas; el link del cliente sigue andando), archivar y, desde Archivados, borrar (solo el dueño). El proyecto en
   cuatro secciones con íconos (`?ver=`) y la lista con búsqueda, filtros y tarjetas. Ver `docs/sesiones/22-proyectos.md`.
+- 2026-10-25: **Mi cuenta (pedido de Martín)** en `/<taller>/cuenta/` (`talleres/cuenta.py`), desde el menú ☰ y el
+  del visor: nombre (y usuario si entra con PIN), mail y contraseña pidiendo la actual, su PIN del taller pidiendo el
+  actual, sus huellas (quitar) y sus talleres. Íconos en una sola definición (`talleres/iconos.py`).
 
 ## Pendientes
 

@@ -1,0 +1,98 @@
+{% extends 'base.html' %}
+{% block titulo %}Mi cuenta{% endblock %}
+{% block cabeza %}
+<style>
+  .cuenta h2 { margin-top:1.5rem; }
+  .cuenta .fila { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap;
+                  padding:.6rem 0; border-top:1px solid var(--borde); }
+  .cuenta .fila:first-child { border-top:0; padding-top:0; }
+  .cuenta details summary { cursor:pointer; font-weight:600; }
+  .cuenta details[open] summary { margin-bottom:.5rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+<div class="cuenta">
+<h1>Mi cuenta</h1>
+<p class="suave" style="margin-top:0">{% if user.email %}Entrás con <strong>{{ user.email }}</strong>{% else %}Entrás con el usuario
+  <strong>{{ user.usuario }}</strong> y tu PIN{% endif %}. En {{ request.taller.nombre }} sos {{ request.membresia.get_rol_display|lower }}.</p>
+
+<h2>Tus datos</h2>
+<form class="caja" method="post">{% csrf_token %}
+  <input type="hidden" name="accion" value="datos">
+  {{ form_datos.as_div }}
+  <p class="suave" style="margin:.25rem 0 0">Tu nombre es lo que ven los demás en Equipo, en las tareas y en lo que marcás en producción.</p>
+  <div class="acciones"><button type="submit">Guardar</button></div>
+</form>
+
+{% if form_mail or form_clave %}
+<h2>Mail y contraseña</h2>
+<div class="caja">
+  {% if form_mail %}
+  <details{% if form_mail.errors %} open{% endif %}>
+    <summary>Cambiar el mail</summary>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="accion" value="mail">
+      {{ form_mail.as_div }}
+      <p class="suave" style="margin:.25rem 0 0">Desde ahí vas a entrar con el mail nuevo. Escribilo bien: si te olvidás la contraseña, el aviso llega a ese mail.</p>
+      <div class="acciones"><button type="submit">Cambiar el mail</button></div>
+    </form>
+  </details>
+  {% endif %}
+  {% if form_clave %}
+  <details{% if form_clave.errors %} open{% endif %} style="margin-top:.75rem">
+    <summary>Cambiar la contraseña</summary>
+    <form method="post">{% csrf_token %}
+      <input type="hidden" name="accion" value="clave">
+      {{ form_clave.as_div }}
+      <div class="acciones"><button type="submit">Cambiar la contraseña</button></div>
+    </form>
+  </details>
+  {% endif %}
+</div>
+{% endif %}
+
+{% if form_pin %}
+<h2>Tu PIN</h2>
+<details class="caja"{% if form_pin.errors %} open{% endif %}>
+  <summary>Cambiar el PIN de {{ request.taller.nombre }}</summary>
+  <form method="post">{% csrf_token %}
+    <input type="hidden" name="accion" value="pin">
+    {{ form_pin.as_div }}
+    <p class="suave" style="margin:.25rem 0 0">Si te olvidás el PIN, pedile uno nuevo al dueño o a la oficina.</p>
+    <div class="acciones"><button type="submit">Cambiar el PIN</button></div>
+  </form>
+</details>
+{% endif %}
+
+<h2>Huella</h2>
+<div class="caja">
+  {% for ll in llaves %}
+  <div class="fila">
+    <span><strong>{{ ll.equipo|default:"Un celular" }}</strong><br>
+      <span class="suave">Agregada el {{ ll.creada|date:"j/n/Y" }}{% if ll.usada %} · usada el {{ ll.usada|date:"j/n/Y H:i" }}{% endif %}</span></span>
+    <form method="post" onsubmit="return confirm('¿Quitar la huella de este celular? Para volver a usarla, la agregás de nuevo.')">{% csrf_token %}
+      <input type="hidden" name="accion" value="quitar_llave"><input type="hidden" name="llave" value="{{ ll.pk }}">
+      <button type="submit" class="secundario">Quitar</button>
+    </form>
+  </div>
+  {% empty %}
+  <p class="suave" style="margin-top:0">Todavía no entrás con la huella en ningún celular.</p>
+  {% endfor %}
+  {% if celular_propio %}
+  <div class="acciones"><a class="boton" href="{% url 'llave_nueva' %}?next={{ request.path|urlencode }}">Usar la huella en este celular</a></div>
+  {% else %}
+  <p class="suave" style="margin-bottom:0">La huella se agrega desde tu propio celular (no desde uno compartido del taller).</p>
+  {% endif %}
+</div>
+
+{% if talleres|length > 1 %}
+<h2>Tus talleres</h2>
+<div class="caja">
+  {% for m in talleres %}
+  <div class="fila"><a href="{% url 'taller:inicio' taller=m.taller.slug %}">{{ m.taller.nombre }}</a>
+    <span class="suave">{{ m.get_rol_display }}</span></div>
+  {% endfor %}
+</div>
+{% endif %}
+</div>
+{% endblock %}

@@ -2036,6 +2036,7 @@ if (!CLIENTE && Array.isArray(VISOR.menu) && VISOR.menu.length){
   const icono = x => x.icono ? `<svg class="icono" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${x.icono}</svg>` : '';
   $('menuLista').innerHTML = VISOR.menu.map(x => `<a href="${esc(x.url)}"${x.seccion ? ' class="seccion"' : x.sub ? ' class="sub"' : ''}${x.actual ? ' aria-current="page"' : ''}>${icono(x)}<span>${esc(x.nombre)}</span></a>`).join('')
     + (VISOR.salir ? `<div class="quien">${esc((VISOR.yo && VISOR.yo.nombre) || '')}</div>
+      ${VISOR.cuenta ? `<a href="${esc(VISOR.cuenta)}">Mi cuenta</a>` : ''}
       ${VISOR.cambiar ? `<a href="${esc(VISOR.cambiar)}">Cambiar de persona</a>` : ''}
       <form method="post" action="${esc(VISOR.salir)}"><input type="hidden" name="csrfmiddlewaretoken" value="${esc(VISOR.csrf || '')}">
       <button type="submit">Salir</button></form>` : '');

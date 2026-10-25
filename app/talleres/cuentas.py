@@ -180,14 +180,20 @@ def entrada(request, token):
     return despues_de_entrar(request, respuesta, usuario, tipo=equipo_celular.PROPIO)
 
 
-@login_required
-def inicio(request):
+def mis_talleres(request):
+    """Las membresías activas de quien entró (solo la del taller donde entró, si entró con PIN). También para
+    Mi cuenta (talleres/cuenta.py)."""
     membresias = (Membresia.sin_filtro.select_related('taller')
                   .filter(usuario=request.user, activa=True, taller__activo=True).order_by('taller__nombre'))
     pin_taller = request.session.get(SESION_PIN)
     if pin_taller is not None:
         membresias = membresias.filter(taller_id=pin_taller)
-    membresias = list(membresias)
+    return list(membresias)
+
+
+@login_required
+def inicio(request):
+    membresias = mis_talleres(request)
     if len(membresias) == 1:
         return redirect('taller:inicio', taller=membresias[0].taller.slug)
     return render(request, 'cuentas/elegir_taller.html', {'membresias': membresias})
