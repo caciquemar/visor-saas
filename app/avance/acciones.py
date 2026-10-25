@@ -39,11 +39,26 @@ def proyecto_a_dic(p):
     return {'id': p.pk, 'nombre': p.nombre}
 
 
-def proyecto_o_rechazo(proyecto_id):
+FUERA_DE_PRODUCCION = {
+    'desarrollo': 'Este proyecto está en desarrollo: habilitalo para producción en la pantalla del proyecto.',
+    'archivado': 'Este proyecto está archivado: desarchivalo en la pantalla del proyecto.',
+}
+
+
+def fuera_de_produccion(p):
+    """El aviso si el proyecto no se ve en producción (ficha 22), o None."""
+    return FUERA_DE_PRODUCCION.get(p.estado)
+
+
+def proyecto_o_rechazo(proyecto_id, solo_leer=False):
+    """El proyecto del pedido. Para registrar algo tiene que estar en producción; `solo_leer`: el visor de un
+    proyecto en desarrollo (abierto desde su pantalla) igual muestra su avance."""
     p = Proyecto.objects.select_related('version_actual').filter(pk=proyecto_id).first() \
         if isinstance(proyecto_id, int) and not isinstance(proyecto_id, bool) else None
     if p is None:
         raise Rechazo(404, 'Ese proyecto no existe.')
+    if not solo_leer and fuera_de_produccion(p):
+        raise Rechazo(409, fuera_de_produccion(p))
     return p
 
 
@@ -116,6 +131,8 @@ def pieza_leida(texto, slug, proyecto_puesto, etapa):
         e = etiqueta_de(lectura['codigo'])
         if e is None:
             return error('Esta etiqueta no es de este taller.')
+        if fuera_de_produccion(e.proyecto):
+            return error(fuera_de_produccion(e.proyecto))
         if e.tipo == e.Tipo.MUEBLE:
             return error('Es la etiqueta de un mueble. Acá se escanean piezas.', mueble=e.clave.get('mueble'))
         piezas = piezas_de(e.proyecto)
@@ -231,6 +248,8 @@ def mueble_leido(slug, texto, proyecto_id=None):
     e = etiqueta_de(lectura['codigo'])
     if e is None:
         return error('Esta etiqueta no es de este taller.')
+    if fuera_de_produccion(e.proyecto):
+        return error(fuera_de_produccion(e.proyecto))
     mueble = e.clave.get('mueble')
     piezas = piezas_de(e.proyecto)
     if not any(x['panel']['mueble'] == mueble for x in piezas):
@@ -403,6 +422,8 @@ def que_se_leyo(slug, texto, proyecto_id=None):
         e = etiqueta_de(lectura['codigo'])
         if e is None:
             return error('Esta etiqueta no es de este taller.')
+        if fuera_de_produccion(e.proyecto):
+            return error(fuera_de_produccion(e.proyecto))
         proyecto, piezas = e.proyecto, piezas_de(e.proyecto)
         if e.tipo == e.Tipo.MUEBLE:
             mueble, pieza = e.clave.get('mueble'), None

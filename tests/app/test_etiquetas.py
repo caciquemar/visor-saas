@@ -41,7 +41,7 @@ def guardar_version(taller, proyecto, contenido, numero):
 
 def proyecto_de(taller, contenido=None, nombre='cocina grondona'):
     with con_taller(taller):
-        p = Proyecto.objects.create(nombre=nombre, cliente='Grondona', direccion='Calle 123')
+        p = Proyecto.objects.create(nombre=nombre, cliente='Grondona', direccion='Calle 123', en_produccion=True)
     guardar_version(taller, p, contenido or GRONDONA, 1)
     return p
 
@@ -320,9 +320,9 @@ def test_proyecto_sin_version_lista(cliente_de, t):
 
 
 def test_datos_de_la_obra(cliente_de, t, pa):
-    datos_obra = {'cliente': 'Familia Pérez', 'direccion': 'Av. Siempreviva 742'}
-    assert cliente_de(t.armador_a).post(f'/taller-a/proyectos/{pa.pk}/obra/', datos_obra).status_code == 403
-    cliente_de(t.oficina_a).post(f'/taller-a/proyectos/{pa.pk}/obra/', datos_obra)
+    datos_obra = {'nombre': pa.nombre, 'cliente': 'Familia Pérez', 'direccion': 'Av. Siempreviva 742'}
+    assert cliente_de(t.armador_a).post(f'/taller-a/proyectos/{pa.pk}/datos/', datos_obra).status_code == 403
+    cliente_de(t.oficina_a).post(f'/taller-a/proyectos/{pa.pk}/datos/', datos_obra)
     pa.refresh_from_db()
     assert (pa.cliente, pa.direccion) == ('Familia Pérez', 'Av. Siempreviva 742')
 

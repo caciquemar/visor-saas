@@ -119,7 +119,7 @@ def test_sin_modulo_un_zip_armado_a_mano_se_ignora(dueno_a, t, falso, disponible
     with con_taller(t.A):
         assert not Original.objects.filter(tipo=Original.Tipo.POSTPROCESADOR).exists()
         assert not ResultadoZicar.objects.exists()
-    r = dueno_a.get(f'/taller-a/proyectos/{proyecto_de(t).pk}/')
+    r = dueno_a.get(f'/taller-a/proyectos/{proyecto_de(t).pk}/?ver=versiones')
     assert b'Zicar' not in r.content
 
 
@@ -132,7 +132,7 @@ def test_sin_modulo_la_descarga_da_404_aunque_exista_el_resultado(dueno_a, t, fa
         zip_original = Original.objects.get(tipo=Original.Tipo.POSTPROCESADOR)
     prender(t.A, prendido=False)                # ...pero se apagó el módulo
     assert dueno_a.get(descarga(p)).status_code == 404
-    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content
+    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content
     assert b'Zicar' not in pagina and zip_original.nombre.encode() not in pagina
     original = f'/taller-a/proyectos/{p.pk}/versiones/1/originales/{zip_original.pk}/'
     assert dueno_a.get(original).status_code == 404
@@ -214,7 +214,7 @@ def test_carpeta_que_no_convierte_ninguna_pieza_queda_en_error(dueno_a, t, falso
     with con_taller(t.A):
         r = ResultadoZicar.objects.get()
     assert r.estado == 'error' and 'ninguna pieza' in r.mensaje
-    assert 'no se pudo convertir' in dueno_a.get(f'/taller-a/proyectos/{proyecto_de(t).pk}/').content.decode()
+    assert 'no se pudo convertir' in dueno_a.get(f'/taller-a/proyectos/{proyecto_de(t).pk}/?ver=versiones').content.decode()
 
 
 # ---------------------------------------------------------------- conversión de verdad (pb2zicar)
@@ -239,7 +239,7 @@ def test_zip_descargado_igual_a_pb2zicar(dueno_a, t, falso, tmp_path, raiz):
     base = 'Rack florencia v2_zicar' if raiz else 'Rack florencia_zicar'
     assert r.nombre == f'{base}.zip'
 
-    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     assert 'Descargar Zicar' in pagina and f'{r.piezas} piezas convertidas' in pagina
 
     respuesta = dueno_a.get(descarga(p))

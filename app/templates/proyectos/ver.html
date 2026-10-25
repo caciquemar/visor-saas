@@ -1,7 +1,38 @@
 {% extends 'base.html' %}
 {% block titulo %}{{ proyecto.nombre }}{% endblock %}
-{% block cabeza %}{% if en_proceso %}<meta http-equiv="refresh" content="5">{% endif %}
+{% block cabeza %}{% if en_proceso and seccion == 'versiones' %}<meta http-equiv="refresh" content="5">{% endif %}
 <style>
+  .encabezado h1 { margin-bottom:.15rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .chip-estado { font-size:.8rem; font-weight:600; padding:.15rem .55rem; border-radius:999px; border:1px solid var(--borde); color:var(--suave); }
+  .chip-estado.produccion { background:var(--acento); color:var(--acento-texto); border-color:var(--acento); }
+  .chip-estado.archivado { border-style:dashed; }
+  .secciones { display:grid; grid-template-columns:repeat(4, 1fr); gap:.35rem; margin:1rem 0 1.25rem;
+               border-bottom:1px solid var(--borde); }
+  .secciones a { display:flex; flex-direction:column; align-items:center; gap:.2rem; padding:.5rem .25rem .6rem;
+                 color:var(--suave); text-decoration:none; font-size:.85rem; border-bottom:3px solid transparent; margin-bottom:-1px; }
+  .secciones a .icono { width:1.7rem; height:1.7rem; }
+  .secciones a[aria-current=page] { color:var(--acento); border-bottom-color:var(--acento); font-weight:600; }
+  .secciones a:hover { color:var(--texto); }
+  .fila { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+  .estado-proyecto { margin-bottom:1rem; }
+  .interruptor { width:3.4rem; height:2rem; padding:0; border-radius:999px; border:1px solid var(--borde);
+                 background:var(--borde); position:relative; flex:none; cursor:pointer; }
+  .interruptor span { position:absolute; top:.2rem; left:.2rem; width:1.55rem; height:1.55rem; border-radius:50%;
+                      background:var(--panel); box-shadow:0 1px 3px rgba(0,0,0,.25); transition:left .15s; }
+  .interruptor[aria-checked=true] { background:var(--acento); border-color:var(--acento); }
+  .interruptor[aria-checked=true] span { left:1.6rem; }
+  .avance-general { display:block; color:var(--texto); text-decoration:none; margin-bottom:1rem; }
+  .avance-general:hover { border-color:var(--acento); }
+  .barra { height:.55rem; background:var(--borde); border-radius:999px; overflow:hidden; margin:.5rem 0; }
+  .barra span { display:block; height:100%; background:var(--acento); }
+  .datos .campos { display:grid; grid-template-columns:repeat(auto-fill, minmax(14rem, 1fr)); gap:0 1rem; }
+  .datos .campo.ancho { grid-column:1 / -1; }
+  .datos-leer { display:grid; grid-template-columns:max-content 1fr; gap:.35rem 1rem; margin:0; }
+  .datos-leer dt { color:var(--suave); }
+  .datos-leer dd { margin:0; }
+  .archivado { border-color:var(--borde); border-style:dashed; margin-bottom:1rem; }
+  .borrar input { max-width:18rem; }
+  h2.sin-margen { margin-top:0; }
   .version { margin-top:1rem; }
   .version.actual { border-color:var(--acento); }
   .version h3 { margin:0 0 .35rem; font-size:1.05rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
@@ -24,228 +55,44 @@
 </style>
 {% endblock %}
 {% block contenido %}
-<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}">Proyectos</a></p>
-<h1>{{ proyecto.nombre }}</h1>
-
-{% if gestiona and base and texturas_nuevas %}
-<div class="caja aviso-texturas">
-  <strong>Subiste texturas que faltaban</strong> ({{ texturas_nuevas|join:", " }}). Volvé a convertir para verlas en el proyecto.
-  <form class="acciones" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=base.numero %}">{% csrf_token %}
-    <button type="submit">Volver a convertir</button></form>
+<div class="encabezado">
+  <p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:lista' taller=request.taller.slug %}{% if proyecto.archivado_en %}?estado=archivados{% endif %}">Proyectos</a></p>
+  <h1>{{ proyecto.nombre }} <span class="chip-estado {{ proyecto.estado }}">{{ proyecto.get_estado_display }}</span></h1>
+  {% if proyecto.cliente or proyecto.pedido or proyecto.entrega %}<p class="suave" style="margin:0">
+    {% if proyecto.cliente %}{{ proyecto.cliente }}{% endif %}{% if proyecto.pedido %}{% if proyecto.cliente %} · {% endif %}pedido {{ proyecto.pedido }}{% endif %}{% if proyecto.entrega %}{% if proyecto.cliente or proyecto.pedido %} · {% endif %}<span{% if proyecto.entrega < hoy and not proyecto.archivado_en %} class="error"{% endif %}>entrega {{ proyecto.entrega|date:"j/n/Y" }}</span>{% endif %}</p>{% endif %}
 </div>
-{% endif %}
-{% if gestiona and faltan %}
-<div class="caja aviso-texturas">
-  <strong>Faltan texturas:</strong> {{ faltan|join:", " }}. Se ven con su color hasta que subas la imagen.
-  <div class="acciones"><a class="boton" href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Subir texturas</a></div>
-</div>
-{% endif %}
 
-<div class="acciones" style="margin:0 0 .5rem">
-  {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir en el visor</a>{% endif %}
-  {% if listo %}<a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}">Imprimir etiquetas</a>{% endif %}
-  {% if gestiona %}<a class="boton{% if listo %} secundario-enlace{% endif %}" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>{% endif %}
-</div>
-{% if proyecto.cliente or proyecto.direccion %}<p class="suave" style="margin:0 0 .5rem">{{ proyecto.cliente }}{% if proyecto.cliente and proyecto.direccion %} · {% endif %}{{ proyecto.direccion }}</p>{% endif %}
-
-{% if gestiona and listo %}
-<h2>Link para el cliente</h2>
-<div class="caja">
-  <p class="suave" style="margin-top:0">El cliente ve el proyecto en 3D, con medidas y en realidad aumentada, con tu logo y tu color.
-    No ve números de mecanizado ni datos del taller. No necesita cuenta.</p>
-  {% for l in links %}
-  <div class="link-cliente">
-    <input readonly value="{{ l.direccion }}" aria-label="Link para el cliente" onclick="this.select()">
-    <div class="suave">
-      {% if l.vencido %}<strong class="error">Venció el {{ l.vence|date:"j/n/Y" }}.</strong>
-      {% elif l.vence %}Vence el {{ l.vence|date:"j/n/Y" }}.{% else %}No vence.{% endif %}
-      {{ l.visitas }} visita{{ l.visitas|pluralize }}{% if l.ultima_visita %} (la última, {{ l.ultima_visita|date:"j/n H:i" }}){% endif %}.
-    </div>
-    <div class="acciones" style="margin-top:.5rem">
-      {% if not l.vencido %}
-      <button type="button" class="secundario" data-copiar="{{ l.direccion }}">Copiar</button>
-      <a class="boton secundario-enlace" href="{{ l.direccion }}" target="_blank" rel="noopener">Ver como cliente</a>
-      {% endif %}
-      <form class="enlinea" method="post" action="{% url 'taller:proyectos:anular_link' taller=request.taller.slug id=proyecto.pk link_id=l.pk %}"
-            onsubmit="return confirm('¿Anular este link? Quien lo tenga ya no va a poder ver el proyecto.')">{% csrf_token %}
-        <button class="secundario" type="submit">Anular</button></form>
-    </div>
-  </div>
-  {% endfor %}
-  <form method="post" action="{% url 'taller:proyectos:nuevo_link' taller=request.taller.slug id=proyecto.pk %}" class="acciones">{% csrf_token %}
-    <label for="dias" style="margin:0;align-self:center">{% if links %}Otro link que vence en{% else %}Crear un link que vence en{% endif %}</label>
-    <select id="dias" name="dias" style="width:auto">{% for d, texto in dias_link %}
-      <option value="{{ d }}"{% if d == dias_por_defecto %} selected{% endif %}>{{ texto }}</option>{% endfor %}</select>
-    <button type="submit">Crear link</button>
-  </form>
-  {% if not request.taller.logo and request.membresia.rol == 'dueno' %}<p class="suave">Todavía no cargaste tu logo: <a href="{% url 'taller:marca' taller=request.taller.slug %}">cargalo en Marca</a>.</p>{% endif %}
-</div>
-<script>
-  document.querySelectorAll('[data-copiar]').forEach(b => b.onclick = async () => {
-    try{ await navigator.clipboard.writeText(b.dataset.copiar); b.textContent = 'Copiado ✓'; }
-    catch(e){ b.textContent = 'Seleccionalo y copialo'; }
-    setTimeout(() => b.textContent = 'Copiar', 2000);
-  });
-</script>
-{% endif %}
-
-{% if probador and gestiona or elecciones %}
-<h2 id="colores">Probador de colores</h2>
-{% endif %}
-{% if elecciones %}
-<div class="caja">
-  <strong>Lo que eligió el cliente</strong>
-  {% for e in elecciones %}
-  <div class="eleccion">
-    <div><strong>{{ e.nombre }}</strong> <span class="suave">· {{ e.creada|date:"j/n/Y H:i" }}{% if e.version and e.version.pk != proyecto.version_actual_id %} · con la versión {{ e.version.numero }}{% endif %}</span></div>
-    <ul>{% for x in e.elecciones %}<li>{{ x.grupo }}: {% if x.elegido %}<strong>{{ x.elegido }}</strong> <span class="suave">(en vez de {{ x.tableros|join:", " }})</span>{% else %}como está ({{ x.tableros|join:", " }}){% endif %}</li>{% endfor %}</ul>
-    {% if e.comentario %}<p class="comentario">“{{ e.comentario }}”</p>{% endif %}
-  </div>
-  {% endfor %}
-  <p class="suave" style="margin-bottom:0">El proyecto no cambia solo: si van con esta, cambiá los tableros en Polyboard y subí una versión nueva.</p>
-</div>
-{% endif %}
-{% if probador and gestiona %}
-<div class="caja">
-  <p class="suave" style="margin-top:0">En el link, el cliente prueba otros tableros sobre su mueble, en 3D y en realidad aumentada,
-    y te manda el que le gusta. Armá grupos de tableros que cambian juntos (por ejemplo "Frentes") y elegí qué colores de tu biblioteca ofrecer.
-    Los cantos que se llaman como el tablero cambian con él.</p>
-  {% for g in probador.grupos %}
-  <details class="grupo-color"{% if not g.marcados %} open{% endif %}>
-    <summary><strong>{{ g.nombre }}</strong> <span class="suave">· {{ g.tableros|join:", " }} · {{ g.opciones|length }} color{{ g.opciones|length|pluralize:"es" }}</span></summary>
-    {% include 'proyectos/grupo_color.html' with grupo=g %}
-  </details>
-  {% endfor %}
-  {% if probador.tableros %}
-  <details class="grupo-color"{% if not probador.grupos %} open{% endif %}>
-    <summary>Agregar un grupo{% if probador.libres %} <span class="suave">· sin grupo: {{ probador.libres|join:", " }}</span>{% endif %}</summary>
-    {% include 'proyectos/grupo_color.html' with grupo=None %}
-  </details>
-  {% else %}<p class="suave">Esta versión no tiene la lista de tableros para el cliente. Volvé a convertirla.</p>{% endif %}
-</div>
-{% endif %}
-
-{% if gestiona %}
-<details class="caja" style="margin-top:1rem">
-  <summary>Datos de la obra (van en la etiqueta de cada bulto)</summary>
-  <form method="post" action="{% url 'taller:proyectos:obra' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
-    <label for="id_cliente">Cliente</label>{{ form_obra.cliente }}
-    <label for="id_direccion">Dirección de la obra</label>{{ form_obra.direccion }}
-    <div class="acciones"><button type="submit">Guardar</button></div>
-  </form>
-</details>
-{% endif %}
-
-{% if avance %}
-<h2 id="avance">Avance <span class="suave" style="font-weight:400">{{ avance.total.pct }}% · {{ avance.total.terminados }} de {{ avance.muebles|length }} muebles terminados</span></h2>
-{% if avance.nuevas %}
-<div class="caja aviso-texturas">
-  <strong>{{ avance.nuevas|length }} pieza{{ avance.nuevas|length|pluralize }} nueva{{ avance.nuevas|length|pluralize }} en esta versión</strong>
-  (no estaban en la anterior, arrancan sin avance):
-  {% for x in avance.nuevas|slice:":30" %}{{ x.panel.num|default:"s/n" }} {{ x.panel.nombre }} ({{ x.panel.mueble }}){% if not forloop.last %}, {% endif %}{% endfor %}{% if avance.nuevas|length > 30 %}…{% endif %}.
-  Imprimí sus etiquetas.
-</div>
-{% endif %}
-{% if avance.sueltas %}<p class="suave">{{ avance.sueltas }} marca{{ avance.sueltas|pluralize }} de piezas que ya no están en esta versión (no cuentan).</p>{% endif %}
-<div class="caja tabla">
-  <table>
-    <thead><tr><th>Mueble</th><th>Avance</th><th>Control</th><th>Embalaje</th><th>Instalado</th></tr></thead>
-    <tbody>
-    {% for m in avance.muebles %}
-      <tr>
-        <td>{{ m.nombre }}<br><span class="suave" style="font-size:.85rem">{% for nombre, n in m.etapas %}{{ nombre }} {{ n }}/{{ m.piezas }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></td>
-        <td><strong>{{ m.pct }}%</strong></td>
-        <td>{% if m.control.ok %}<span class="estado listo">Ok</span>{% elif m.control %}<span class="estado error" title="{{ m.control.mal|join:', ' }}">Con observaciones</span>{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if m.fin %}Embalado <span class="suave">· {{ m.fin.por|default:"—" }}, {{ m.fin.cuando|date:"j/n H:i" }}</span>
-              {% if m.fin.motivo %}<br><span class="error">Faltaban {{ m.fin.faltantes|length }}:</span> <span class="suave">{{ m.fin.motivo }}</span>{% endif %}
-              <br><span class="suave">{% for b in m.bultos %}Bulto {{ b.numero }}: {{ b.get_estado_display|lower }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
-            {% else %}<a href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=fin&p={{ proyecto.pk }}&m={{ m.nombre|urlencode }}">Embalar</a>{% endif %}</td>
-        <td>{% if m.instalacion %}<span class="estado listo">Instalado</span><br><span class="suave" style="font-size:.85rem">{{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-<div class="acciones"><a class="boton" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
-  <a class="boton secundario-enlace" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?p={{ proyecto.pk }}">Mi puesto</a></div>
-
-<h3 style="margin-top:1.5rem" id="cargas">Cargas</h3>
-{% if avance.cargas %}
-<div class="caja tabla" style="margin-bottom:1rem">
-  <table>
-    <thead><tr><th>Carga</th><th>Estado</th><th>Muebles</th><th>Bultos</th><th></th></tr></thead>
-    <tbody>
-    {% for c in avance.cargas %}
-      <tr>
-        <td><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a><br>
-          <span class="suave" style="font-size:.85rem">{{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></td>
-        <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
-          {% if c.estado == 'anulada' %}<br><span class="suave" style="font-size:.85rem">{{ c.anulada_por|default:"—" }}, {{ c.anulada_en|date:"j/n H:i" }}</span>{% endif %}</td>
-        <td>{% if c.libre %}<span class="suave">lo que se escaneó:</span> {% endif %}{% if c.muebles %}{{ c.muebles|join:", " }}{% elif c.libre %}—{% else %}proyecto completo{% endif %}</td>
-        <td>{% if c.resumen %}{{ c.resumen.cargados }} de {{ c.resumen.total }}{% if c.resumen.faltantes and c.estado != 'armando' %}<br><span class="suave" style="font-size:.85rem">{{ c.resumen.faltantes|length }} para otro envío</span>{% endif %}{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if c.estado == 'armando' %}
-          <a href="{% url 'taller:avance:modificar_carga' taller=request.taller.slug id=c.pk %}">Modificar</a>
-          {% if gestiona %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=c.pk %}"
-                onsubmit="return confirm('¿Anular la carga {{ c.pk }}? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}
-            <button class="secundario" type="submit" style="padding:.3rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}
-        {% endif %}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
-</div>
-{% endif %}
-<details class="caja"{% if not avance.cargas %} open{% endif %}>
-  <summary>Nueva carga</summary>
-  <form method="post" action="{% url 'taller:avance:nueva_carga' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
-    {% include 'avance/elegir_muebles.html' with elegibles=avance.elegibles.0 procesos=avance.elegibles.1 marcados=None prefijo='alta' %}
-    <div class="acciones"><button type="submit">Crear la carga</button></div>
-  </form>
-  <p class="suave" style="margin-bottom:0">También se puede crear en Mi puesto → Carga → "Nueva carga", escaneando el primer bulto.</p>
-</details>
-{% endif %}
-
-<h2>Versiones</h2>
-{% for v in versiones %}
-<div class="caja version{% if v.pk == proyecto.version_actual_id %} actual{% endif %}">
-  <h3>Versión {{ v.numero }}
-    <span class="estado {{ v.estado }}">{{ v.get_estado_display }}</span>
-    {% if v.pk == proyecto.version_actual_id %}<span class="estado listo">En uso</span>{% endif %}
-  </h3>
-  <div class="suave">Subida {{ v.creada|date:"j/n/Y H:i" }}{% if v.subida_por %} por {{ v.subida_por }}{% endif %}{% if v.terminada %} · terminó {{ v.terminada|date:"H:i" }}{% endif %}</div>
-
-  {% if v.estado == 'en_cola' %}<p>Esperando turno para convertirse…</p>{% endif %}
-  {% if v.estado == 'convirtiendo' %}<p>Convirtiendo… suele tardar uno o dos minutos. Esta página se actualiza sola.</p>{% endif %}
-  {% if v.estado == 'error' %}<p class="error"><strong>No se pudo convertir.</strong> {{ v.mensaje }}</p>{% endif %}
-  {% if v.estado == 'listo' %}
-    <p>{{ v.resumen.piezas_con_numero }} piezas · {{ v.resumen.paneles }} paneles 3D ({{ v.resumen.vinculados }} vinculados a la lista){% if v.resumen.herrajes %} · {{ v.resumen.herrajes }} herrajes{% endif %}</p>
-    {% if v.avisos %}
-    <details><summary>{{ v.avisos|length }} aviso{{ v.avisos|length|pluralize }} para revisar</summary>
-      <ul>{% for a in v.avisos %}<li>{{ a }}</li>{% endfor %}</ul></details>
-    {% endif %}
-  {% endif %}
-  {% for html in v.extras %}{{ html }}{% endfor %}
-
+{% if proyecto.archivado_en %}
+<div class="caja archivado">
+  <strong>Archivado</strong> <span class="suave">el {{ proyecto.archivado_en|date:"j/n/Y" }}{% if proyecto.archivado_por %} por {{ proyecto.archivado_por }}{% endif %}.
+    No aparece en la lista ni en producción. El link del cliente sigue andando hasta que lo anules.</span>
   {% if gestiona %}
-  <details><summary>Archivos subidos</summary>
-    <ul>{% for o in v.subidos %}
-      <li><a href="{% url 'taller:proyectos:original' taller=request.taller.slug id=proyecto.pk numero=v.numero original_id=o.pk %}">{{ o.nombre }}</a>
-        <span class="suave">· {{ o.get_tipo_display }} · {{ o.tamano|filesizeformat }}</span></li>
-    {% endfor %}</ul>
+  <form method="post" action="{% url 'taller:proyectos:desarchivar' taller=request.taller.slug id=proyecto.pk %}" class="acciones">{% csrf_token %}
+    <button type="submit">Desarchivar</button></form>
+  {% endif %}
+  {% if es_dueno %}
+  <details class="borrar" style="margin-top:.75rem">
+    <summary>Borrar el proyecto</summary>
+    <form method="post" action="{% url 'taller:proyectos:borrar' taller=request.taller.slug id=proyecto.pk %}"
+          onsubmit="return confirm('¿Borrar {{ proyecto.nombre|escapejs }} para siempre? No se puede deshacer.')">{% csrf_token %}
+      <p class="error" style="margin:.5rem 0">Se borra para siempre: versiones, archivos, avance, cargas, tareas, fotos y links del cliente.</p>
+      <label for="confirmar-nombre">Escribí el nombre del proyecto para confirmar</label>
+      <input id="confirmar-nombre" name="nombre" autocomplete="off" placeholder="{{ proyecto.nombre }}" required>
+      <div class="acciones"><button type="submit" class="peligro">Borrar para siempre</button></div>
+    </form>
   </details>
-  <div class="acciones">
-    {% if v.estado == 'listo' and v.pk != proyecto.version_actual_id %}
-      <form class="enlinea" method="post" action="{% url 'taller:proyectos:usar_version' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">{% csrf_token %}
-        <button type="submit">Usar esta versión</button></form>
-    {% endif %}
-    {% if not v.en_proceso %}
-      <form class="enlinea" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">{% csrf_token %}
-        <button class="secundario" type="submit">Volver a convertir</button></form>
-    {% endif %}
-  </div>
   {% endif %}
 </div>
-{% empty %}
-<p class="suave">Sin versiones.</p>
-{% endfor %}
+{% endif %}
+
+<nav class="secciones" aria-label="Secciones del proyecto">
+  {% for clave, nombre in secciones %}
+  <a href="?ver={{ clave }}"{% if clave == seccion %} aria-current="page"{% endif %}>{% include 'proyectos/icono_seccion.html' %}<span>{{ nombre }}</span></a>
+  {% endfor %}
+</nav>
+
+{% if seccion == 'produccion' %}{% include 'proyectos/ver_produccion.html' %}
+{% elif seccion == 'cliente' %}{% include 'proyectos/ver_cliente.html' %}
+{% elif seccion == 'versiones' %}{% include 'proyectos/ver_versiones.html' %}
+{% else %}{% include 'proyectos/ver_resumen.html' %}{% endif %}
 {% endblock %}

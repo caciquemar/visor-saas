@@ -2687,7 +2687,8 @@ async function iniciar(){
     const d = window.DATOS_EMBEBIDOS;
     lista = [{proyecto:d.proyecto, datos:d}];
   } else {
-    try{ lista = await (await fetch('data/index.json', {cache:'no-store'})).json(); }
+    const p = new URLSearchParams(location.search).get('p');          // uno en desarrollo, abierto desde su pantalla
+    try{ lista = await (await fetch('data/index.json' + (p ? '?p=' + encodeURIComponent(p) : ''), {cache:'no-store'})).json(); }
     catch(e){ $('cargando').textContent = 'No se encontró data/index.json. Generalo con polyboard_a_app.py.'; return; }
   }
   if (!lista.length){ $('cargando').textContent = 'Todavía no hay proyectos convertidos.'; return; }

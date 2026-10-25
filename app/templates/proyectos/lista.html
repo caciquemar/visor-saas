@@ -1,5 +1,29 @@
 {% extends 'base.html' %}
 {% block titulo %}Proyectos{% endblock %}
+{% block cabeza %}
+<style>
+  .buscar { display:flex; gap:.5rem; margin:0 0 .75rem; }
+  .buscar input { flex:1; min-width:0; margin:0; }
+  .chips { display:flex; gap:.4rem; flex-wrap:wrap; margin:0 0 1rem; }
+  .chips a { padding:.3rem .75rem; border:1px solid var(--borde); border-radius:999px; color:var(--texto);
+             text-decoration:none; font-size:.9rem; background:var(--panel); }
+  .chips a[aria-current=page] { background:var(--acento); color:var(--acento-texto); border-color:var(--acento); }
+  .tarjetas { display:grid; grid-template-columns:repeat(auto-fill, minmax(17rem, 1fr)); gap:.75rem; }
+  .tarjeta { display:flex; flex-direction:column; gap:.35rem; padding:.9rem 1rem; background:var(--panel);
+             border:1px solid var(--borde); border-radius:12px; color:var(--texto); text-decoration:none; }
+  .tarjeta:hover, .tarjeta:focus-visible { border-color:var(--acento); }
+  .tarjeta .arriba { display:flex; justify-content:space-between; align-items:flex-start; gap:.5rem; }
+  .tarjeta strong { font-size:1.05rem; }
+  .chip-estado { font-size:.75rem; font-weight:600; padding:.1rem .5rem; border-radius:999px; border:1px solid var(--borde);
+                 color:var(--suave); white-space:nowrap; }
+  .chip-estado.produccion { background:var(--acento); color:var(--acento-texto); border-color:var(--acento); }
+  .chip-estado.archivado { border-style:dashed; }
+  .barra { height:.45rem; background:var(--borde); border-radius:999px; overflow:hidden; }
+  .barra span { display:block; height:100%; background:var(--acento); }
+  .tarjeta .pie { display:flex; justify-content:space-between; gap:.5rem; font-size:.85rem; flex-wrap:wrap; }
+  .tarjeta .vencida { color:var(--error); font-weight:600; }
+</style>
+{% endblock %}
 {% block contenido %}
 <h1>Proyectos</h1>
 {% if gestiona %}
@@ -7,23 +31,42 @@
   <a class="boton" href="{% url 'taller:proyectos:nuevo' taller=request.taller.slug %}">Subir proyecto nuevo</a>
 </div>
 {% endif %}
+<form class="buscar" method="get" role="search">
+  {% if estado %}<input type="hidden" name="estado" value="{{ estado }}">{% endif %}
+  <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, cliente o pedido" aria-label="Buscar proyectos">
+  <button type="submit">Buscar</button>
+</form>
+<nav class="chips" aria-label="Filtrar por estado">
+  {% for clave, nombre in filtros %}
+  <a href="?{% if clave %}estado={{ clave }}{% endif %}{% if q %}{% if clave %}&{% endif %}q={{ q|urlencode }}{% endif %}"{% if clave == estado %} aria-current="page"{% endif %}>{{ nombre }}{% if clave == 'archivados' and archivados %} ({{ archivados }}){% endif %}</a>
+  {% endfor %}
+</nav>
 {% if proyectos %}
-<div class="caja tabla">
-  <table>
-    <thead><tr><th>Proyecto</th><th>Avance</th><th>Versión en uso</th><th>Última subida</th><th>Actualizado</th></tr></thead>
-    <tbody>
-    {% for p in proyectos %}
-      <tr>
-        <td><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=p.pk %}">{{ p.nombre }}</a></td>
-        <td>{% if p.avance %}<strong>{{ p.avance.pct }}%</strong> <span class="suave">· {{ p.avance.terminados }}/{{ p.avance.muebles }} muebles terminados</span>{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if p.version_actual %}v{{ p.version_actual.numero }}{% else %}<span class="suave">—</span>{% endif %}</td>
-        <td>{% if p.ultima %}v{{ p.ultima.numero }} <span class="estado {{ p.ultima.estado }}">{{ p.ultima.get_estado_display }}</span>{% endif %}</td>
-        <td class="suave">{{ p.actualizado|date:"j/n/Y H:i" }}</td>
-      </tr>
-    {% endfor %}
-    </tbody>
-  </table>
+<div class="tarjetas">
+  {% for p in proyectos %}
+  <a class="tarjeta" href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=p.pk %}">
+    <div class="arriba">
+      <div><strong>{{ p.nombre }}</strong>
+        {% if p.cliente or p.pedido %}<div class="suave" style="font-size:.9rem">{{ p.cliente }}{% if p.cliente and p.pedido %} · {% endif %}{% if p.pedido %}pedido {{ p.pedido }}{% endif %}</div>{% endif %}</div>
+      <span class="chip-estado {{ p.estado }}">{{ p.get_estado_display }}</span>
+    </div>
+    {% if p.avance %}
+    <div class="barra" role="img" aria-label="Avance {{ p.avance.pct }}%"><span style="width:{{ p.avance.pct_str }}%"></span></div>
+    <div class="pie"><span><strong>{{ p.avance.pct }}%</strong> <span class="suave">· {{ p.avance.en_el_ultimo }}/{{ p.avance.muebles }} {{ p.avance.ultimo }}{{ p.avance.muebles|pluralize }}</span></span></div>
+    {% elif p.ultima and p.ultima.estado != 'listo' %}
+    <div class="pie"><span class="estado {{ p.ultima.estado }}">v{{ p.ultima.numero }} {{ p.ultima.get_estado_display|lower }}</span></div>
+    {% else %}
+    <div class="pie suave"><span>Sin avance todavía</span></div>
+    {% endif %}
+    <div class="pie suave">
+      <span>{% if p.entrega %}<span{% if p.vencida %} class="vencida"{% endif %}>Entrega {{ p.entrega|date:"j/n/Y" }}{% if p.vencida %} · vencida{% endif %}</span>{% else %}Sin fecha de entrega{% endif %}</span>
+      <span>{% if p.version_actual %}v{{ p.version_actual.numero }} · {% endif %}{{ p.actualizado|date:"j/n" }}</span>
+    </div>
+  </a>
+  {% endfor %}
 </div>
+{% elif q or estado %}
+<div class="caja"><p class="suave" style="margin:0">No hay proyectos{% if q %} con “{{ q }}”{% endif %}{% if estado %} en este filtro{% endif %}.</p></div>
 {% else %}
 <div class="caja"><p class="suave" style="margin:0">Todavía no hay proyectos.{% if gestiona %} Subí el primero con el botón de arriba.{% endif %}</p></div>
 {% endif %}

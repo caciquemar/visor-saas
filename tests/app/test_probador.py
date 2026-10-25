@@ -119,7 +119,7 @@ def test_el_taller_arma_un_grupo_y_ve_las_elecciones(cliente_de, t, a):
     with con_taller(t.A):
         g = GrupoDeColor.objects.get(nombre='Cuerpos')
     assert g.tableros == ['Melamina blanca'] and g.opciones == [a.blanco.pk]   # sin el inventado ni el canto
-    html = c.get(f'/taller-a/proyectos/{a.p.pk}/').content.decode()
+    html = c.get(f'/taller-a/proyectos/{a.p.pk}/?ver=cliente').content.decode()
     assert 'Probador de colores' in html and 'Cuerpos' in html
     # borrar
     c.post(f'/taller-a/proyectos/{a.p.pk}/colores/{g.pk}/', {'borrar': '1'})
@@ -228,7 +228,7 @@ def test_me_gusta_esta(client, cliente_de, t, a, link):
         e = EleccionCliente.objects.get()
     assert e.nombre == 'Carla' and e.link_id == link.pk and e.version_id == a.v.pk
     assert e.elecciones == [{'grupo': 'Frentes', 'tableros': ['Roble'], 'elegido': 'Nogal'}]
-    html = cliente_de(t.armador_a).get(f'/taller-a/proyectos/{a.p.pk}/').content.decode()
+    html = cliente_de(t.armador_a).get(f'/taller-a/proyectos/{a.p.pk}/?ver=cliente').content.decode()
     assert 'Carla' in html and 'Nogal' in html and 'Con manijas negras' in html
     assert pedir(client, link, 'elegir', {'elecciones': {}, 'nombre': ''}).status_code == 400
 

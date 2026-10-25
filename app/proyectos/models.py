@@ -23,11 +23,28 @@ def codigo_de_link():
     return secrets.token_urlsafe(16)          # 128 bits: no se adivina
 
 
+def para_produccion(qs):
+    """Los proyectos que se ven en producción (Mi puesto, Tablero, visor del taller, Tareas): habilitados y sin
+    archivar (ficha 22). Los que están en desarrollo siguen andando en el link del cliente."""
+    return qs.filter(en_produccion=True, archivado_en__isnull=True)
+
+
 class Proyecto(DatoDeTaller):
     nombre = models.CharField('nombre', max_length=150)
     # Para la etiqueta de cada bulto (ficha 12); no los ve el cliente.
     cliente = models.CharField('cliente', max_length=150, blank=True)
-    direccion = models.CharField('dirección de la obra', max_length=200, blank=True)
+    direccion = models.CharField('dirección de entrega', max_length=200, blank=True)
+    # Datos del proyecto (ficha 22): tampoco los ve el cliente.
+    telefono = models.CharField('teléfono', max_length=40, blank=True)
+    mail = models.EmailField('mail', blank=True)
+    pedido = models.CharField('número de pedido', max_length=40, blank=True)
+    entrega = models.DateField('entrega comprometida', null=True, blank=True)
+    notas = models.TextField('notas', max_length=4000, blank=True)
+    # En desarrollo (False): no aparece en producción. Archivado: tampoco, y sale de la lista de proyectos.
+    en_produccion = models.BooleanField('en producción', default=False)
+    archivado_en = models.DateTimeField('archivado', null=True, blank=True)
+    archivado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
+                                      related_name='+')
     # Código del link del cliente (ficha 04). Se pasa al conversor en cada versión para que el link no cambie.
     codigo_cliente = models.CharField('código del cliente', max_length=32, unique=True, default=codigo_nuevo,
                                       editable=False)
@@ -48,6 +65,17 @@ class Proyecto(DatoDeTaller):
 
     def ultima_version(self):
         return self.versiones.order_by('-numero').first()
+
+    @property
+    def en_desarrollo(self):
+        return not self.en_produccion and self.archivado_en is None
+
+    @property
+    def estado(self):
+        return 'archivado' if self.archivado_en else 'produccion' if self.en_produccion else 'desarrollo'
+
+    def get_estado_display(self):
+        return {'archivado': 'Archivado', 'produccion': 'En producción', 'desarrollo': 'En desarrollo'}[self.estado]
 
 
 class Version(DatoDeTaller):

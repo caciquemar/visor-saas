@@ -80,14 +80,32 @@ class FormSubida(forms.Form):
 class FormProyectoNuevo(FormSubida):
     nombre = forms.CharField(label='Nombre del proyecto', max_length=150, required=False,
                              help_text='Si lo dejás vacío, se usa el nombre del DXF.')
-    field_order = ['nombre', 'archivos']
+    en_produccion = forms.BooleanField(label='Ya va a producción', required=False,
+                                       help_text='Si no, queda en desarrollo: el cliente lo ve en su link, pero no '
+                                                 'aparece en Mi puesto, el Tablero, el visor ni Tareas.')
+    field_order = ['nombre', 'archivos', 'en_produccion']
 
 
-class FormObra(forms.ModelForm):
-    """Cliente y dirección de la obra: van en la etiqueta de cada bulto."""
+class FormDatos(forms.ModelForm):
+    """Datos del proyecto (ficha 22). Cliente y dirección de entrega van en la etiqueta de cada bulto; nada de
+    esto lo ve el cliente."""
     class Meta:
         model = Proyecto
-        fields = ('cliente', 'direccion')
+        fields = ('nombre', 'cliente', 'telefono', 'mail', 'direccion', 'entrega', 'pedido', 'notas')
+        widgets = {'entrega': forms.DateInput(attrs={'type': 'date'}, format='%Y-%m-%d'),
+                   'telefono': forms.TextInput(attrs={'type': 'tel', 'autocomplete': 'off'}),
+                   'notas': forms.Textarea(attrs={'rows': 3})}
+
+    def __init__(self, *args, alta=False, **kwargs):
+        super().__init__(*args, **kwargs)
+        if alta:                                  # en el alta el nombre va con los archivos
+            del self.fields['nombre']
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        if not nombre:
+            raise forms.ValidationError('Poné un nombre.')
+        return nombre
 
 
 class FormMaterial(forms.ModelForm):

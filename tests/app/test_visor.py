@@ -29,7 +29,7 @@ CLIENTE = {'proyecto': 'Cocina', 'paneles': [{'mueble': 'Bajo', 'mat': 'Roble'}]
 def proyecto_listo(taller, nombre='Cocina', estado=Version.Estado.LISTO):
     """Proyecto con una versión convertida: resultado/proyecto.json, clientes/<cc>.json, un GLB y una textura."""
     with con_taller(taller):
-        p = Proyecto.objects.create(nombre=nombre)
+        p = Proyecto.objects.create(nombre=nombre, en_produccion=True)
         v = Version.objects.create(proyecto=p, numero=1, estado=estado)
         base = f'{v.carpeta()}resultado/'
         cc = p.codigo_cliente
@@ -268,7 +268,7 @@ def test_dueno_crea_y_anula_el_link(client, cliente_de, t, pa):
         link = LinkCliente.objects.get()
     assert link.creado_por == t.oficina_a
     assert timedelta(days=29) < link.vence - timezone.now() <= timedelta(days=30)
-    pagina = c.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
+    pagina = c.get(f'/taller-a/proyectos/{pa.pk}/?ver=cliente').content.decode()
     assert f'/c/{link.codigo}/' in pagina
 
     c.post(f'/taller-a/proyectos/{pa.pk}/links/{link.pk}/anular/')

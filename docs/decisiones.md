@@ -352,3 +352,12 @@ mueble sin embalar lo embala con 1 bulto). Anotaciones con fotos pegadas a lo es
 crean una tarea. En el tablero, un proyecto está en curso hasta que todos sus muebles llegan al último paso prendido
 (reemplaza la regla de la ficha 18). Etiqueta del mueble con esquema (elige el taller), visto desde el frente del
 mueble, que sale de los nombres de Polyboard porque los cantos "frente/atrás" son de cada pieza.
+
+## 2026-10-24 · Proyectos en desarrollo, archivar y borrar (ficha 22)
+Un proyecto está **en desarrollo** o **en producción** (Martín). En desarrollo el cliente lo ve en su link, pero no
+aparece en Mi puesto, el Tablero, el visor del taller ni Tareas, y escanear sus etiquetas no registra nada. Los
+proyectos nuevos empiezan en desarrollo (se puede tildar "Ya va a producción" al subir); los que ya existían quedaron
+en producción. Desde su pantalla, "Abrir en el visor" igual lo muestra (para revisarlo). La baja es **archivar**
+(dueño u oficina; se desarchiva); **borrar** del todo es solo del dueño, solo desde Archivados y escribiendo el nombre,
+y se lleva versiones, archivos, avance, cargas, tareas, fotos y links. Los datos del proyecto (teléfono, mail,
+pedido, entrega, notas) no los ve el cliente.

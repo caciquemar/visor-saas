@@ -337,6 +337,10 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-24: **ficha 21 hecha.** ABM de cargas en el proyecto (alta con filtro por proceso completado, modificar,
   anular), carga nueva al escanear en Mi puesto (`Carga.libre`), cerrar con faltantes que quedan para otro envío
   (`pendientes_de_envio`), y escáner en el 3D de cada proceso (incluido el control). Ver `docs/sesiones/21-cargas.md`.
+- 2026-10-24: **ficha 22 hecha: Proyectos.** Datos del proyecto (teléfono, mail, dirección de entrega, entrega
+  comprometida, pedido, notas), en desarrollo / en producción (en desarrollo no aparece en Mi puesto, Tablero, visor ni
+  Tareas; el link del cliente sigue andando), archivar y, desde Archivados, borrar (solo el dueño). El proyecto en
+  cuatro secciones con íconos (`?ver=`) y la lista con búsqueda, filtros y tarjetas. Ver `docs/sesiones/22-proyectos.md`.
 
 ## Pendientes
 

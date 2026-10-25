@@ -10,6 +10,11 @@
   .elegidos li { padding:.15rem 0; }
   .elegidos .quitar { padding:.15rem .6rem; font-size:.85rem; margin-left:.5rem; }
   progress { width:100%; height:.8rem; margin-top:1rem; }
+  .datos-alta { margin-top:1rem; }
+  .datos-alta summary { cursor:pointer; }
+  .datos-alta .campos { display:grid; grid-template-columns:repeat(auto-fill, minmax(14rem, 1fr)); gap:0 1rem; margin-top:.5rem; }
+  .datos-alta .campo.ancho { grid-column:1 / -1; }
+  .tilde input { width:auto; margin-top:.2rem; }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -35,6 +40,22 @@
   </label>
   <span class="ayuda">{{ form.archivos.help_text }} Máximo {{ max_dxf }} MB el DXF.</span>
   {{ form.archivos.errors }}
+  {% if datos %}
+  <details class="datos-alta"{% if datos.errors %} open{% endif %}>
+    <summary>Datos del proyecto <span class="suave">(opcional, se completan después)</span></summary>
+    <div class="campos">
+      {% for campo in datos %}
+      <div class="campo{% if campo.name == 'notas' or campo.name == 'direccion' %} ancho{% endif %}">
+        <label for="{{ campo.id_for_label }}">{{ campo.label|capfirst }}</label>{{ campo }}{{ campo.errors }}
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+  {% endif %}
+  {% if form.en_produccion %}
+  <label class="tilde" style="display:flex;gap:.5rem;align-items:flex-start;font-weight:600;margin-top:1rem">{{ form.en_produccion }} {{ form.en_produccion.label }}</label>
+  <span class="ayuda">{{ form.en_produccion.help_text }}</span>
+  {% endif %}
   {% for html in extras %}{{ html }}{% endfor %}
   <progress id="progreso" max="100" value="0" hidden></progress>
   <p class="suave" id="estado" hidden></p>

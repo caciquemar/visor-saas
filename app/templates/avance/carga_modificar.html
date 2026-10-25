@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 {% block titulo %}Modificar la carga {{ carga.pk }}{% endblock %}
 {% block contenido %}
-<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto_id %}#cargas">{{ carga.proyecto.nombre }}</a>
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto_id %}?ver=produccion#cargas">{{ carga.proyecto.nombre }}</a>
   · <a href="{% url 'taller:avance:carga' taller=request.taller.slug id=carga.pk %}">Carga {{ carga.pk }}</a></p>
 <h1>Modificar la carga {{ carga.pk }}</h1>
 <form method="post" class="caja">{% csrf_token %}

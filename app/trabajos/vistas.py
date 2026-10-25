@@ -8,7 +8,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
-from proyectos.models import Proyecto
+from proyectos.models import Proyecto, para_produccion
 from talleres.limites import MENSAJES, permite
 from talleres.models import Membresia
 from talleres.roles import Rol, miembro
@@ -36,8 +36,8 @@ def filtros_de(request):
 @miembro
 def lista(request, taller):
     f = filtros_de(request)
-    qs = (Trabajo.objects.select_related('proyecto', 'autor', 'asignado')
-          .annotate(n_fotos=Count('fotos')))
+    qs = (Trabajo.objects.filter(proyecto__in=para_produccion(Proyecto.objects.all()))     # ficha 22
+          .select_related('proyecto', 'autor', 'asignado').annotate(n_fotos=Count('fotos')))
     if f['para'] == 'mi':
         qs = qs.filter(asignado=request.user)
     elif f['para'] == 'nadie':
@@ -68,7 +68,7 @@ def lista(request, taller):
     return render(request, 'trabajos/lista.html', {
         'trabajos': trabajos, 'f': f, 'hoy': hoy,
         'equipo': sorted((m.usuario for m in equipo), key=lambda u: str(u).lower()),
-        'proyectos': Proyecto.objects.filter(trabajos__isnull=False).distinct().order_by('nombre'),
+        'proyectos': para_produccion(Proyecto.objects.filter(trabajos__isnull=False)).distinct().order_by('nombre'),
         'estados': Trabajo.Estado.choices,
         'puede_cambiar': permite(request.taller, 'trabajos'),
         'volver': request.get_full_path(),

@@ -20,7 +20,7 @@ from django.utils.text import slugify
 from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from proyectos.models import Proyecto, Version
+from proyectos.models import Proyecto, Version, para_produccion
 from talleres.limites import permite
 from talleres.roles import Rol, con_rol, miembro
 from trabajos.api import Rechazo
@@ -41,9 +41,10 @@ def url(request, nombre, **kwargs):
 
 @miembro
 def puesto(request, taller):
-    proyectos = (Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO)
+    proyectos = (para_produccion(Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO))
                  .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
-    cargas = Carga.objects.filter(estado=Carga.Estado.ARMANDO).select_related('proyecto')     # las que se cargan
+    cargas = (Carga.objects.filter(estado=Carga.Estado.ARMANDO, proyecto__in=para_produccion(Proyecto.objects.all()))
+              .select_related('proyecto'))     # las que se cargan
     base = f'/{request.taller.slug}/'
     config = {
         'csrf': get_token(request),
@@ -79,7 +80,7 @@ def nueva_carga(request, taller, id):
         c = acciones.crear_carga(request.user, proyecto, muebles)
     except Rechazo as e:
         messages.error(request, e.error)
-        return redirect(reverse('taller:proyectos:ver', kwargs={'taller': taller, 'id': id}) + '#avance')
+        return redirect(reverse('taller:proyectos:ver', kwargs={'taller': taller, 'id': id}) + '?ver=produccion#avance')
     return redirect(url(request, 'carga', id=c.pk))
 
 
@@ -296,7 +297,8 @@ def anular_carga(request, taller, id):
     except Rechazo as e:
         messages.error(request, e.error)
         return redirect(url(request, 'carga', id=c.pk))
-    return redirect(reverse('taller:proyectos:ver', kwargs={'taller': taller, 'id': c.proyecto_id}) + '#cargas')
+    return redirect(reverse('taller:proyectos:ver', kwargs={'taller': taller, 'id': c.proyecto_id})
+                    + '?ver=produccion#cargas')
 
 
 @con_rol(Rol.DUENO, Rol.OFICINA)

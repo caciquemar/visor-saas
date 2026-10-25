@@ -10,7 +10,7 @@
 </style>
 {% endblock %}
 {% block contenido %}
-<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto.pk %}#avance">{{ carga.proyecto.nombre }}</a></p>
+<p class="suave" style="margin:0"><a href="{% url 'taller:proyectos:ver' taller=request.taller.slug id=carga.proyecto.pk %}?ver=produccion#avance">{{ carga.proyecto.nombre }}</a></p>
 <h1>Carga {{ carga.pk }} <span class="estado{% if carga.estado != 'armando' %} listo{% endif %}">{{ carga.get_estado_display }}</span></h1>
 <p class="suave" style="margin-top:-.5rem">{% if datos.completa %}Proyecto completo{% else %}{{ datos.muebles|join:", " }}{% endif %}
   · armada por {{ carga.creada_por|default:"—" }}, {{ carga.creada_en|date:"j/n H:i" }}</p>

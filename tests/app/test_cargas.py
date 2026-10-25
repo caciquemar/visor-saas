@@ -33,7 +33,7 @@ def test_alta_trae_tildado_lo_pendiente_y_filtra_por_proceso(cliente_de, t, pa):
     m, otro = dos_muebles()
     c = cliente_de(t.armador_a)
     terminar(c, pa, m, 1, 'x')
-    html = c.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
+    html = c.get(f'/taller-a/proyectos/{pa.pk}/?ver=produccion').content.decode()
     assert 'Solo los que completaron' in html and 'Los que faltan enviar' in html
     # el embalado lleva el id de Embalaje en data-procesos (para el filtro)
     with con_taller(t.A):

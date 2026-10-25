@@ -97,7 +97,7 @@ def deshacer(request, taller):
 @api
 def mueble(request, taller):
     if request.method == 'GET':
-        p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+        p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')), solo_leer=True)
         return responder(200, acciones.estado_del_mueble(p, request.GET.get('mueble', '')))
     solo(request, 'POST')
     d = leer_json(request)
@@ -161,7 +161,7 @@ def avance_visor(request, taller):
     ubicaciones (ficha 17): `lugares` por panel (dónde quedó, quién y cuándo) y, por mueble, cuántas piezas hay en
     cada lugar y cuántas sin ubicar."""
     solo(request, 'GET')
-    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')), solo_leer=True)
     piezas = piezas_de(p)
     if not piezas:
         raise Http404()
@@ -284,7 +284,7 @@ def foto_de_instalacion(request, taller, id):
 def entrega_visor(request, taller):
     """El paso de cada mueble, para la Lista de entrega y "Colorear por entrega" del visor."""
     solo(request, 'GET')
-    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')), solo_leer=True)
     piezas = piezas_de(p)
     if not piezas:
         raise Http404()
@@ -343,7 +343,7 @@ def foto_de_anotacion(request, taller, id):
 def avance_proceso(request, taller):
     """Qué muebles (y piezas, en un proceso por pieza) cumplieron un proceso: lo que pinta el 3D de Mi puesto."""
     solo(request, 'GET')
-    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')))
+    p = acciones.proyecto_o_rechazo(entero(request.GET.get('proyecto')), solo_leer=True)
     etapa = next((e for e in procesos_del_taller() if e.pk == entero(request.GET.get('proceso'))), None)
     if etapa is None:
         raise Rechazo(404, 'Ese proceso no existe.')

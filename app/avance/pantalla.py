@@ -3,7 +3,7 @@ from proyectos.models import Version
 
 from .calculo import avance, piezas_de, piezas_nuevas
 from .models import Bulto, Carga, FinDeMueble, Marca
-from .pasos import pasos
+from .pasos import pasos, pasos_activos
 
 
 def del_proyecto(proyecto):
@@ -28,6 +28,7 @@ def del_proyecto(proyecto):
                         'instalacion': entrega[nombre]['instalacion']})
     return {
         'etapas': a['etapas'], 'total': a['total'], 'muebles': muebles, 'sueltas': a['sueltas'],
+        'pct_str': f"{a['total']['pct']:.2f}",
         'nuevas': piezas_nuevas(proyecto, piezas),
         'cargas': cargas_con_resumen(proyecto),
         'elegibles': muebles_para_cargar(proyecto, piezas),
@@ -35,18 +36,23 @@ def del_proyecto(proyecto):
 
 
 def de_la_lista(proyectos):
-    """{id del proyecto: % total} para la lista, solo de los proyectos que ya tienen avance (los demás no se leen)."""
+    """{id del proyecto: % total, terminados, muebles y cuántos llegaron al último paso} para la lista, solo de los
+    proyectos que ya tienen avance (los demás no se leen)."""
     con_avance = (set(Marca.objects.filter(deshecha_en__isnull=True).values_list('proyecto_id', flat=True))
                   | set(FinDeMueble.objects.filter(anulado_en__isnull=True).values_list('proyecto_id', flat=True)))
-    salida = {}
+    salida, ultimo = {}, None
     for p in proyectos:
         if p.pk in con_avance and p.version_actual and p.version_actual.estado == Version.Estado.LISTO:
             try:
-                a = avance(p)
+                piezas = piezas_de(p)
+                a = avance(p, piezas)
             except FileNotFoundError:
                 continue
+            ultimo = ultimo or pasos_activos()[-1]
+            del_ultimo = sum(1 for m in pasos(p, piezas, a)['muebles'].values() if m['paso'] == ultimo[0])
             salida[p.pk] = {'pct': a['total']['pct'], 'terminados': a['total']['terminados'],
-                            'muebles': len(a['muebles'])}
+                            'muebles': len(a['muebles']), 'ultimo': ultimo[1].lower(), 'en_el_ultimo': del_ultimo,
+                            'pct_str': f"{a['total']['pct']:.2f}"}
     return salida
 
 

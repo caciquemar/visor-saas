@@ -153,7 +153,7 @@ def test_dxf_sin_muebles_queda_en_error_con_el_mensaje_del_conversor(dueno_a, t)
     assert v.estado == 'error'
     assert 'no tiene muebles' in v.mensaje and 'Revisá que sea el DXF 3D' in v.mensaje
     assert unico_proyecto(t).version_actual is None
-    pagina = dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/').content.decode()
+    pagina = dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/?ver=versiones').content.decode()
     assert 'No se pudo convertir' in pagina and 'no tiene muebles' in pagina
 
 
@@ -195,7 +195,7 @@ def test_pagina_se_actualiza_mientras_convierte(dueno_a, t, falso):
     v = version(t)
     with en_a(t):
         Version.objects.filter(pk=v.pk).update(estado='en_cola')
-    assert 'http-equiv="refresh"' in dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/').content.decode()
+    assert 'http-equiv="refresh"' in dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/?ver=versiones').content.decode()
 
 
 # ---------------------------------------------------------------- versiones

@@ -1,0 +1,71 @@
+{# Proyecto → Producción: avance por mueble y cargas (proyectos/ver.html). #}
+{% if proyecto.en_desarrollo %}<div class="caja aviso-texturas"><strong>En desarrollo.</strong> Mientras no lo habilites para producción (en Resumen), no aparece en Mi puesto ni se pueden registrar avances ni cargas.</div>{% endif %}
+{% if avance %}
+<h2 id="avance" class="sin-margen">Avance por mueble <span class="suave" style="font-weight:400">{{ avance.total.pct }}% · {{ avance.total.terminados }} de {{ avance.muebles|length }} muebles terminados</span></h2>
+{% if avance.nuevas %}
+<div class="caja aviso-texturas">
+  <strong>{{ avance.nuevas|length }} pieza{{ avance.nuevas|length|pluralize }} nueva{{ avance.nuevas|length|pluralize }} en esta versión</strong>
+  (no estaban en la anterior, arrancan sin avance):
+  {% for x in avance.nuevas|slice:":30" %}{{ x.panel.num|default:"s/n" }} {{ x.panel.nombre }} ({{ x.panel.mueble }}){% if not forloop.last %}, {% endif %}{% endfor %}{% if avance.nuevas|length > 30 %}…{% endif %}.
+  Imprimí sus etiquetas.
+</div>
+{% endif %}
+{% if avance.sueltas %}<p class="suave">{{ avance.sueltas }} marca{{ avance.sueltas|pluralize }} de piezas que ya no están en esta versión (no cuentan).</p>{% endif %}
+<div class="caja tabla">
+  <table>
+    <thead><tr><th>Mueble</th><th>Avance</th><th>Control</th><th>Embalaje</th><th>Instalado</th></tr></thead>
+    <tbody>
+    {% for m in avance.muebles %}
+      <tr>
+        <td>{{ m.nombre }}<br><span class="suave" style="font-size:.85rem">{% for nombre, n in m.etapas %}{{ nombre }} {{ n }}/{{ m.piezas }}{% if not forloop.last %} · {% endif %}{% endfor %}</span></td>
+        <td><strong>{{ m.pct }}%</strong></td>
+        <td>{% if m.control.ok %}<span class="estado listo">Ok</span>{% elif m.control %}<span class="estado error" title="{{ m.control.mal|join:', ' }}">Con observaciones</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if m.fin %}Embalado <span class="suave">· {{ m.fin.por|default:"—" }}, {{ m.fin.cuando|date:"j/n H:i" }}</span>
+              {% if m.fin.motivo %}<br><span class="error">Faltaban {{ m.fin.faltantes|length }}:</span> <span class="suave">{{ m.fin.motivo }}</span>{% endif %}
+              <br><span class="suave">{% for b in m.bultos %}Bulto {{ b.numero }}: {{ b.get_estado_display|lower }}{% if not forloop.last %} · {% endif %}{% endfor %}</span>
+            {% else %}<a href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?modo=fin&p={{ proyecto.pk }}&m={{ m.nombre|urlencode }}">Embalar</a>{% endif %}</td>
+        <td>{% if m.instalacion %}<span class="estado listo">Instalado</span><br><span class="suave" style="font-size:.85rem">{{ m.instalacion.por|default:"—" }}, {{ m.instalacion.cuando }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+<div class="acciones"><a class="boton" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
+  <a class="boton secundario-enlace" href="{% url 'taller:avance:puesto' taller=request.taller.slug %}?p={{ proyecto.pk }}">Mi puesto</a></div>
+
+<h3 style="margin-top:1.5rem" id="cargas">Cargas</h3>
+{% if avance.cargas %}
+<div class="caja tabla" style="margin-bottom:1rem">
+  <table>
+    <thead><tr><th>Carga</th><th>Estado</th><th>Muebles</th><th>Bultos</th><th></th></tr></thead>
+    <tbody>
+    {% for c in avance.cargas %}
+      <tr>
+        <td><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a><br>
+          <span class="suave" style="font-size:.85rem">{{ c.creada_por|default:"—" }}, {{ c.creada_en|date:"j/n H:i" }}</span></td>
+        <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span>
+          {% if c.estado == 'anulada' %}<br><span class="suave" style="font-size:.85rem">{{ c.anulada_por|default:"—" }}, {{ c.anulada_en|date:"j/n H:i" }}</span>{% endif %}</td>
+        <td>{% if c.libre %}<span class="suave">lo que se escaneó:</span> {% endif %}{% if c.muebles %}{{ c.muebles|join:", " }}{% elif c.libre %}—{% else %}proyecto completo{% endif %}</td>
+        <td>{% if c.resumen %}{{ c.resumen.cargados }} de {{ c.resumen.total }}{% if c.resumen.faltantes and c.estado != 'armando' %}<br><span class="suave" style="font-size:.85rem">{{ c.resumen.faltantes|length }} para otro envío</span>{% endif %}{% else %}<span class="suave">—</span>{% endif %}</td>
+        <td>{% if c.estado == 'armando' %}
+          <a href="{% url 'taller:avance:modificar_carga' taller=request.taller.slug id=c.pk %}">Modificar</a>
+          {% if gestiona %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=c.pk %}"
+                onsubmit="return confirm('¿Anular la carga {{ c.pk }}? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}
+            <button class="secundario" type="submit" style="padding:.3rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}
+        {% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+<details class="caja"{% if not avance.cargas %} open{% endif %}>
+  <summary>Nueva carga</summary>
+  <form method="post" action="{% url 'taller:avance:nueva_carga' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+    {% include 'avance/elegir_muebles.html' with elegibles=avance.elegibles.0 procesos=avance.elegibles.1 marcados=None prefijo='alta' %}
+    <div class="acciones"><button type="submit">Crear la carga</button></div>
+  </form>
+  <p class="suave" style="margin-bottom:0">También se puede crear en Mi puesto → Carga → "Nueva carga", escaneando el primer bulto.</p>
+</details>
+{% endif %}
+{% if not avance %}<div class="caja"><p class="suave" style="margin:0">Todavía no hay una versión lista.</p></div>{% endif %}

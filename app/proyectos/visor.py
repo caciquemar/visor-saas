@@ -41,7 +41,7 @@ from talleres.models import Membresia
 from talleres.roles import miembro
 
 from . import probador, tareas
-from .models import Combinacion, EleccionCliente, GrupoDeColor, LinkCliente, Material, Proyecto, Version
+from .models import Combinacion, EleccionCliente, GrupoDeColor, LinkCliente, Material, Proyecto, Version, para_produccion
 
 mimetypes.add_type('model/gltf-binary', '.glb')
 INDEX = settings.RAIZ / 'visor' / 'index.html'
@@ -146,9 +146,13 @@ def indice(request, taller):
     links = {}
     for link in vigentes():
         links.setdefault(link.proyecto_id, link)      # el más nuevo
-    proyectos = (Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO)
-                 .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
-    lista = [{'id': p.pk, 'proyecto': p.nombre, 'archivo': f'{p.pk}/proyecto.json',
+    listos = (Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO)
+              .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
+    # los que están en desarrollo o archivados no se ven (ficha 22), salvo el que se abrió desde su pantalla (?p=)
+    pedido = request.GET.get('p', '')
+    proyectos = listos.filter(Q(pk__in=para_produccion(listos)) | Q(pk=int(pedido) if pedido.isdigit() else 0))
+    lista = [{'id': p.pk, 'proyecto': p.nombre if p.en_produccion and not p.archivado_en
+              else f'{p.nombre} ({p.get_estado_display().lower()})', 'archivo': f'{p.pk}/proyecto.json',
               'link': url_de_link(request, links[p.pk]) if p.pk in links else None} for p in proyectos]
     r = JsonResponse(lista, safe=False, json_dumps_params={'ensure_ascii': False})
     r['Cache-Control'] = 'no-cache'

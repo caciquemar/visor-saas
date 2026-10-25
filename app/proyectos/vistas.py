@@ -7,7 +7,7 @@ from pathlib import Path
 from django.conf import settings
 from django.contrib import messages
 from django.db import transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
@@ -22,16 +22,19 @@ from talleres.roles import Rol, con_rol, miembro
 
 from . import probador
 from .archivos import solo_nombre
-from .formularios import FormMaterial, FormObra, FormProyectoNuevo, FormSinCanto, FormSubida, FormTableroNuevo
-from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version
+from . import borrar as borrado
+from .formularios import FormDatos, FormMaterial, FormProyectoNuevo, FormSinCanto, FormSubida, FormTableroNuevo
+from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version, para_produccion
 from .tareas import encolar
 from .visor import url_de_link
 
 GESTION = (Rol.DUENO, Rol.OFICINA)
 
 
-def a_proyecto(request, proyecto):
-    return redirect('taller:proyectos:ver', taller=request.taller.slug, id=proyecto.pk)
+def a_proyecto(request, proyecto, seccion=None, ancla=''):
+    """A la pantalla del proyecto, en la sección `seccion` (Resumen si no se dice)."""
+    destino = reverse('taller:proyectos:ver', kwargs={'taller': request.taller.slug, 'id': proyecto.pk})
+    return redirect(destino + (f'?ver={seccion}' if seccion else '') + ancla)
 
 
 def formulario(clase, request):
@@ -42,9 +45,9 @@ def formulario(clase, request):
     return form
 
 
-def pantalla_de_subida(request, form, proyecto):
+def pantalla_de_subida(request, form, proyecto, datos=None):
     extras = [modulo.html_de_subida(form) for modulo in registro.activos()]
-    return render(request, 'proyectos/subir.html', {'form': form, 'proyecto': proyecto,
+    return render(request, 'proyectos/subir.html', {'form': form, 'proyecto': proyecto, 'datos': datos,
                                                     'max_dxf': settings.MAX_DXF_MB, 'extras': extras},
                   status=400 if form.is_bound else 200)
 
@@ -72,36 +75,73 @@ def crear_version(proyecto, usuario, archivos=None, copiar_de=None, datos=None):
     return version
 
 
+FILTROS = [('', 'En curso'), ('produccion', 'En producción'), ('desarrollo', 'En desarrollo'),
+           ('archivados', 'Archivados'), ('todos', 'Todos')]
+
+
 @miembro
 def lista(request, taller):
-    proyectos = list(Proyecto.objects.select_related('version_actual').prefetch_related('versiones'))
+    """Buscar por nombre, cliente o número de pedido y filtrar por estado. "En curso": en producción y en desarrollo
+    (sin los archivados)."""
+    q = request.GET.get('q', '').strip()[:80]
+    estado = request.GET.get('estado', '')
+    estado = estado if estado in dict(FILTROS) else ''
+    qs = Proyecto.objects.select_related('version_actual').prefetch_related('versiones')
+    if estado == 'produccion':
+        qs = para_produccion(qs)
+    elif estado == 'desarrollo':
+        qs = qs.filter(en_produccion=False, archivado_en__isnull=True)
+    elif estado == 'archivados':
+        qs = qs.filter(archivado_en__isnull=False).order_by('-archivado_en')
+    elif estado != 'todos':
+        qs = qs.filter(archivado_en__isnull=True)
+    if q:
+        qs = qs.filter(Q(nombre__icontains=q) | Q(cliente__icontains=q) | Q(pedido__icontains=q))
+    proyectos = list(qs)
     for p in proyectos:
         p.ultima = max(p.versiones.all(), key=lambda v: v.numero, default=None)
     avances = pantalla_de_avance.de_la_lista(proyectos)
+    hoy = timezone.localdate()
     for p in proyectos:
         p.avance = avances.get(p.pk)
-    return render(request, 'proyectos/lista.html', {'proyectos': proyectos,
-                                                    'gestiona': request.membresia.rol in GESTION})
+        completo = bool(p.avance and p.avance['muebles'] and p.avance['en_el_ultimo'] == p.avance['muebles'])
+        p.vencida = bool(p.entrega and p.entrega < hoy and not completo and not p.archivado_en)
+    archivados = Proyecto.objects.filter(archivado_en__isnull=False).count()
+    return render(request, 'proyectos/lista.html', {
+        'proyectos': proyectos, 'q': q, 'estado': estado, 'filtros': FILTROS, 'archivados': archivados,
+        'gestiona': request.membresia.rol in GESTION})
 
 
 @con_rol(*GESTION)
 def nuevo(request, taller):
     form = formulario(FormProyectoNuevo, request)
-    if request.method == 'POST' and form.is_valid():
+    datos = FormDatos(request.POST or None, alta=True)
+    if request.method == 'POST' and form.is_valid() and datos.is_valid():
         dxf, ocps = form.cleaned_data['archivos']
         with transaction.atomic():
-            proyecto = Proyecto.objects.create(nombre=form.cleaned_data['nombre'].strip()
-                                               or Path(solo_nombre(dxf.name)).stem[:150],
-                                               creado_por=request.user)
+            proyecto = datos.save(commit=False)
+            proyecto.nombre = form.cleaned_data['nombre'].strip() or Path(solo_nombre(dxf.name)).stem[:150]
+            proyecto.en_produccion = form.cleaned_data['en_produccion']
+            proyecto.creado_por = request.user
+            proyecto.save()
             crear_version(proyecto, request.user, archivos=(dxf, ocps), datos=form.cleaned_data)
-        messages.success(request, f'Subiste {proyecto}. La conversión tarda unos minutos.')
+        messages.success(request, f'Subiste {proyecto}. La conversión tarda unos minutos.'
+                         + ('' if proyecto.en_produccion else ' Quedó en desarrollo: habilitalo para producción '
+                                                               'cuando esté listo.'))
         return a_proyecto(request, proyecto)
-    return pantalla_de_subida(request, form, None)
+    return pantalla_de_subida(request, form, None, datos)
+
+
+SECCIONES = [('resumen', 'Resumen'), ('produccion', 'Producción'), ('cliente', 'Cliente'), ('versiones', 'Versiones')]
 
 
 @miembro
 def ver(request, taller, id):
-    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
+    """El proyecto en cuatro secciones con íconos (`?ver=`, ficha 22): Resumen (datos, estado y avance general),
+    Producción (avance por mueble y cargas), Cliente (link y probador de colores) y Versiones."""
+    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual', 'archivado_por'), pk=id)
+    seccion = request.GET.get('ver', 'resumen')
+    seccion = seccion if seccion in dict(SECCIONES) else 'resumen'
     versiones = list(proyecto.versiones.select_related('subida_por').prefetch_related('originales'))
     modulos = registro.activos()
     for v in versiones:
@@ -121,16 +161,20 @@ def ver(request, taller, id):
     for link in links:
         link.direccion = url_de_link(request, link)
     listo = bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO)
+    avance = pantalla_de_avance.del_proyecto(proyecto) if proyecto.version_actual and seccion in (
+        'resumen', 'produccion') else None
     return render(request, 'proyectos/ver.html', {
-        'probador': pantalla_del_probador(proyecto, gestiona) if listo else None,
+        'seccion': seccion, 'secciones': SECCIONES, 'hoy': timezone.localdate(),
+        'probador': pantalla_del_probador(proyecto, gestiona) if listo and seccion == 'cliente' else None,
         'elecciones': list(proyecto.elecciones.all()[:50]),
         'proyecto': proyecto, 'versiones': versiones, 'base': base,
         'listo': bool(proyecto.version_actual and proyecto.version_actual.estado == Version.Estado.LISTO),
         'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
         'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
-        'gestiona': gestiona, 'form_obra': FormObra(instance=proyecto),
-        'avance': pantalla_de_avance.del_proyecto(proyecto) if proyecto.version_actual else None,
+        'gestiona': gestiona, 'es_dueno': request.membresia.rol == Rol.DUENO,
+        'form_datos': FormDatos(instance=proyecto) if gestiona else None,
+        'avance': avance,
     })
 
 
@@ -155,7 +199,7 @@ def grupo_color(request, taller, id, grupo_id=None):
     """Crear, guardar o borrar un grupo del probador de colores."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
     grupo = get_object_or_404(GrupoDeColor, pk=grupo_id, proyecto=proyecto) if grupo_id else None
-    volver = redirect(reverse('taller:proyectos:ver', kwargs={'taller': request.taller.slug, 'id': id}) + '#colores')
+    volver = a_proyecto(request, proyecto, 'cliente', '#colores')
     if grupo and request.POST.get('borrar'):
         grupo.delete()
         messages.success(request, f'Borraste el grupo {grupo.nombre}.')
@@ -186,15 +230,65 @@ def grupo_color(request, taller, id, grupo_id=None):
 
 @require_POST
 @con_rol(*GESTION)
-def obra(request, taller, id):
+def datos(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id)
-    form = FormObra(request.POST, instance=proyecto)
+    form = FormDatos(request.POST, instance=proyecto)
     if form.is_valid():
         form.save()
-        messages.success(request, 'Guardaste los datos de la obra.')
+        messages.success(request, 'Guardaste los datos del proyecto.')
     else:
-        messages.error(request, 'Revisá los datos de la obra: ' + ' '.join(e for es in form.errors.values() for e in es))
+        messages.error(request, 'Revisá los datos: ' + ' '.join(f'{form.fields[c].label}: {e}' for c, es in
+                                                               form.errors.items() for e in es))
     return a_proyecto(request, proyecto)
+
+
+@require_POST
+@con_rol(*GESTION)
+def produccion(request, taller, id):
+    """Habilitar o deshabilitar el proyecto para producción (en desarrollo: el cliente lo ve en su link, pero no
+    aparece en Mi puesto, el Tablero, el visor ni Tareas)."""
+    proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=True)
+    proyecto.en_produccion = request.POST.get('en_produccion') == '1'
+    proyecto.save(update_fields=['en_produccion', 'actualizado'])
+    messages.success(request, 'Listo: el proyecto está en producción.' if proyecto.en_produccion else
+                     'Listo: el proyecto quedó en desarrollo. Ya no aparece en Mi puesto, el Tablero, el visor ni '
+                     'Tareas; el cliente lo sigue viendo en su link.')
+    return a_proyecto(request, proyecto)
+
+
+@require_POST
+@con_rol(*GESTION)
+def archivar(request, taller, id):
+    proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=True)
+    proyecto.archivado_en, proyecto.archivado_por = timezone.now(), request.user
+    proyecto.save(update_fields=['archivado_en', 'archivado_por', 'actualizado'])
+    messages.success(request, f'Archivaste {proyecto}. Está en Proyectos → Archivados; desde ahí se puede '
+                              'desarchivar o borrar.')
+    return redirect('taller:proyectos:lista', taller=request.taller.slug)
+
+
+@require_POST
+@con_rol(*GESTION)
+def desarchivar(request, taller, id):
+    proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=False)
+    proyecto.archivado_en = proyecto.archivado_por = None
+    proyecto.save(update_fields=['archivado_en', 'archivado_por', 'actualizado'])
+    messages.success(request, f'Desarchivaste {proyecto}. Está {proyecto.get_estado_display().lower()}.')
+    return a_proyecto(request, proyecto)
+
+
+@require_POST
+@con_rol(Rol.DUENO)
+def borrar(request, taller, id):
+    """Borrar del todo un proyecto archivado: hay que escribir su nombre. No se puede deshacer."""
+    proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=False)
+    if request.POST.get('nombre', '').strip().lower() != proyecto.nombre.strip().lower():
+        messages.error(request, 'Para borrarlo, escribí el nombre del proyecto tal cual.')
+        return a_proyecto(request, proyecto)
+    nombre = proyecto.nombre
+    borrado.borrar(proyecto)
+    messages.success(request, f'Borraste {nombre} con sus versiones, su avance, sus tareas y sus fotos.')
+    return redirect(reverse('taller:proyectos:lista', kwargs={'taller': request.taller.slug}) + '?estado=archivados')
 
 
 @con_rol(*GESTION)
@@ -206,7 +300,7 @@ def nueva_version(request, taller, id):
             version = crear_version(proyecto, request.user, archivos=form.cleaned_data['archivos'],
                                     datos=form.cleaned_data)
         messages.success(request, f'Subiste la versión {version.numero}. La conversión tarda unos minutos.')
-        return a_proyecto(request, proyecto)
+        return a_proyecto(request, proyecto, 'versiones')
     return pantalla_de_subida(request, form, proyecto)
 
 
@@ -218,7 +312,7 @@ def usar_version(request, taller, id, numero):
     proyecto.version_actual = version
     proyecto.save(update_fields=['version_actual', 'actualizado'])
     messages.success(request, f'Ahora se usa la versión {version.numero}.')
-    return a_proyecto(request, proyecto)
+    return a_proyecto(request, proyecto, 'versiones')
 
 
 @require_POST
@@ -229,7 +323,7 @@ def reconvertir(request, taller, id, numero):
     with transaction.atomic():
         version = crear_version(proyecto, request.user, copiar_de=origen)
     messages.success(request, f'Se está convirtiendo de nuevo como versión {version.numero}.')
-    return a_proyecto(request, proyecto)
+    return a_proyecto(request, proyecto, 'versiones')
 
 
 @con_rol(*GESTION)
@@ -317,11 +411,11 @@ def nuevo_link(request, taller, id):
         dias = -1
     if dias not in dict(VENCIMIENTOS):
         messages.error(request, 'Elegí cuándo vence el link.')
-        return a_proyecto(request, proyecto)
+        return a_proyecto(request, proyecto, 'cliente')
     LinkCliente.objects.create(proyecto=proyecto, creado_por=request.user,
                                vence=timezone.now() + timedelta(days=dias) if dias else None)
     messages.success(request, 'Listo el link para el cliente. Copialo y mandáselo.')
-    return a_proyecto(request, proyecto)
+    return a_proyecto(request, proyecto, 'cliente')
 
 
 @require_POST
@@ -331,4 +425,4 @@ def anular_link(request, taller, id, link_id):
     link.anulado = timezone.now()
     link.save(update_fields=['anulado'])
     messages.success(request, 'Anulaste el link: quien lo tenga ya no puede ver el proyecto.')
-    return redirect('taller:proyectos:ver', taller=request.taller.slug, id=id)
+    return a_proyecto(request, link.proyecto, 'cliente')

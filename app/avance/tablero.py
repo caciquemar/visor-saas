@@ -8,7 +8,7 @@ from datetime import datetime, time, timedelta
 from django.db.models import Count, Max
 from django.utils import timezone
 
-from proyectos.models import Proyecto, Version
+from proyectos.models import Proyecto, Version, para_produccion
 from trabajos.models import Trabajo
 
 from .calculo import avance, pct, piezas_de, ubicaciones
@@ -17,7 +17,7 @@ from .pasos import pasos, pasos_activos
 
 
 def proyectos_listos():
-    return (Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO)
+    return (para_produccion(Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO))
             .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
 
 

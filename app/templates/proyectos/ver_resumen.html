@@ -1,0 +1,84 @@
+{# Proyecto → Resumen: datos, estado, avance general y accesos (proyectos/ver.html). #}
+{% if gestiona and base and texturas_nuevas %}
+<div class="caja aviso-texturas">
+  <strong>Subiste texturas que faltaban</strong> ({{ texturas_nuevas|join:", " }}). Volvé a convertir para verlas en el proyecto.
+  <form class="acciones" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=base.numero %}">{% csrf_token %}
+    <button type="submit">Volver a convertir</button></form>
+</div>
+{% endif %}
+{% if gestiona and faltan %}
+<div class="caja aviso-texturas">
+  <strong>Faltan texturas:</strong> {{ faltan|join:", " }}. Se ven con su color hasta que subas la imagen.
+  <div class="acciones"><a class="boton" href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Subir texturas</a></div>
+</div>
+{% endif %}
+
+{% if en_proceso %}<p class="suave">Se está convirtiendo una versión: mirala en <a href="?ver=versiones">Versiones</a>.</p>{% endif %}
+
+<div class="acciones" style="margin:0 0 1rem">
+  {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir en el visor</a>
+  <a class="boton secundario-enlace" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
+  <a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}">Imprimir etiquetas</a>{% endif %}
+  {% if gestiona and not versiones %}<a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión</a>{% endif %}
+</div>
+
+{% if not proyecto.archivado_en %}
+<div class="caja estado-proyecto">
+  <div class="fila">
+    <div>
+      <strong>{% if proyecto.en_produccion %}En producción{% else %}En desarrollo{% endif %}</strong>
+      <div class="suave">{% if proyecto.en_produccion %}Aparece en Mi puesto, el Tablero de control, el visor y Tareas.
+        {% else %}El cliente lo ve en su link, pero no aparece en Mi puesto, el Tablero de control, el visor ni Tareas.{% endif %}</div>
+    </div>
+    {% if gestiona %}
+    <form method="post" action="{% url 'taller:proyectos:produccion' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+      <input type="hidden" name="en_produccion" value="{% if proyecto.en_produccion %}0{% else %}1{% endif %}">
+      <button type="submit" class="interruptor" role="switch" aria-checked="{% if proyecto.en_produccion %}true{% else %}false{% endif %}"
+              aria-label="En producción"><span></span></button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+{% if avance %}
+<a class="caja avance-general" href="?ver=produccion">
+  <div class="fila"><strong>Avance</strong><span><strong>{{ avance.total.pct }}%</strong> <span class="suave">· {{ avance.total.terminados }} de {{ avance.muebles|length }} muebles terminados</span></span></div>
+  <div class="barra"><span style="width:{{ avance.pct_str }}%"></span></div>
+  <span class="suave">Ver por mueble y cargas ›</span>
+</a>
+{% endif %}
+
+<h2>Datos del proyecto</h2>
+{% if form_datos %}
+<form class="caja datos" method="post" action="{% url 'taller:proyectos:datos' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+  <div class="campos">
+    {% for campo in form_datos %}
+    <div class="campo{% if campo.name == 'notas' or campo.name == 'direccion' or campo.name == 'nombre' %} ancho{% endif %}">
+      <label for="{{ campo.id_for_label }}">{{ campo.label|capfirst }}</label>{{ campo }}{{ campo.errors }}
+    </div>
+    {% endfor %}
+  </div>
+  <p class="suave" style="margin:.25rem 0 0">Cliente y dirección de entrega van en la etiqueta de cada bulto. El cliente no ve estos datos en su link.</p>
+  <div class="acciones"><button type="submit">Guardar</button></div>
+</form>
+{% else %}
+<div class="caja">
+  <dl class="datos-leer">
+    <dt>Cliente</dt><dd>{{ proyecto.cliente|default:"—" }}</dd>
+    <dt>Teléfono</dt><dd>{% if proyecto.telefono %}<a href="tel:{{ proyecto.telefono }}">{{ proyecto.telefono }}</a>{% else %}—{% endif %}</dd>
+    <dt>Dirección de entrega</dt><dd>{{ proyecto.direccion|default:"—" }}</dd>
+    <dt>Entrega comprometida</dt><dd>{{ proyecto.entrega|date:"j/n/Y"|default:"—" }}</dd>
+    <dt>Número de pedido</dt><dd>{{ proyecto.pedido|default:"—" }}</dd>
+    {% if proyecto.notas %}<dt>Notas</dt><dd>{{ proyecto.notas|linebreaksbr }}</dd>{% endif %}
+  </dl>
+</div>
+{% endif %}
+
+{% if gestiona and not proyecto.archivado_en %}
+<form method="post" action="{% url 'taller:proyectos:archivar' taller=request.taller.slug id=proyecto.pk %}" class="acciones" style="margin-top:1.5rem"
+      onsubmit="return confirm('¿Archivar {{ proyecto.nombre|escapejs }}? Sale de la lista y de producción. Desde Proyectos → Archivados se puede desarchivar o borrar.')">{% csrf_token %}
+  <button type="submit" class="secundario">Archivar el proyecto</button>
+</form>
+{% endif %}
+<p class="suave" style="font-size:.85rem">Subido el {{ proyecto.creado|date:"j/n/Y" }}{% if proyecto.creado_por %} por {{ proyecto.creado_por }}{% endif %}.</p>

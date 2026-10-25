@@ -306,7 +306,7 @@ def test_pantallas(cliente_de, t, pa):
     marcar_todas(t.A, pa, m, etapas(t.A)['Cortada'], t.armador_a)
     c = cliente_de(t.armador_a)
     assert 'Cortada' in c.get('/taller-a/puesto/').content.decode()
-    assert '25%' in c.get(f'/taller-a/proyectos/{pa.pk}/').content.decode()
+    assert '25%' in c.get(f'/taller-a/proyectos/{pa.pk}/?ver=produccion').content.decode()
     assert '%' in c.get('/taller-a/proyectos/').content.decode()
     d = c.get(f'/taller-a/visor/api/avance?proyecto={pa.pk}').json()
     assert d['muebles'][m]['pct'] == 25 and d['final'] == etapas(t.A)['Armado'] and d['nuevas'] == []
