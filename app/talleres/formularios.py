@@ -6,16 +6,15 @@ from django.core.files.uploadedfile import UploadedFile
 
 from usuarios.models import Usuario, normalizar_usuario, validar_usuario
 
-from .models import Membresia, Taller
+from .models import Membresia, Rol, Taller
+from .permisos import CLAVES, NOMBRES, SENSIBLES, grupos
 from .pin import validar_pin
-
-Rol = Membresia.Rol
 
 
 def roles_que_puede_dar(membresia):
-    if membresia.rol == Rol.DUENO:
-        return list(Rol.choices)
-    return [(v, n) for v, n in Rol.choices if v != Rol.DUENO]
+    """Los roles del taller que puede dar quien está en Equipo: Administrador solo lo da un administrador."""
+    roles = Rol.objects.all()
+    return roles if membresia.es_admin else roles.exclude(base='admin')
 
 
 class CampoPin(forms.CharField):
@@ -27,21 +26,6 @@ class CampoPin(forms.CharField):
         kwargs.setdefault('widget', forms.TextInput(attrs={'inputmode': 'numeric', 'autocomplete': 'off',
                                                            'pattern': r'\d{4,6}'}))
         super().__init__(**kwargs)
-
-
-class FormInvitar(forms.Form):
-    email = forms.EmailField(label='Mail')
-    rol = forms.ChoiceField(label='Rol')
-
-    def __init__(self, *args, membresia, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.fields['rol'].choices = roles_que_puede_dar(membresia)
-
-    def clean_email(self):
-        email = self.cleaned_data['email'].strip().lower()
-        if Membresia.objects.filter(usuario__email=email, activa=True).exists():
-            raise forms.ValidationError('Ya es miembro del taller.')
-        return email
 
 
 class CampoUsuario(forms.CharField):
@@ -65,19 +49,51 @@ def usuario_tomado(valor, excluir=None):
     return Usuario.objects.filter(usuario=valor).exclude(pk=excluir).exists()
 
 
-class FormAltaConPin(forms.Form):
+class CampoRol(forms.ModelChoiceField):
+    def label_from_instance(self, rol):
+        return f'{rol.nombre} (entra con usuario y PIN)' if rol.con_pin else rol.nombre
+
+
+class FormPersona(forms.Form):
+    """Agregar persona (Equipo, ficha 23): con su mail le llega la invitación; sin mail (solo en un rol que entra con
+    PIN) se le arma la cuenta con usuario y PIN."""
     nombre = forms.CharField(label='Nombre y apellido', max_length=80)
+    rol = CampoRol(label='Rol', queryset=Rol.objects.none(), empty_label=None)
+    entra = forms.ChoiceField(label='Cómo entra', initial='mail', required=False, widget=forms.RadioSelect, choices=[
+        ('mail', 'Con su mail (le llega una invitación)'), ('pin', 'Con usuario y PIN, sin mail')])
+    email = forms.EmailField(label='Mail', required=False,
+                             help_text='Le llega un mail para aceptar la invitación y poner su contraseña.')
     usuario = CampoUsuario(required=False, help_text='Con esto y el PIN entra. Si lo dejás vacío, se arma con '
                                                      'el nombre (Ramón Pérez → ramon-perez).')
-    rol = forms.ChoiceField(label='Rol', choices=[(r.value, r.label) for r in Membresia.ROLES_CON_PIN])
-    pin = CampoPin()
+    pin = CampoPin(required=False)
 
-    def clean_usuario(self):
-        valor = self.cleaned_data['usuario']
-        if valor and usuario_tomado(valor):
-            raise forms.ValidationError(f'El usuario «{valor}» ya existe. Probá con otro (por ejemplo, con el '
-                                        f'apellido o un número).')
-        return valor
+    def __init__(self, *args, membresia, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['rol'].queryset = roles_que_puede_dar(membresia)
+
+    def clean(self):
+        datos = super().clean()
+        rol = datos.get('rol')
+        datos['entra'] = datos.get('entra') or 'mail'
+        if rol is None:
+            return datos
+        if datos.get('entra') == 'pin' and not rol.con_pin:
+            self.add_error('entra', f'El rol {rol} no entra con PIN: invitalo por mail.')
+        elif datos.get('entra') == 'pin':
+            if not datos.get('pin'):
+                self.add_error('pin', 'Poné el PIN con el que va a entrar.')
+            valor = datos.get('usuario')
+            if valor and usuario_tomado(valor):
+                self.add_error('usuario', f'El usuario «{valor}» ya existe. Probá con otro (por ejemplo, con el '
+                                          f'apellido o un número).')
+        else:
+            email = (datos.get('email') or '').strip().lower()
+            if not email:
+                self.add_error('email', 'Poné su mail: le llega la invitación.')
+            elif Membresia.objects.filter(usuario__email=email, activa=True).exists():
+                self.add_error('email', 'Ya es miembro del taller.')
+            datos['email'] = email
+        return datos
 
 
 class FormDatosPin(forms.Form):
@@ -99,12 +115,50 @@ class FormDatosPin(forms.Form):
 
 
 class FormMiembro(forms.Form):
-    rol = forms.ChoiceField(label='Rol')
-    activa = forms.BooleanField(label='Activo en el taller', required=False)
+    rol = CampoRol(label='Rol', queryset=Rol.objects.none(), empty_label=None)
+    activa = forms.BooleanField(label='Activo en el taller (sin tildar: no puede entrar)', required=False)
 
     def __init__(self, *args, membresia, **kwargs):
         super().__init__(*args, **kwargs)
-        self.fields['rol'].choices = roles_que_puede_dar(membresia)
+        self.fields['rol'].queryset = roles_que_puede_dar(membresia)
+
+
+class FormRol(forms.ModelForm):
+    """Ficha de un rol (ficha 23): nombre, si entra con PIN y sus permisos. Los del Administrador no se tocan."""
+    permisos = forms.MultipleChoiceField(label='Puede', required=False, widget=forms.CheckboxSelectMultiple,
+                                         choices=[(c, NOMBRES[c]) for c in CLAVES])
+
+    class Meta:
+        model = Rol
+        fields = ('nombre', 'con_pin', 'permisos')
+        help_texts = {'con_pin': 'Para quien entra desde un celular del taller con su usuario y un PIN, sin mail.'}
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance.es_admin:                  # solo se renombra
+            del self.fields['con_pin'], self.fields['permisos']
+
+    def grupos(self):
+        """Las casillas de permisos agrupadas (Armado, Proyectos, Producción, Configuración)."""
+        marcados = set(self['permisos'].value() or [])
+        return [(g, [(c, n, c in marcados, c in SENSIBLES) for c, n in lista]) for g, lista in grupos()]
+
+    def clean_nombre(self):
+        nombre = self.cleaned_data['nombre'].strip()
+        if Rol.objects.filter(nombre__iexact=nombre).exclude(pk=self.instance.pk).exists():
+            raise forms.ValidationError('Ya hay un rol con ese nombre.')
+        return nombre
+
+    def clean(self):
+        datos = super().clean()
+        if datos.get('con_pin') and set(datos.get('permisos') or []) & SENSIBLES:
+            raise forms.ValidationError('Un rol que entra con PIN no puede manejar ' + ', '.join(
+                NOMBRES[c] for c in CLAVES if c in SENSIBLES) + ': un PIN de 4 números no alcanza para eso.')
+        return datos
+
+    def clean_permisos(self):
+        elegidos = set(self.cleaned_data['permisos'])
+        return [c for c in CLAVES if c in elegidos]            # en el orden del catálogo
 
 
 class FormPin(forms.Form):

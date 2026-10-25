@@ -1,6 +1,6 @@
 """Módulo Zicar (solo Nord Good): en la subida, la carpeta del postprocesador de Polyboard (ZIP o carpeta, que el
 navegador comprime); en la conversión, pb2zicar (repo privado aparte, ver docs/decisiones.md); en el proyecto, el
-botón "Descargar Zicar". Solo dueño y oficina, igual que subir proyectos."""
+botón "Descargar Zicar". Con el permiso de subir y modificar proyectos."""
 import importlib.util
 
 from django import forms
@@ -10,12 +10,11 @@ from django.template.loader import render_to_string
 from modulos.registro import Modulo, registrar
 from proyectos.archivos import solo_nombre
 from proyectos.models import Original
-from talleres.roles import Rol
 
 from .zips import ZipInvalido, revisar
 
 CAMPO = 'zicar'
-GESTION = (Rol.DUENO, Rol.OFICINA)
+GESTION = 'proyectos_gestion'          # el permiso que hace falta para usar el módulo
 MB = 1024 * 1024
 
 
@@ -71,7 +70,7 @@ class Zicar(Modulo):
         return bool(resultado and resultado.en_proceso)
 
     def html_de_version(self, request, proyecto, version):
-        if request.membresia is None or request.membresia.rol not in GESTION:
+        if request.membresia is None or not request.membresia.puede(GESTION):
             return ''
         resultado = self.resultado(version)
         if resultado is None:

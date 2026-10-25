@@ -11,7 +11,7 @@
   </div>
 {% else %}
   <h1>Todavía no estás en ningún taller</h1>
-  <p>Pedile al dueño del taller que te invite.</p>
+  <p>Pedile al administrador del taller que te invite.</p>
   {% if user.is_staff %}<p><a href="{% url 'admin:index' %}">Ir a la administración</a></p>{% endif %}
 {% endif %}
 {% endblock %}

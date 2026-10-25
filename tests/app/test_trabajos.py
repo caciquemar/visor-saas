@@ -182,7 +182,7 @@ def test_cualquiera_cambia_el_estado_pero_editar_y_borrar_es_del_autor_o_gestion
     assert lista(arturo, pa)[0]['puede_editar'] is False
     assert cambiar(arturo, i, estado='en proceso').status_code == 200
     r = cambiar(arturo, i, texto='otra cosa')
-    assert r.status_code == 403 and 'Solo quien lo anotó' in r.json()['error']
+    assert r.status_code == 403 and 'Solo quien la anotó' in r.json()['error']
     assert cambiar(arturo, i, limite='2027-01-01').status_code == 403
     assert arturo.delete(f'{API}trabajos/{i}').status_code == 403
     # el formulario manda todo: con lo mismo de antes y otro estado, es solo un cambio de estado

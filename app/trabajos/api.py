@@ -14,7 +14,7 @@ taller; quién anota y quién cambia el estado sale de la sesión (`autor` y `qu
 respuesta, `autor`, `asignado` y `*_por` siguen siendo nombres, así el visor los muestra igual que antes.
 
 Cualquier miembro ve, anota, cambia el estado y sube fotos; cambiar lo demás, borrar y quitar fotos ajenas es del
-que lo anotó, el dueño o la oficina (`puede_editar`). Como en el resto de la app, el filtro por taller lo pone
+que lo anotó o un rol con el permiso Editar y borrar tareas de otros (`puede_editar`). Como en el resto de la app, el filtro por taller lo pone
 DatoDeTaller: un id de otro taller es 404."""
 import io
 import json
@@ -35,7 +35,7 @@ from proyectos.models import Proyecto
 from talleres.archivos import abrir_de_taller
 from talleres.limites import MENSAJES, permite
 from talleres.models import Membresia
-from talleres.roles import Rol, miembro
+from talleres.roles import miembro, puede
 
 from .models import Foto, Trabajo
 
@@ -45,7 +45,6 @@ MAX_JSON = 256 * 1024
 TIPOS_FOTO = {'image/jpeg': 'JPEG', 'image/png': 'PNG', 'image/webp': 'WEBP'}
 EXTENSION = {'JPEG': 'jpg', 'PNG': 'png', 'WEBP': 'webp'}
 UN_ANIO = 365 * 24 * 3600
-GESTION = (Rol.DUENO, Rol.OFICINA)
 
 
 class Rechazo(Exception):
@@ -83,7 +82,7 @@ def solo(request, *metodos):
 
 
 def puede_editar(request, trabajo):
-    return request.membresia.rol in GESTION or (trabajo.autor_id is not None and trabajo.autor_id == request.user.pk)
+    return puede(request, 'tareas_gestion') or (trabajo.autor_id is not None and trabajo.autor_id == request.user.pk)
 
 
 def exigir(request, funcion):
@@ -206,7 +205,7 @@ def trabajo(request, taller, id):
         t = get_object_or_404(Trabajo.objects.select_for_update(), pk=id)
         if request.method == 'DELETE':
             if not puede_editar(request, t):
-                raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden borrar esta tarea.')
+                raise Rechazo(403, 'Solo quien la anotó (o un rol que maneje las tareas) puede borrarla.')
             archivos = [f.archivo.name for f in t.fotos.all()]
             t.delete()
             transaction.on_commit(lambda: [default_storage.delete(a) for a in archivos])
@@ -223,7 +222,7 @@ def trabajo(request, taller, id):
             if k in d and d[k] == getattr(t, k):
                 cambios.discard(k)
         if cambios and not puede_editar(request, t):
-            raise Rechazo(403, 'Solo quien lo anotó, el dueño o la oficina pueden cambiar esta tarea.')
+            raise Rechazo(403, 'Solo quien la anotó (o un rol que maneje las tareas) puede cambiarla.')
         if 'texto' in cambios:
             t.texto = d['texto']
         if 'asignado' in cambios:
@@ -286,7 +285,7 @@ def foto(request, taller, id, foto_id):
     with transaction.atomic():
         f = get_object_or_404(Foto.objects.select_related('trabajo'), pk=foto_id, trabajo_id=id)
         if f.subida_por_id != request.user.pk and not puede_editar(request, f.trabajo):
-            raise Rechazo(403, 'Solo quien la subió, quien anotó la tarea, el dueño o la oficina pueden quitarla.')
+            raise Rechazo(403, 'Solo quien la subió, quien anotó la tarea o un rol que maneje las tareas puede quitarla.')
         archivo = f.archivo.name
         f.delete()
         transaction.on_commit(lambda: default_storage.delete(archivo))

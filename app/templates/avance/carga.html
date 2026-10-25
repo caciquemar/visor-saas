@@ -24,7 +24,7 @@
   {% if carga.estado == 'armando' %}<a class="boton" href="{{ puesto }}&modo=carga">Escanear bultos</a>{% endif %}
   {% if carga.estado == 'salio' %}<a class="boton" href="{{ puesto }}&modo=instalar">Instalar en obra</a>{% endif %}
   {% if carga.estado == 'armando' %}<a class="boton" style="background:transparent;color:var(--texto);border:1px solid var(--borde)" href="{% url 'taller:avance:modificar_carga' taller=request.taller.slug id=carga.pk %}">Modificar</a>
-    {% if request.membresia.rol == 'dueno' or request.membresia.rol == 'oficina' %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=carga.pk %}"
+    {% if gestiona %}<form class="enlinea" method="post" action="{% url 'taller:avance:anular_carga' taller=request.taller.slug id=carga.pk %}"
       onsubmit="return confirm('¿Anular esta carga? Los bultos cargados vuelven a quedar embalados.')">{% csrf_token %}<button class="secundario" type="submit">Anular</button></form>{% endif %}{% endif %}
 </div>
 

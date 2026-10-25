@@ -86,7 +86,7 @@ def oculto(original, modulos=None):
 
 
 def con_modulo(clave):
-    """Para vistas de un módulo: 404 si no está prendido en el taller del pedido. Va antes que `con_rol`, así la
+    """Para vistas de un módulo: 404 si no está prendido en el taller del pedido. Va antes que `con_permiso`, así la
     respuesta es la misma que la de una dirección que no existe."""
     def decorador(vista):
         @wraps(vista)

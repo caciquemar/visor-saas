@@ -2,7 +2,7 @@
 
 Se puede usar desde cualquier celular (decisión 2026-10-05), así que el bloqueo es duro:
 - cada 5 fallos seguidos de una persona: 15 minutos sin poder probar;
-- a los 10 fallos seguidos: bloqueado hasta que el dueño u oficina lo desbloquee en Equipo;
+- a los 10 fallos seguidos: bloqueado hasta que lo desbloqueen en Equipo;
 - además, por IP: 20 fallos en una hora (usuarios inexistentes incluidos) y esa IP no puede probar más por una hora.
 Con un PIN de 4 dígitos, alguien de afuera tiene como mucho 10 intentos sobre 10.000 por persona.
 """
@@ -72,7 +72,7 @@ def probar_pin(membresia, pin):
     no se puede probar ahora. El límite por IP lo lleva quien llama (revisar_ip / fallo_de_ip)."""
     ahora = timezone.now()
     if bloqueado_del_todo(membresia):
-        raise PinBloqueado('PIN bloqueado. Pedile al dueño o a la oficina que lo desbloquee.')
+        raise PinBloqueado('PIN bloqueado. Pedile al administrador del taller que lo desbloquee.')
     if membresia.pin_bloqueado_hasta and ahora < membresia.pin_bloqueado_hasta:
         raise PinBloqueado(f'Demasiados intentos. Probá de nuevo en {MINUTOS_PAUSA} minutos.')
 

@@ -1,17 +1,8 @@
 {% extends 'base.html' %}
-{% block titulo %}{{ otro.usuario }}{% if llaves %}
-<h2>Huellas</h2>
-<form class="caja" method="post">{% csrf_token %}
-  <input type="hidden" name="accion" value="quitar_llaves">
-  <p>Entra con la huella en: {% for ll in llaves %}{{ ll.equipo|default:"un celular" }}{% if not forloop.last %}, {% endif %}{% endfor %}.
-    Si perdió el celular, quitalas.</p>
-  <button type="submit" class="secundario">Quitar huellas</button>
-</form>
-{% endif %}
-{% endblock %}
+{% block titulo %}{{ otro.usuario }}{% endblock %}
 {% block contenido %}
-<p><a href="{% url 'taller:equipo' taller=request.taller.slug %}">← Equipo</a></p>
-<h1>{{ otro.usuario }}</h1>
+<p class="suave" style="margin:0"><a href="{% url 'taller:equipo' taller=request.taller.slug %}">Equipo</a></p>
+<h1>{{ otro.usuario }} <span class="estado{% if otro.activa %} listo{% endif %}">{% if otro.activa %}{{ otro.rol }}{% else %}Inactivo{% endif %}</span></h1>
 <p class="suave">{% if otro.usuario.email %}{{ otro.usuario.email }}{% else %}Entra con el usuario
   <strong>{{ otro.usuario.usuario }}</strong> y su PIN.{% endif %}</p>
 
@@ -22,8 +13,8 @@
   {{ form_datos.as_div }}
   <div class="acciones"><button type="submit">Guardar datos</button></div>
 </form>
-<h2>En el taller</h2>
 {% endif %}
+<h2>Rol y acceso</h2>
 <form class="caja" method="post">{% csrf_token %}
   <input type="hidden" name="accion" value="guardar">
   {{ form.as_div }}

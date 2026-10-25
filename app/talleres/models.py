@@ -10,6 +10,7 @@ from django.utils import timezone
 
 from conversor.polyboard_a_app import SIN_CANTO
 
+from . import permisos as permisos_
 from .archivos import ruta_de_logo
 from .separacion import DatoDeTaller
 
@@ -34,7 +35,7 @@ class Taller(models.Model):
                             help_text='Va en la dirección del taller: app.dominio/esta-direccion/. Minúsculas y guiones.')
     activo = models.BooleanField('activo', default=True)
     creado = models.DateTimeField('creado', auto_now_add=True)
-    # Marca del taller en el link del cliente (ficha 04): la elige el dueño en /<taller>/marca/.
+    # Marca del taller en el link del cliente (ficha 04): la elige el administrador en /<taller>/marca/.
     logo = models.ImageField('logo', upload_to=ruta_de_logo, blank=True, max_length=300)
     color = models.CharField('color', max_length=7, blank=True,
                              validators=[RegexValidator(r'^#[0-9A-F]{6}$', 'El color tiene que ser como #1D5FE0.')])
@@ -52,17 +53,54 @@ class Taller(models.Model):
         return self.nombre
 
 
+class Rol(DatoDeTaller):
+    """Un rol del taller (ficha 23): qué puede hacer quien lo tiene (claves de talleres/permisos.py) y si entra con
+    usuario y PIN. Los cuatro de BASES se crean con el taller; `base` los encuentra. El de Administrador tiene todos
+    los permisos y no se edita ni se borra (solo se renombra)."""
+    nombre = models.CharField('nombre', max_length=40)
+    permisos = models.JSONField('permisos', default=list, blank=True)
+    con_pin = models.BooleanField('entra con usuario y PIN', default=False)
+    base = models.CharField('rol inicial', max_length=12, blank=True, editable=False)
+    orden = models.PositiveSmallIntegerField('orden', default=0)
+
+    class Meta:
+        verbose_name = 'rol'
+        verbose_name_plural = 'roles'
+        ordering = ['orden', 'pk']
+        constraints = [
+            models.UniqueConstraint(fields=['taller', 'base'], condition=~models.Q(base=''), name='un_rol_inicial'),
+            models.UniqueConstraint(fields=['taller', 'nombre'], name='un_nombre_de_rol_por_taller'),
+        ]
+
+    def __str__(self):
+        return self.nombre
+
+    @property
+    def es_admin(self):
+        return self.base == permisos_.ADMIN
+
+    def puede(self, permiso):
+        return self.es_admin or permiso in self.permisos
+
+
+def rol_inicial(base):
+    """El rol inicial del taller actual con esa base ('admin', 'oficina', 'armador', 'instalador'; 'dueno' es el
+    nombre viejo de 'admin')."""
+    return Rol.objects.get(base=permisos_.ADMIN if base == 'dueno' else base)
+
+
+def crear_roles_iniciales(taller):
+    """Los cuatro roles con que arranca un taller (talleres/permisos.py, BASES). No repite los que ya tiene."""
+    from .separacion import con_taller
+    with con_taller(taller):
+        for orden, (base, nombre, con_pin, permisos) in enumerate(permisos_.BASES):
+            if not Rol.objects.filter(base=base).exists():
+                Rol.objects.create(base=base, nombre=nombre, con_pin=con_pin, permisos=list(permisos), orden=orden)
+
+
 class Membresia(DatoDeTaller):
-    class Rol(models.TextChoices):
-        DUENO = 'dueno', 'Dueño'
-        OFICINA = 'oficina', 'Oficina'
-        ARMADOR = 'armador', 'Armador'
-        INSTALADOR = 'instalador', 'Instalador'
-
-    ROLES_CON_PIN = (Rol.ARMADOR, Rol.INSTALADOR)
-
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='membresias')
-    rol = models.CharField('rol', max_length=12, choices=Rol.choices)
+    rol = models.ForeignKey(Rol, on_delete=models.PROTECT, related_name='membresias', verbose_name='rol')
     activa = models.BooleanField('activa', default=True)
     pin = models.CharField('PIN (cifrado)', max_length=128, blank=True)
     pin_fallos = models.PositiveSmallIntegerField('intentos fallidos de PIN', default=0)
@@ -76,18 +114,28 @@ class Membresia(DatoDeTaller):
         constraints = [models.UniqueConstraint(fields=['taller', 'usuario'], name='una_membresia_por_taller')]
 
     def __str__(self):
-        return f'{self.usuario} ({self.get_rol_display()})'
+        return f'{self.usuario} ({self.rol})'
+
+    def get_rol_display(self):
+        return self.rol.nombre
 
     @property
     def usa_pin(self):
-        return self.rol in self.ROLES_CON_PIN
+        return self.rol.con_pin
+
+    @property
+    def es_admin(self):
+        return self.rol.es_admin
+
+    def puede(self, permiso):
+        return self.rol.puede(permiso)
 
 
 class Invitacion(DatoDeTaller):
     DIAS = 7
 
     email = models.EmailField('mail')
-    rol = models.CharField('rol', max_length=12, choices=Membresia.Rol.choices)
+    rol = models.ForeignKey(Rol, on_delete=models.PROTECT, related_name='invitaciones', verbose_name='rol')
     token_hash = models.CharField(max_length=64, unique=True, editable=False)
     vence = models.DateTimeField('vence')
     creada = models.DateTimeField('creada', auto_now_add=True)
@@ -103,7 +151,10 @@ class Invitacion(DatoDeTaller):
         ordering = ['-creada']
 
     def __str__(self):
-        return f'{self.email} ({self.get_rol_display()})'
+        return f'{self.email} ({self.rol})'
+
+    def get_rol_display(self):
+        return self.rol.nombre
 
     @staticmethod
     def cifrar(token):
@@ -113,6 +164,8 @@ class Invitacion(DatoDeTaller):
     def nueva(cls, email, rol, invitado_por=None):
         """Crea la invitación en el taller actual. Devuelve (invitación, token): el token solo existe en el
         mail; en la base queda su hash."""
+        if isinstance(rol, str):
+            rol = rol_inicial(rol)
         token = secrets.token_urlsafe(32)
         inv = cls.objects.create(email=email.strip().lower(), rol=rol, token_hash=cls.cifrar(token),
                                  vence=timezone.now() + timedelta(days=cls.DIAS), invitado_por=invitado_por)

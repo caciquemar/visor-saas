@@ -361,3 +361,11 @@ en producción. Desde su pantalla, "Abrir en el visor" igual lo muestra (para re
 (dueño u oficina; se desarchiva); **borrar** del todo es solo del dueño, solo desde Archivados y escribiendo el nombre,
 y se lleva versiones, archivos, avance, cargas, tareas, fotos y links. Los datos del proyecto (teléfono, mail,
 pedido, entrega, notas) no los ve el cliente.
+
+## 2026-10-25 · Roles propios con permisos; Dueño pasa a ser Administrador (ficha 23)
+Los roles son del taller y cada uno tiene una lista de permisos (`talleres/permisos.py`), en vez de cuatro roles fijos
+decididos en el código (Martín). Arrancan los cuatro de antes con los mismos accesos. **Administrador** (antes Dueño)
+tiene todo, no se edita (solo se renombra), solo otro administrador lo da y siempre queda al menos uno. Un rol puede
+"entrar con usuario y PIN"; esos roles no pueden tener Equipo, Roles, Marca ni Borrar proyectos (un PIN de 4 números
+no alcanza). Un rol se borra solo si nadie lo tiene. Agregar persona: con mail, invitación; sin mail, solo en un rol
+con PIN. La baja de una persona es desactivarla (su nombre queda en lo que hizo).

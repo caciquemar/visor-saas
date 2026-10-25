@@ -344,6 +344,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-25: **Mi cuenta (pedido de Martín)** en `/<taller>/cuenta/` (`talleres/cuenta.py`), desde el menú ☰ y el
   del visor: nombre (y usuario si entra con PIN), mail y contraseña pidiendo la actual, su PIN del taller pidiendo el
   actual, sus huellas (quitar) y sus talleres. Íconos en una sola definición (`talleres/iconos.py`).
+- 2026-10-25: **ficha 23 hecha: Equipo y roles.** Roles propios del taller con permisos (`talleres/permisos.py`,
+  `Rol`, `con_permiso`), "Agregar persona" único, desactivar como baja, invitaciones con Reenviar y Anular. **Dueño
+  pasa a llamarse Administrador** (en el código, la base del rol es `admin`). Ver `docs/sesiones/23-equipo-roles.md`.
 
 ## Pendientes
 

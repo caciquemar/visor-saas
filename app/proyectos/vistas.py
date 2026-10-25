@@ -1,6 +1,6 @@
 """Proyectos y materiales del taller: /<taller>/proyectos/... y /<taller>/materiales/. Como en talleres/vistas.py,
 el middleware ya filtra todo por taller: acá no se filtra a mano. Todos los miembros ven los proyectos; subir,
-cambiar de versión y la biblioteca de materiales son para el dueño y la oficina."""
+cambiar de versión y la biblioteca de materiales dependen de los permisos del rol (talleres/permisos.py)."""
 from datetime import timedelta
 from pathlib import Path
 
@@ -18,7 +18,7 @@ from avance import pantalla as pantalla_de_avance
 from conversor.polyboard_a_app import clave
 from modulos import registro
 from talleres.archivos import abrir_de_taller
-from talleres.roles import Rol, con_rol, miembro
+from talleres.roles import con_permiso, miembro, puede
 
 from . import probador
 from .archivos import solo_nombre
@@ -28,7 +28,6 @@ from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Ver
 from .tareas import encolar
 from .visor import url_de_link
 
-GESTION = (Rol.DUENO, Rol.OFICINA)
 
 
 def a_proyecto(request, proyecto, seccion=None, ancla=''):
@@ -79,7 +78,7 @@ FILTROS = [('', 'En curso'), ('produccion', 'En producción'), ('desarrollo', 'E
            ('archivados', 'Archivados'), ('todos', 'Todos')]
 
 
-@miembro
+@con_permiso('proyectos')
 def lista(request, taller):
     """Buscar por nombre, cliente o número de pedido y filtrar por estado. "En curso": en producción y en desarrollo
     (sin los archivados)."""
@@ -109,10 +108,10 @@ def lista(request, taller):
     archivados = Proyecto.objects.filter(archivado_en__isnull=False).count()
     return render(request, 'proyectos/lista.html', {
         'proyectos': proyectos, 'q': q, 'estado': estado, 'filtros': FILTROS, 'archivados': archivados,
-        'gestiona': request.membresia.rol in GESTION})
+        'gestiona': puede(request, 'proyectos_gestion')})
 
 
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def nuevo(request, taller):
     form = formulario(FormProyectoNuevo, request)
     datos = FormDatos(request.POST or None, alta=True)
@@ -135,7 +134,7 @@ def nuevo(request, taller):
 SECCIONES = [('resumen', 'Resumen'), ('produccion', 'Producción'), ('cliente', 'Cliente'), ('versiones', 'Versiones')]
 
 
-@miembro
+@con_permiso('proyectos')
 def ver(request, taller, id):
     """El proyecto en cuatro secciones con íconos (`?ver=`, ficha 22): Resumen (datos, estado y avance general),
     Producción (avance por mueble y cargas), Cliente (link y probador de colores) y Versiones."""
@@ -156,7 +155,7 @@ def ver(request, taller, id):
         for f in base.faltan_texturas:
             texto = f"{f['tipo']} {f['nombre']}"
             (texturas_nuevas if (f['tipo'], clave(f['nombre'])) in con_textura else faltan).append(texto)
-    gestiona = request.membresia.rol in GESTION
+    gestiona = puede(request, 'proyectos_gestion')
     links = list(proyecto.links.filter(anulado__isnull=True)) if gestiona else []
     for link in links:
         link.direccion = url_de_link(request, link)
@@ -172,7 +171,7 @@ def ver(request, taller, id):
         'links': links, 'dias_link': VENCIMIENTOS, 'dias_por_defecto': LinkCliente.DIAS,
         'texturas_nuevas': texturas_nuevas, 'faltan': faltan,
         'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
-        'gestiona': gestiona, 'es_dueno': request.membresia.rol == Rol.DUENO,
+        'gestiona': gestiona, 'borra': puede(request, 'proyectos_borrar'), 'puede_marca': puede(request, 'marca'),
         'form_datos': FormDatos(instance=proyecto) if gestiona else None,
         'avance': avance,
     })
@@ -194,7 +193,7 @@ def pantalla_del_probador(proyecto, gestiona):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def grupo_color(request, taller, id, grupo_id=None):
     """Crear, guardar o borrar un grupo del probador de colores."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
@@ -229,7 +228,7 @@ def grupo_color(request, taller, id, grupo_id=None):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def datos(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id)
     form = FormDatos(request.POST, instance=proyecto)
@@ -243,7 +242,7 @@ def datos(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def produccion(request, taller, id):
     """Habilitar o deshabilitar el proyecto para producción (en desarrollo: el cliente lo ve en su link, pero no
     aparece en Mi puesto, el Tablero, el visor ni Tareas)."""
@@ -257,7 +256,7 @@ def produccion(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def archivar(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=True)
     proyecto.archivado_en, proyecto.archivado_por = timezone.now(), request.user
@@ -268,7 +267,7 @@ def archivar(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def desarchivar(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=False)
     proyecto.archivado_en = proyecto.archivado_por = None
@@ -278,7 +277,7 @@ def desarchivar(request, taller, id):
 
 
 @require_POST
-@con_rol(Rol.DUENO)
+@con_permiso('proyectos_borrar')
 def borrar(request, taller, id):
     """Borrar del todo un proyecto archivado: hay que escribir su nombre. No se puede deshacer."""
     proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=False)
@@ -291,7 +290,7 @@ def borrar(request, taller, id):
     return redirect(reverse('taller:proyectos:lista', kwargs={'taller': request.taller.slug}) + '?estado=archivados')
 
 
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def nueva_version(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id)
     form = formulario(FormSubida, request)
@@ -305,7 +304,7 @@ def nueva_version(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def usar_version(request, taller, id, numero):
     proyecto = get_object_or_404(Proyecto, pk=id)
     version = get_object_or_404(proyecto.versiones, numero=numero, estado=Version.Estado.LISTO)
@@ -316,7 +315,7 @@ def usar_version(request, taller, id, numero):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def reconvertir(request, taller, id, numero):
     proyecto = get_object_or_404(Proyecto, pk=id)
     origen = get_object_or_404(proyecto.versiones, numero=numero)
@@ -326,7 +325,7 @@ def reconvertir(request, taller, id, numero):
     return a_proyecto(request, proyecto, 'versiones')
 
 
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def original(request, taller, id, numero, original_id):
     o = get_object_or_404(Original, pk=original_id, version__numero=numero, version__proyecto_id=id)
     if registro.oculto(o):          # la carpeta del postprocesador, con el módulo Zicar apagado
@@ -334,7 +333,7 @@ def original(request, taller, id, numero, original_id):
     return abrir_de_taller(request, o.archivo.name, descarga=True, nombre=o.nombre)
 
 
-@con_rol(*GESTION)
+@con_permiso('materiales')
 def materiales(request, taller, form_nuevo=None):
     lista = sorted(Material.objects.all(), key=lambda m: (bool(m.textura), m.clave))
     grupos = [(etiqueta, [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista if m.tipo == tipo])
@@ -348,7 +347,7 @@ def materiales(request, taller, form_nuevo=None):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('materiales')
 def nuevo_tablero(request, taller):
     """Agregar a la biblioteca un tablero que todavía no usa ningún proyecto (para ofrecerlo en el probador)."""
     form = FormTableroNuevo(request.POST, request.FILES, auto_id='nuevo_%s')
@@ -360,7 +359,7 @@ def nuevo_tablero(request, taller):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('materiales')
 def sin_canto(request, taller):
     form = FormSinCanto(request.POST, instance=request.taller)
     if form.is_valid():
@@ -373,7 +372,7 @@ def sin_canto(request, taller):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('materiales')
 def material(request, taller, id):
     m = get_object_or_404(Material, pk=id)
     tenia_textura = bool(m.textura)
@@ -390,7 +389,7 @@ def material(request, taller, id):
     return redirect('taller:proyectos:materiales', taller=request.taller.slug)
 
 
-@con_rol(*GESTION)
+@con_permiso('materiales')
 def imagen_material(request, taller, id):
     m = get_object_or_404(Material, pk=id)
     if not m.textura:
@@ -402,7 +401,7 @@ VENCIMIENTOS = [(30, '30 días'), (90, '90 días'), (365, 'un año'), (0, 'no ve
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def nuevo_link(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id)
     try:
@@ -419,7 +418,7 @@ def nuevo_link(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('proyectos_gestion')
 def anular_link(request, taller, id, link_id):
     link = get_object_or_404(LinkCliente, pk=link_id, proyecto_id=id, anulado__isnull=True)
     link.anulado = timezone.now()

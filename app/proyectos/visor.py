@@ -39,7 +39,7 @@ from talleres.iconos import ICONOS
 from talleres.limites import permite
 from talleres.menu import pantallas
 from talleres.models import Membresia
-from talleres.roles import miembro
+from talleres.roles import con_permiso, miembro
 
 from . import probador, tareas
 from .models import Combinacion, EleccionCliente, GrupoDeColor, LinkCliente, Material, Proyecto, Version, para_produccion
@@ -114,7 +114,7 @@ def formato_para_el_visor():
     return formato()
 
 
-@miembro
+@con_permiso('visor')
 def visor(request, taller):
     """Con trabajos (trabajos/api.py): quién es el que mira, la gente del taller para "Para quién" y el token CSRF
     que el visor manda al anotar o cambiar."""

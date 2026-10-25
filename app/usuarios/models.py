@@ -70,7 +70,7 @@ class Usuario(AbstractBaseUser, PermissionsMixin):
     is_active = models.BooleanField('activo', default=True)
     is_staff = models.BooleanField('administración del servicio', default=False,
                                    help_text='Puede entrar a la administración (solo el equipo del servicio, '
-                                             'no los dueños de los talleres).')
+                                             'no los administradores de los talleres).')
     creado = models.DateTimeField('creado', auto_now_add=True)
 
     objects = UsuarioManager()

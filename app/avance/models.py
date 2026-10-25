@@ -273,7 +273,7 @@ PUNTOS_POR_DEFECTO = ['Cantos', 'Todas las piezas', 'Frentes', 'Herrajes']
 
 
 class PuntoDeControl(DatoDeTaller):
-    """Un punto de la lista del control de calidad de cada mueble (Procesos, solo el dueño)."""
+    """Un punto de la lista del control de calidad de cada mueble (Procesos; permiso Procesos y puntos de control)."""
     nombre = models.CharField('nombre', max_length=40)
     orden = models.PositiveSmallIntegerField('orden', default=0)
     activa = models.BooleanField('activo', default=True)
@@ -316,7 +316,7 @@ class Control(DatoDeTaller):
 
 
 class Instalacion(DatoDeTaller):
-    """Un mueble quedó instalado en la obra. Con bultos sin entregar o tareas abiertas, queda el motivo. Deshacer (dueño
+    """Un mueble quedó instalado en la obra. Con bultos sin entregar o tareas abiertas, queda el motivo. Deshacer (Corregir producción
     u oficina) lo deja con `anulado_en`."""
     proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name='instalaciones')
     mueble = models.CharField('mueble', max_length=200)

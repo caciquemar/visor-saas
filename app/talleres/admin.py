@@ -1,5 +1,5 @@
 """Administración del servicio (Martín): ve todos los talleres, por eso lee con `sin_filtro`.
-Los dueños de los talleres no entran acá: usan Equipo dentro de su taller."""
+Los administradores de los talleres no entran acá: usan Equipo dentro de su taller."""
 from django import forms
 from django.contrib import admin, messages
 from django.contrib.admin.utils import unquote
@@ -76,8 +76,8 @@ class ModulosInline(admin.TabularInline):
 
 
 class FormTaller(forms.ModelForm):
-    email_dueno = forms.EmailField(label='Mail del dueño', required=False,
-                                   help_text='Le llega una invitación para entrar como dueño.')
+    email_dueno = forms.EmailField(label='Mail del administrador', required=False,
+                                   help_text='Le llega una invitación para entrar como administrador del taller.')
 
     class Meta:
         model = Taller
@@ -101,7 +101,7 @@ class TallerAdmin(admin.ModelAdmin):
     def get_form(self, request, obj=None, **kwargs):
         form = super().get_form(request, obj, **kwargs)
         form.base_fields['email_dueno'].required = obj is None
-        form.base_fields['email_dueno'].label = 'Mail del dueño' if obj is None else 'Invitar otro dueño'
+        form.base_fields['email_dueno'].label = 'Mail del administrador' if obj is None else 'Invitar otro administrador'
         return form
 
     def get_inlines(self, request, obj):
@@ -145,8 +145,8 @@ class TallerAdmin(admin.ModelAdmin):
         email = form.cleaned_data.get('email_dueno')
         if email:
             with con_taller(obj):
-                inv = invitar(obj, email, Membresia.Rol.DUENO, request.user)
+                inv = invitar(obj, email, 'admin', request.user)
             if inv.mail_enviado:
-                messages.info(request, f'Se mandó la invitación de dueño a {email}.')
+                messages.info(request, f'Se mandó la invitación de administrador a {email}.')
             else:
                 messages.error(request, NO_SALIO)

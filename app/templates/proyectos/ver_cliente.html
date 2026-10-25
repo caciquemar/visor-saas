@@ -29,7 +29,7 @@
       <option value="{{ d }}"{% if d == dias_por_defecto %} selected{% endif %}>{{ texto }}</option>{% endfor %}</select>
     <button type="submit">Crear link</button>
   </form>
-  {% if not request.taller.logo and request.membresia.rol == 'dueno' %}<p class="suave">Todavía no cargaste tu logo: <a href="{% url 'taller:marca' taller=request.taller.slug %}">cargalo en Marca</a>.</p>{% endif %}
+  {% if not request.taller.logo and puede_marca %}<p class="suave">Todavía no cargaste tu logo: <a href="{% url 'taller:marca' taller=request.taller.slug %}">cargalo en Marca</a>.</p>{% endif %}
 </div>
 <script>
   document.querySelectorAll('[data-copiar]').forEach(b => b.onclick = async () => {
@@ -76,4 +76,4 @@
 </div>
 {% endif %}
 {% if not listo %}<div class="caja"><p class="suave" style="margin:0">Cuando haya una versión lista vas a poder crear el link para el cliente.</p></div>
-{% elif not gestiona and not elecciones %}<div class="caja"><p class="suave" style="margin:0">El link del cliente lo manejan el dueño y la oficina.</p></div>{% endif %}
+{% elif not gestiona and not elecciones %}<div class="caja"><p class="suave" style="margin:0">Tu rol no maneja el link del cliente.</p></div>{% endif %}

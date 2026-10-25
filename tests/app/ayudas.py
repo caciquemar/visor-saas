@@ -1,14 +1,20 @@
-from talleres.models import Membresia
+from talleres.models import Membresia, rol_inicial
 from talleres.pin import asignar_pin
 from talleres.separacion import con_taller
 
 CLAVE = 'una-clave-larga-de-prueba'
 
 
-def sumar(usuario, taller, rol, pin=None):
-    """Suma al usuario al taller con ese rol (y PIN, si se da)."""
+def rol_pk(taller, base):
+    """El id del rol inicial del taller (para mandarlo en un formulario de Equipo)."""
     with con_taller(taller):
-        m = Membresia.objects.create(usuario=usuario, rol=rol)
+        return rol_inicial(base).pk
+
+
+def sumar(usuario, taller, rol, pin=None):
+    """Suma al usuario al taller con ese rol (la base de un rol inicial, como 'armador', o un Rol) y PIN, si se da."""
+    with con_taller(taller):
+        m = Membresia.objects.create(usuario=usuario, rol=rol_inicial(rol) if isinstance(rol, str) else rol)
         if pin:
             asignar_pin(m, pin)
     return m

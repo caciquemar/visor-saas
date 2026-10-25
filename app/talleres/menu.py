@@ -3,39 +3,35 @@ pantalla de cada sección (talleres/seccion.html), el menú ☰ de todas las pá
 visor (proyectos/visor.py, menu_de). Todo sale de SECCIONES, así se encuentra todo en el mismo lugar."""
 from django.urls import reverse
 
-from .roles import Rol
-
-TODOS = tuple(Rol.values)
-GESTION = (Rol.DUENO, Rol.OFICINA)
-DUENO = (Rol.DUENO,)
 
 # (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Proyectos) va directo a ella; las
 # demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado; en Producción es un modo de Mi puesto.
-# Cada pantalla: (nombre, ruta, para qué sirve, roles que la ven, ícono de talleres/iconos.py). La sección usa el
+# Cada pantalla: (nombre, ruta, para qué sirve, permisos que la abren (alguno), ícono de talleres/iconos.py). La sección usa el
 # ícono de su clave.
 SECCIONES = [
     ('armado', 'Armado', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
-        ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', TODOS,
+        ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', ('visor',),
          'visor'),
-        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS, 'tareas'),
+        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', ('tareas',), 'tareas'),
     ]),
     ('proyectos', 'Proyectos', 'Subí los proyectos de Polyboard, mandale el link al cliente e imprimí etiquetas.', [
-        ('Proyectos', 'taller:proyectos:lista', '', TODOS, 'proyectos'),
+        ('Proyectos', 'taller:proyectos:lista', '', ('proyectos',), 'proyectos'),
     ]),
     ('produccion', 'Producción', 'Mi puesto para escanear, el tablero de control y los procesos del taller.', [
         ('Mi puesto', 'taller:avance:puesto',
          'Escaneá las etiquetas para marcar cada etapa, dejar las piezas en su lugar, terminar un mueble o cargar.',
-         TODOS, 'puesto'),
-        ('Tablero de control', 'taller:avance:tablero', 'El avance de cada proyecto, por etapa y en general.', TODOS,
+         ('puesto',), 'puesto'),
+        ('Tablero de control', 'taller:avance:tablero', 'El avance de cada proyecto, por etapa y en general.', ('tablero',),
          'tablero'),
-        ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.', GESTION,
+        ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.',
+         ('procesos', 'ubicaciones'),
          'procesos'),
     ]),
     ('configuracion', 'Configuración', 'Materiales, equipo y marca del taller.', [
-        ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', GESTION,
+        ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', ('materiales',),
          'materiales'),
-        ('Equipo', 'taller:equipo', 'Quién entra al taller, con qué rol, invitaciones y PIN.', GESTION, 'equipo'),
-        ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', DUENO, 'marca'),
+        ('Equipo', 'taller:equipo', 'Las personas del taller y sus roles.', ('equipo', 'roles'), 'equipo'),
+        ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', ('marca',), 'marca'),
     ]),
 ]
 
@@ -50,7 +46,7 @@ def secciones(request):
     lista = []
     for clave, nombre, descripcion, todas in SECCIONES:
         pantallas = [{'nombre': n, 'url': url(ruta), 'descripcion': d, 'icono': i} for n, ruta, d, roles, i in todas
-                     if membresia.rol in roles]
+                     if any(membresia.puede(p) for p in roles)]
         if not pantallas:
             continue
         directa = len(todas) == 1

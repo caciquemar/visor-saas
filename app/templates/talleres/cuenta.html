@@ -58,7 +58,7 @@
   <form method="post">{% csrf_token %}
     <input type="hidden" name="accion" value="pin">
     {{ form_pin.as_div }}
-    <p class="suave" style="margin:.25rem 0 0">Si te olvidás el PIN, pedile uno nuevo al dueño o a la oficina.</p>
+    <p class="suave" style="margin:.25rem 0 0">Si te olvidás el PIN, pedile uno nuevo al administrador del taller.</p>
     <div class="acciones"><button type="submit">Cambiar el PIN</button></div>
   </form>
 </details>

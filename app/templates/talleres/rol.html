@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+{% block titulo %}{% if rol.pk %}{{ rol.nombre }}{% else %}Rol nuevo{% endif %}{% endblock %}
+{% block cabeza %}
+<style>
+  .grupo-permisos { border:0; padding:0; margin:1rem 0 0; }
+  .grupo-permisos legend { font-weight:600; padding:0; margin-bottom:.35rem; }
+  .grupo-permisos label { display:flex; gap:.5rem; align-items:flex-start; font-weight:400; margin:.3rem 0; }
+  .grupo-permisos input { width:auto; margin-top:.2rem; }
+  .sensible { color:var(--suave); font-size:.85rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+<p class="suave" style="margin:0"><a href="{% url 'taller:equipo' taller=request.taller.slug %}?ver=roles">Equipo · Roles</a></p>
+<h1>{% if rol.pk %}{{ rol.nombre }}{% else %}Rol nuevo{% endif %}</h1>
+{% if rol.pk %}<p class="suave" style="margin-top:0">{{ personas }} persona{{ personas|pluralize }} activa{{ personas|pluralize }} con este rol.</p>{% endif %}
+
+<form class="caja" method="post">{% csrf_token %}
+  {{ form.non_field_errors }}
+  <label for="{{ form.nombre.id_for_label }}">Nombre</label>{{ form.nombre }}{{ form.nombre.errors }}
+  {% if rol.es_admin %}
+  <p>El administrador puede hacer todo y entra con mail y contraseña. Solo se le cambia el nombre.</p>
+  {% else %}
+  <label style="display:flex;gap:.5rem;align-items:flex-start;margin-top:1rem">{{ form.con_pin }} <span><strong>Entra con usuario y PIN</strong><br>
+    <span class="suave">{{ form.con_pin.help_text }}</span></span></label>{{ form.con_pin.errors }}
+  {% for grupo, permisos in form.grupos %}
+  <fieldset class="grupo-permisos">
+    <legend>{{ grupo }}</legend>
+    {% for clave, nombre, marcado, sensible in permisos %}
+    <label><input type="checkbox" name="permisos" value="{{ clave }}"{% if marcado %} checked{% endif %}{% if sensible %} data-sensible{% endif %}>
+      <span>{{ nombre }}{% if sensible %} <span class="sensible">(no con PIN)</span>{% endif %}</span></label>
+    {% endfor %}
+  </fieldset>
+  {% endfor %}
+  {% endif %}
+  <div class="acciones"><button type="submit">Guardar</button>
+    <a class="boton" style="background:transparent;color:var(--texto);border:1px solid var(--borde)" href="{% url 'taller:equipo' taller=request.taller.slug %}?ver=roles">Cancelar</a></div>
+</form>
+
+{% if rol.pk and not rol.es_admin %}
+<form method="post" class="acciones" style="margin-top:1.5rem"
+      onsubmit="return confirm('¿Borrar el rol {{ rol.nombre|escapejs }}?')">{% csrf_token %}
+  <input type="hidden" name="accion" value="borrar">
+  <button type="submit" class="secundario">Borrar el rol</button>
+  <span class="suave" style="align-self:center">Solo si nadie lo tiene.</span>
+</form>
+{% endif %}
+{% if not rol.es_admin %}
+<script>
+  // con PIN no se pueden tildar los permisos sensibles
+  (function () {
+    const pin = document.getElementById('id_con_pin');
+    const sensibles = document.querySelectorAll('[data-sensible]');
+    const aplicar = () => sensibles.forEach(c => { c.disabled = pin.checked; if (pin.checked) c.checked = false; });
+    pin.addEventListener('change', aplicar); aplicar();
+  })();
+</script>
+{% endif %}
+{% endblock %}

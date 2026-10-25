@@ -8,7 +8,7 @@ from django.utils import timezone
 from talleres.mails import invitar
 from talleres.models import Invitacion, Membresia, Taller
 from talleres.separacion import con_taller
-from tests.app.ayudas import CLAVE, sumar
+from tests.app.ayudas import CLAVE, rol_pk, sumar
 
 
 def link_del_mail(mensaje):
@@ -23,7 +23,7 @@ def test_crear_taller_en_la_administracion_invita_al_dueno(admin_client, db):
     assert len(mail.outbox) == 1 and mail.outbox[0].to == ['duena@sur.com']
     assert 'Muebles Sur' in mail.outbox[0].subject
     with con_taller(taller):
-        assert Invitacion.objects.get().rol == 'dueno'
+        assert Invitacion.objects.get().rol.base == 'admin'
     # la ficha del taller muestra miembros e invitaciones
     r = admin_client.get(f'/admin/talleres/taller/{taller.pk}/change/')
     assert r.status_code == 200 and 'duena@sur.com' in r.text
@@ -39,7 +39,7 @@ def test_slug_reservado_no_se_puede_usar(admin_client, db):
 
 def test_invitar_aceptar_y_entrar(client, t):
     client.force_login(t.dueno_a)
-    r = client.post('/taller-a/equipo/invitar/', {'email': 'nuevo@a.com', 'rol': 'instalador'})
+    r = client.post('/taller-a/equipo/agregar/', {'nombre': 'Nuevo', 'email': 'nuevo@a.com', 'rol': rol_pk(t.A, 'instalador')})
     assert r.status_code == 302 and len(mail.outbox) == 1
     link = link_del_mail(mail.outbox[0])
     client.logout()
@@ -51,7 +51,7 @@ def test_invitar_aceptar_y_entrar(client, t):
     assert client.get('/taller-a/').status_code == 200
     with con_taller(t.A):
         m = Membresia.objects.get(usuario__email='nuevo@a.com')
-        assert m.rol == 'instalador' and m.usuario.nombre == 'Nico'
+        assert m.rol.base == 'instalador' and m.usuario.nombre == 'Nico'
 
     # El link no sirve dos veces
     client.logout()
@@ -102,8 +102,8 @@ def test_invitacion_vencida_o_inventada(client, t):
 
 def test_dueno_de_a_no_invita_en_b(cliente_de, t):
     c = cliente_de(t.dueno_a)
-    assert c.post('/taller-b/equipo/invitar/', {'email': 'x@x.com', 'rol': 'dueno'}).status_code == 404
-    assert c.post('/taller-b/equipo/alta/', {'nombre': 'X', 'rol': 'armador', 'pin': '1111'}).status_code == 404
+    assert c.post('/taller-b/equipo/agregar/', {'nombre': 'Nuevo', 'email': 'x@x.com', 'rol': rol_pk(t.B, 'dueno')}).status_code == 404
+    assert c.post('/taller-b/equipo/agregar/', {'nombre': 'X', 'entra': 'pin', 'rol': rol_pk(t.B, 'armador'), 'pin': '1111'}).status_code == 404
     assert c.post(f'/taller-a/equipo/{t.m_armador_b.pk}/', {'accion': 'desbloquear'}).status_code == 404
     assert c.post(f'/taller-b/equipo/{t.m_armador_b.pk}/', {'accion': 'desbloquear'}).status_code == 404
     assert not mail.outbox
@@ -125,23 +125,23 @@ def test_armador_no_entra_a_equipo(cliente_de, t):
 def test_oficina_no_hace_duenos_ni_toca_al_dueno(cliente_de, t):
     c = cliente_de(t.oficina_a)
     assert c.get('/taller-a/equipo/').status_code == 200
-    c.post('/taller-a/equipo/invitar/', {'email': 'jefe@a.com', 'rol': 'dueno'})
+    c.post('/taller-a/equipo/agregar/', {'nombre': 'Nuevo', 'email': 'jefe@a.com', 'rol': rol_pk(t.A, 'dueno')})
     assert not mail.outbox
-    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': 'dueno', 'activa': 'on'})
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'dueno'), 'activa': 'on'})
     t.m_armador_a.refresh_from_db()
-    assert t.m_armador_a.rol == 'armador'
-    assert c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': 'oficina'}).status_code == 403
+    assert t.m_armador_a.rol.base == 'armador'
+    assert c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'oficina')}).status_code == 403
 
 
 def test_no_queda_un_taller_sin_dueno(cliente_de, t):
     c = cliente_de(t.dueno_a)
-    c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': 'oficina', 'activa': 'on'})
+    c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'oficina'), 'activa': 'on'})
     t.m_dueno_a.refresh_from_db()
-    assert t.m_dueno_a.rol == 'dueno'
+    assert t.m_dueno_a.rol.base == 'admin'
     sumar(t.dueno_b, t.A, 'dueno')
-    c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': 'oficina', 'activa': 'on'})
+    c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'oficina'), 'activa': 'on'})
     t.m_dueno_a.refresh_from_db()
-    assert t.m_dueno_a.rol == 'oficina'
+    assert t.m_dueno_a.rol.base == 'oficina'
 
 
 def test_olvide_la_contrasena(client, t):
@@ -164,7 +164,7 @@ def test_pagina_entrar_en_castellano(client, db):
 
 def test_reenviar_desde_equipo_anula_el_link_viejo(client, t):
     client.force_login(t.dueno_a)
-    client.post('/taller-a/equipo/invitar/', {'email': 'nuevo@a.com', 'rol': 'oficina'})
+    client.post('/taller-a/equipo/agregar/', {'nombre': 'Nuevo', 'email': 'nuevo@a.com', 'rol': rol_pk(t.A, 'oficina')})
     viejo = link_del_mail(mail.outbox[0])
     with con_taller(t.A):
         inv = Invitacion.objects.get()
@@ -173,7 +173,7 @@ def test_reenviar_desde_equipo_anula_el_link_viejo(client, t):
     nuevo = link_del_mail(mail.outbox[1])
     assert nuevo != viejo
     r = client.get('/taller-a/equipo/')
-    assert r.text.count('nuevo@a.com ·') == 1 and 'Reenviar' in r.text    # en la lista, solo la nueva
+    assert r.text.count('<td>nuevo@a.com</td>') == 1 and 'Reenviar' in r.text    # en la lista, solo la nueva
     client.logout()
     assert client.get(viejo).status_code == 404
     assert client.get(nuevo).status_code == 200
@@ -238,5 +238,5 @@ def test_si_el_mail_no_sale_no_hay_error_500(admin_client, client, t, monkeypatc
     with con_taller(taller):
         assert Invitacion.objects.get().email == 'duena@sur.com'
     client.force_login(t.dueno_a)
-    r = client.post('/taller-a/equipo/invitar/', {'email': 'nuevo@a.com', 'rol': 'oficina'}, follow=True)
+    r = client.post('/taller-a/equipo/agregar/', {'nombre': 'Nuevo', 'email': 'nuevo@a.com', 'rol': rol_pk(t.A, 'oficina')}, follow=True)
     assert r.status_code == 200 and 'No se pudo mandar el mail' in r.text and 'Reenviar' in r.text

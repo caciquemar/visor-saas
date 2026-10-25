@@ -7,7 +7,7 @@ from django.utils import timezone
 from talleres import pin as pines
 from talleres.models import Membresia
 from talleres.separacion import con_taller
-from tests.app.ayudas import sumar
+from tests.app.ayudas import rol_pk, sumar
 from usuarios.models import Usuario
 
 
@@ -32,7 +32,7 @@ def test_los_que_no_tienen_mail_tienen_usuario(t):
 
 def test_alta_con_pin_y_entrar(client, t):
     client.force_login(t.dueno_a)
-    r = client.post('/taller-a/equipo/alta/', {'nombre': 'Ramón', 'rol': 'armador', 'pin': '4321'})
+    r = client.post('/taller-a/equipo/agregar/', {'nombre': 'Ramón', 'entra': 'pin', 'rol': rol_pk(t.A, 'armador'), 'pin': '4321'})
     assert r.status_code == 302
     with con_taller(t.A):
         m = Membresia.objects.get(usuario__nombre='Ramón')
@@ -50,14 +50,14 @@ def test_alta_con_pin_y_entrar(client, t):
 
 def test_alta_con_usuario_elegido(client, t):
     client.force_login(t.dueno_a)
-    client.post('/taller-a/equipo/alta/', {'nombre': 'Ramón', 'usuario': 'Ramon.P', 'rol': 'instalador',
+    client.post('/taller-a/equipo/agregar/', {'nombre': 'Ramón', 'entra': 'pin', 'usuario': 'Ramon.P', 'rol': rol_pk(t.A, 'instalador'),
                                            'pin': '4321'})
     assert Usuario.objects.get(nombre='Ramón').usuario == 'ramon.p'
-    r = client.post('/taller-a/equipo/alta/', {'nombre': 'Otro', 'usuario': 'bruno', 'rol': 'armador',
+    r = client.post('/taller-a/equipo/agregar/', {'nombre': 'Otro', 'entra': 'pin', 'usuario': 'bruno', 'rol': rol_pk(t.A, 'armador'),
                                                'pin': '4321'}, follow=True)
     assert 'ya existe' in r.text                                   # bruno es de B: los usuarios no se repiten
     assert not Usuario.objects.filter(nombre='Otro').exists()
-    r = client.post('/taller-a/equipo/alta/', {'nombre': 'Malo', 'usuario': 'con espacio', 'rol': 'armador',
+    r = client.post('/taller-a/equipo/agregar/', {'nombre': 'Malo', 'entra': 'pin', 'usuario': 'con espacio', 'rol': rol_pk(t.A, 'armador'),
                                                'pin': '4321'}, follow=True)
     assert not Usuario.objects.filter(nombre='Malo').exists()
 
@@ -147,7 +147,7 @@ def test_sesion_de_pin_no_entra_a_equipo_ni_a_la_administracion(client, t):
 def test_si_le_cambian_el_rol_la_sesion_de_pin_deja_de_andar(client, t):
     entrar(client, 'arturo', '1234')
     with con_taller(t.A):
-        Membresia.objects.filter(pk=t.m_armador_a.pk).update(rol='oficina')
+        Membresia.objects.filter(pk=t.m_armador_a.pk).update(rol=rol_pk(t.A, 'oficina'))
     assert client.get('/taller-a/').status_code == 404
 
 
@@ -224,14 +224,14 @@ def test_dueno_cambia_el_pin(client, t):
 
 def test_pin_tiene_que_ser_numerico(client, t):
     client.force_login(t.dueno_a)
-    client.post('/taller-a/equipo/alta/', {'nombre': 'Malo', 'rol': 'armador', 'pin': '12ab'})
-    client.post('/taller-a/equipo/alta/', {'nombre': 'Corto', 'rol': 'armador', 'pin': '12'})
+    client.post('/taller-a/equipo/agregar/', {'nombre': 'Malo', 'entra': 'pin', 'rol': rol_pk(t.A, 'armador'), 'pin': '12ab'})
+    client.post('/taller-a/equipo/agregar/', {'nombre': 'Corto', 'entra': 'pin', 'rol': rol_pk(t.A, 'armador'), 'pin': '12'})
     with con_taller(t.A):
         assert not Membresia.objects.filter(usuario__nombre__in=['Malo', 'Corto']).exists()
 
 
 def test_en_el_celular_compartido_el_siguiente_entra_sin_salir(client, t):
-    from tests.app.ayudas import sumar as _sumar
+    from tests.app.ayudas import rol_pk, sumar as _sumar
     otro = Usuario.objects.create_user(None, nombre='Raúl')
     _sumar(otro, t.A, 'instalador', pin='2468')
     entrar(client, 'arturo', '1234')

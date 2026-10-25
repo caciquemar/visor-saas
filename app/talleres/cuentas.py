@@ -46,7 +46,7 @@ def membresia_por_pin(request, usuario, pin, siguiente=''):
         raise forms.ValidationError(str(e))
     membresias = list(Membresia.sin_filtro.select_related('taller', 'usuario').filter(
         usuario__usuario=normalizar_usuario(usuario), usuario__is_active=True, usuario__is_staff=False,
-        activa=True, taller__activo=True, rol__in=Membresia.ROLES_CON_PIN).exclude(pin='').order_by('pk'))
+        activa=True, taller__activo=True, rol__con_pin=True).exclude(pin='').order_by('pk'))
     preferido = slug_de(siguiente)
     membresias.sort(key=lambda m: m.taller.slug != preferido)
     bloqueo = None
@@ -91,7 +91,7 @@ def despues_de_entrar(request, respuesta, usuario, tipo=None):
 
 
 class Entrar(LoginView):
-    """La única pantalla para entrar: dueño y oficina con mail y contraseña; armadores e instaladores con su
+    """La única pantalla para entrar: quien tiene mail, con mail y contraseña; los roles que entran con PIN, con su
     usuario y PIN; en un celular propio, también con la huella (talleres/llaves.py). Arriba, los que ya entraron
     en este celular (equipo_celular.py). La sesión dura 30 días y se renueva con el uso; la de PIN vale solo en el
     taller de ese PIN."""

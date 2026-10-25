@@ -30,6 +30,7 @@ Para empezar una: nueva sesión con carpeta `C:\Users\Asus\GitHub\visor-saas` y 
 | [20](20-avance-y-orden.md) | Avance por proceso (Lista y 3D), orden libre de los procesos, reparación del Armado | 19 | — | hecha (2026-10-24) |
 | [21](21-cargas.md) | Cargas con ABM, carga nueva al escanear, cerrar con faltantes, escáner en el 3D | 20 | — | hecha (2026-10-24) |
 | [22](22-proyectos.md) | Proyectos: ABM, en desarrollo / en producción, datos, lista y secciones con íconos | 21 | — | hecha (2026-10-24) |
+| [23](23-equipo-roles.md) | Equipo: ABM de personas y roles propios con permisos; Dueño → Administrador | 22 | — | hecha (2026-10-25) |
 
 Orden sugerido desde acá: 06 → 12 → 13 → 14 → 07a → 11 (pilotos) → 07b → 08 → 09 → 10 → 15. Las fichas 12 a 14 se sumaron el
 2026-10-06: son las tres funcionalidades nuevas que Martín eligió para tener antes de los pilotos. La 15 (cotas

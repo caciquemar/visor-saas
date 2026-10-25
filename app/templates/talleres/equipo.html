@@ -1,48 +1,140 @@
 {% extends 'base.html' %}
+{% load iconos %}
 {% block titulo %}Equipo{% endblock %}
+{% block cabeza %}
+<style>
+  .secciones-equipo { display:flex; gap:.35rem; margin:.5rem 0 1rem; border-bottom:1px solid var(--borde); }
+  .secciones-equipo a { display:flex; align-items:center; gap:.4rem; padding:.5rem .9rem .6rem; color:var(--suave);
+                        text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px; }
+  .secciones-equipo a .icono { width:1.3rem; height:1.3rem; }
+  .secciones-equipo a[aria-current=page] { color:var(--acento); border-bottom-color:var(--acento); font-weight:600; }
+  table.filas tbody tr[data-href] { cursor:pointer; }
+  table.filas tbody tr[data-href]:hover, table.filas tbody tr[data-href]:focus-visible { background:var(--fondo); outline:none; }
+  #agregar { width:min(30rem, calc(100% - 2rem)); max-height:calc(100% - 2rem); border:1px solid var(--borde);
+             border-radius:14px; padding:1.25rem; background:var(--panel); color:var(--texto); }
+  #agregar::backdrop { background:rgba(0,0,0,.4); }
+  #agregar h2 { margin-top:0; }
+  #agregar .campo-entra > div label { display:flex; gap:.5rem; align-items:center; font-weight:400; margin:.3rem 0; }
+  #agregar input[type=radio] { width:auto; margin:0; }
+  .permisos-chicos { font-size:.85rem; }
+</style>
+{% endblock %}
 {% block contenido %}
 <h1>Equipo</h1>
+<nav class="secciones-equipo" aria-label="Secciones de Equipo">
+  {% for clave, nombre in secciones %}
+  <a href="?ver={{ clave }}"{% if clave == ver %} aria-current="page"{% endif %}>{% if clave == 'personas' %}{% icono 'equipo' %}{% else %}{% icono 'configuracion' %}{% endif %}{{ nombre }}</a>
+  {% endfor %}
+</nav>
+{% include 'tabla_filtrable.html' %}
+
+{% if ver == 'personas' %}
+<div class="acciones" style="margin:0 0 .5rem"><button type="button" id="abrirAgregar">Agregar persona</button></div>
+<div class="filtros-tabla" data-tabla="tPersonas">
+  <input type="search" data-buscar placeholder="Buscar nombre, mail o usuario" aria-label="Buscar persona">
+  <select data-filtro aria-label="Filtrar personas">
+    <option value="">Todos</option>
+    <option value="activo">Activos</option><option value="inactivo">Inactivos</option>
+    <option value="invitacion">Invitaciones</option><option value="bloqueado">PIN bloqueado</option>
+    {% for r in roles %}<option value="rol{{ r.pk }}">{{ r.nombre }}</option>{% endfor %}
+  </select>
+  <span class="suave" data-cuenta></span>
+</div>
 <div class="caja tabla">
-<table>
-  <thead><tr><th>Nombre</th><th>Mail o usuario</th><th>Rol</th><th>Estado</th><th></th></tr></thead>
+<table class="filas" id="tPersonas">
+  <thead><tr><th><button type="button" data-col="0">Nombre</button></th><th><button type="button" data-col="1">Entra con</button></th>
+    <th><button type="button" data-col="2">Rol</button></th><th><button type="button" data-col="3">Estado</button></th></tr></thead>
   <tbody>
   {% for m in miembros %}
-    <tr>
-      <td>{{ m.usuario }}</td>
-      <td>{% if m.usuario.email %}{{ m.usuario.email }}{% else %}{{ m.usuario.usuario }} <span class="suave">(con PIN)</span>{% endif %}</td>
-      <td>{{ m.get_rol_display }}</td>
-      <td>{% if not m.activa %}Inactivo{% elif m.pin_fallos >= 10 %}<span class="error">PIN bloqueado</span>{% else %}Activo{% endif %}</td>
-      <td>{% if request.membresia.rol == 'dueno' or m.rol != 'dueno' %}<a href="{% url 'taller:miembro' taller=request.taller.slug id=m.pk %}">Cambiar</a>{% endif %}</td>
+    <tr data-estado="rol{{ m.rol_id }} {% if not m.activa %}inactivo{% elif m.pin_fallos >= 10 %}bloqueado activo{% else %}activo{% endif %}"
+        {% if request.membresia.es_admin or not m.es_admin %}data-href="{% url 'taller:miembro' taller=request.taller.slug id=m.pk %}" tabindex="0"{% endif %}>
+      <td><strong>{{ m.usuario }}</strong></td>
+      <td>{% if m.usuario.email %}{{ m.usuario.email }}{% else %}{{ m.usuario.usuario }} <span class="suave">(PIN)</span>{% endif %}</td>
+      <td>{{ m.rol }}</td>
+      <td>{% if not m.activa %}<span class="suave">Inactivo</span>{% elif m.pin_fallos >= 10 %}<span class="error">PIN bloqueado</span>{% else %}<span class="estado listo">Activo</span>{% endif %}</td>
+    </tr>
+  {% endfor %}
+  {% for i in invitaciones %}
+    <tr data-estado="rol{{ i.rol_id }} invitacion">
+      <td><span class="suave">Invitación</span></td>
+      <td>{{ i.email }}</td>
+      <td>{{ i.rol }}</td>
+      <td>{% if i.vence > ahora %}Pendiente <span class="suave">· vence {{ i.vence|date:"j/n" }}</span>{% else %}<span class="error">Vencida · venció el {{ i.vence|date:"j/n" }}</span>{% endif %}
+        {% if request.membresia.es_admin or not i.rol.es_admin %}<br>
+        <form class="enlinea" method="post" action="{% url 'taller:reenviar_invitacion' taller=request.taller.slug id=i.pk %}">{% csrf_token %}
+          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.85rem">Reenviar</button></form>
+        <form class="enlinea" method="post" action="{% url 'taller:anular_invitacion' taller=request.taller.slug id=i.pk %}"
+              onsubmit="return confirm('¿Anular la invitación a {{ i.email|escapejs }}? El link del mail deja de andar.')">{% csrf_token %}
+          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>
 </table>
 </div>
+<p class="suave">Para dar de baja a alguien, abrilo y destildá "Activo": no entra más, pero su nombre queda en lo que hizo.</p>
 
-{% if invitaciones %}
-<h2>Invitaciones pendientes</h2>
-<ul>{% for i in invitaciones %}
-  <li>{{ i.email }} · {{ i.get_rol_display }} ·
-    {% if i.vence > ahora %}vence {{ i.vence|date:"j/n" }}{% else %}<span class="error">venció el {{ i.vence|date:"j/n" }}</span>{% endif %}
-    {% if request.membresia.rol == 'dueno' or i.rol != 'dueno' %}
-    <form method="post" action="{% url 'taller:reenviar_invitacion' taller=request.taller.slug id=i.pk %}" style="display:inline">{% csrf_token %}
-      <button type="submit" class="secundario">Reenviar</button></form>{% endif %}
-  </li>{% endfor %}</ul>
-{% endif %}
+<dialog id="agregar"{% if form_persona.errors %} data-abrir{% endif %}>
+  <form method="post" action="{% url 'taller:agregar_persona' taller=request.taller.slug %}">{% csrf_token %}
+    <h2>Agregar persona</h2>
+    {{ form_persona.non_field_errors }}
+    {% for campo in form_persona %}
+    <div class="campo-{{ campo.name }}">
+      <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+      {% if campo.help_text %}<span class="ayuda">{{ campo.help_text }}</span>{% endif %}{{ campo.errors }}
+    </div>
+    {% endfor %}
+    <p class="suave" id="comoEntra"></p>
+    <div class="acciones"><button type="submit" id="enviarPersona">Agregar</button>
+      <button type="button" class="secundario" id="cerrarAgregar">Cancelar</button></div>
+  </form>
+</dialog>
+<script>
+(function () {
+  const dlg = document.getElementById('agregar'), rol = document.getElementById('id_rol');
+  const conPin = { {% for r in roles %}'{{ r.pk }}': {{ r.con_pin|yesno:"true,false" }}{% if not forloop.last %}, {% endif %}{% endfor %} };
+  const ver = (n, si) => dlg.querySelector('.campo-' + n).hidden = !si;
+  const entra = () => dlg.querySelector('input[name=entra]:checked');
+  function segunRol() {
+    if (!conPin[rol.value]) dlg.querySelector('input[name=entra][value=mail]').checked = true;
+    ver('entra', conPin[rol.value]);                 // sin mail, solo en los roles que entran con PIN
+    const pin = entra() && entra().value === 'pin';
+    ver('email', !pin); ver('usuario', pin); ver('pin', pin);
+    document.getElementById('comoEntra').textContent = pin
+      ? 'Entra desde un celular con su usuario y el PIN que le pongas.'
+      : 'Le llega un mail para aceptar la invitación y poner su contraseña.';
+    document.getElementById('enviarPersona').textContent = pin ? 'Dar de alta' : 'Mandar invitación';
+  }
+  rol.addEventListener('change', segunRol);
+  dlg.querySelectorAll('input[name=entra]').forEach(x => x.addEventListener('change', segunRol));
+  segunRol();
+  document.getElementById('abrirAgregar').onclick = () => dlg.showModal();
+  document.getElementById('cerrarAgregar').onclick = () => dlg.close();
+  if (dlg.hasAttribute('data-abrir')) dlg.showModal();
+})();
+</script>
 
-<div class="grilla" style="margin-top:2rem">
-  <form class="caja" method="post" action="{% url 'taller:invitar' taller=request.taller.slug %}">{% csrf_token %}
-    <h2 style="margin-top:0">Invitar por mail</h2>
-    <p class="suave">Para quien entra desde su compu o su celular: dueño, oficina o instalador con mail.</p>
-    {{ form_invitar.as_div }}
-    <div class="acciones"><button type="submit">Mandar invitación</button></div>
-  </form>
-  <form class="caja" method="post" action="{% url 'taller:alta_con_pin' taller=request.taller.slug %}">{% csrf_token %}
-    <h2 style="margin-top:0">Alta con PIN</h2>
-    <p class="suave">Para armadores e instaladores sin mail: entran en
-      <strong>{{ request.get_host }}{% url 'entrar' %}</strong> con su usuario y su PIN.</p>
-    {{ form_alta.as_div }}
-    <div class="acciones"><button type="submit">Dar de alta</button></div>
-  </form>
+{% else %}
+<div class="acciones" style="margin:0 0 .5rem"><a class="boton" href="{% url 'taller:rol_nuevo' taller=request.taller.slug %}">Agregar rol</a></div>
+<div class="caja tabla">
+<table class="filas" id="tRoles">
+  <thead><tr><th>Rol</th><th>Personas</th><th>Entra con</th><th>Puede</th></tr></thead>
+  <tbody>
+  {% for r in roles %}
+    <tr data-href="{% url 'taller:rol' taller=request.taller.slug id=r.pk %}" tabindex="0">
+      <td><strong>{{ r.nombre }}</strong></td>
+      <td>{{ r.personas }}</td>
+      <td>{% if r.con_pin %}Usuario y PIN{% else %}Mail y contraseña{% endif %}</td>
+      <td class="permisos-chicos">{% if r.es_admin %}Todo{% else %}{{ r.permisos|length }} permiso{{ r.permisos|length|pluralize }}{% endif %}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
 </div>
+{% endif %}
+<script>
+  document.querySelectorAll('table.filas tbody tr[data-href]').forEach(f => {
+    f.onclick = e => { if (!e.target.closest('a, button, form')) location.href = f.dataset.href; };
+    f.onkeydown = e => { if (e.key === 'Enter' && e.target === f) location.href = f.dataset.href; };
+  });
+</script>
 {% endblock %}

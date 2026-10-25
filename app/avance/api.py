@@ -1,5 +1,5 @@
 """API del puesto (/<taller>/puesto/api/…) y del avance en el visor (/<taller>/visor/api/avance). Cualquier miembro
-del taller; reabrir un mueble es del dueño o la oficina. Como en el resto de la app, el filtro por taller lo pone
+del taller; reabrir un mueble pide el permiso Corregir producción. Como en el resto de la app, el filtro por taller lo pone
 DatoDeTaller: ids y códigos de otro taller no se encuentran.
 
     POST puesto/api/marcar                 {texto, etapa, proyecto?, ubicacion?}   pieza en una etapa (y lugar)
@@ -15,7 +15,7 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     POST puesto/api/control                {texto, proyecto?} lee; {proyecto, mueble, resultados} guarda
     POST puesto/api/instalacion            {proyecto, mueble}          la tarjeta de instalar
     POST puesto/api/instalar               {texto, proyecto?}          instalado al escanear
-    POST puesto/api/desinstalar            {proyecto, mueble}          dueño u oficina
+    POST puesto/api/desinstalar            {proyecto, mueble}          Corregir producción
     POST puesto/api/instalaciones/<id>/fotos   cuerpo = la imagen
     GET  puesto/api/fotos-de-instalacion/<id>
     POST puesto/api/anotar                 {proyecto, mueble, panel?, proceso?, texto, tarea?}   anotación
@@ -35,7 +35,7 @@ from django.http import Http404
 from django.shortcuts import get_object_or_404
 
 from talleres.archivos import abrir_de_taller
-from talleres.roles import Rol
+from talleres.roles import puede
 from trabajos.api import (EXTENSION, MAX_FOTO, TIPOS_FOTO, UN_ANIO, Rechazo, api, imagen_valida, leer_json,
                           responder, solo, uno)
 
@@ -44,7 +44,6 @@ from .calculo import avance, piezas_de, piezas_nuevas, ubicaciones
 from .models import FotoDeAnotacion, FotoDeInstalacion, Marca, Ubicacion, procesos as procesos_del_taller
 from .pasos import COLORES_AVANCE, NOMBRES_AVANCE, avance_de_proceso, pasos
 
-GESTION = (Rol.DUENO, Rol.OFICINA)
 
 
 def entero(valor):
@@ -129,8 +128,8 @@ def tareas(request, taller):
 @api
 def reabrir(request, taller):
     solo(request, 'POST')
-    if request.membresia.rol not in GESTION:
-        raise Rechazo(403, 'Reabrir un mueble es del dueño o la oficina.')
+    if not puede(request, 'produccion_gestion'):
+        raise Rechazo(403, 'Tu rol no puede reabrir muebles.')
     d = leer_json(request)
     return responder(200, acciones.reabrir(request.user, entero(d.get('proyecto')), d.get('mueble')))
 
@@ -255,8 +254,8 @@ def instalar(request, taller):
 @api
 def desinstalar(request, taller):
     solo(request, 'POST')
-    if request.membresia.rol not in GESTION:
-        raise Rechazo(403, 'Deshacer una instalación es del dueño o la oficina.')
+    if not puede(request, 'produccion_gestion'):
+        raise Rechazo(403, 'Tu rol no puede deshacer instalaciones.')
     d = leer_json(request)
     return responder(200, entrega.desinstalar(request.user, entero(d.get('proyecto')), d.get('mueble')))
 

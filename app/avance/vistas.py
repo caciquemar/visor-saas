@@ -3,7 +3,7 @@
     /<taller>/puesto/                          modo puesto: escanear piezas, terminar muebles, cargar y entregar
     /<taller>/proyectos/<id>/cargas/nueva/     armar una carga (POST)
     /<taller>/cargas/<id>/                     lo cargado y lo que falta; "Salió a obra"
-    /<taller>/procesos/                        etapas (solo el dueño) y ubicaciones (dueño y oficina)
+    /<taller>/procesos/                        procesos (permiso Procesos) y ubicaciones (permiso Ubicaciones)
     /<taller>/tablero/                         tablero de control de Producción
     /<taller>/etapas/                          lleva a Procesos
 """
@@ -22,7 +22,7 @@ from django.views.decorators.http import require_POST
 
 from proyectos.models import Proyecto, Version, para_produccion
 from talleres.limites import permite
-from talleres.roles import Rol, con_rol, miembro
+from talleres.roles import con_permiso, miembro, puede
 from trabajos.api import Rechazo
 
 from . import acciones
@@ -39,7 +39,7 @@ def url(request, nombre, **kwargs):
     return reverse(f'taller:avance:{nombre}', kwargs={'taller': request.taller.slug, **kwargs})
 
 
-@miembro
+@con_permiso('puesto')
 def puesto(request, taller):
     proyectos = (para_produccion(Proyecto.objects.filter(version_actual__estado=Version.Estado.LISTO))
                  .exclude(version_actual__archivo_proyecto='').order_by('nombre', 'pk'))
@@ -49,13 +49,13 @@ def puesto(request, taller):
     config = {
         'csrf': get_token(request),
         'yo': str(request.user),
-        'gestiona': request.membresia.rol in (Rol.DUENO, Rol.OFICINA),
+        'gestiona': puede(request, 'produccion_gestion'),
         'proyectos': [{'id': p.pk, 'nombre': p.nombre} for p in proyectos],
         'procesos': [{'id': e.pk, 'nombre': e.nombre, 'tipo': e.tipo, 'por_mueble': e.por_mueble}
                      for e in procesos_del_taller() if e.activa],
         'ubicaciones': [{'id': u.pk, 'nombre': u.nombre} for u in Ubicacion.objects.filter(activa=True)],
         'tareas': base + 'visor/api/trabajos/' if permite(request.taller, 'trabajos') else None,
-        'urlProcesos': base + 'procesos/' if request.membresia.rol in (Rol.DUENO, Rol.OFICINA) else None,
+        'urlProcesos': base + 'procesos/' if puede(request, 'procesos') or puede(request, 'ubicaciones') else None,
         'cargas': [{'id': c.pk, 'proyecto': c.proyecto_id, 'nombre': f'{c.proyecto.nombre} · carga {c.pk}',
                     'estado': c.estado} for c in cargas],
         'api': base + 'puesto/api/',
@@ -98,7 +98,7 @@ def carga(request, taller, id):
             error = e.error
     datos = acciones.carga_a_dic(c)
     return render(request, 'avance/carga.html', {
-        'carga': c, 'datos': datos, 'error': error, 'muebles': muebles_de_la_carga(datos),
+        'carga': c, 'datos': datos, 'error': error, 'gestiona': puede(request, 'produccion_gestion'), 'muebles': muebles_de_la_carga(datos),
         'con_instalacion': fijo(Etapa.Tipo.INSTALACION) is not None,
         'puesto': url(request, 'puesto') + f'?c={c.pk}',
     }, status=400 if error else 200)
@@ -186,17 +186,17 @@ def editar_lista(request, modelo, lista, nombre, sin_ninguna=None):
             messages.success(request, f'Se borró {e.nombre} con sus {n} marca{"s" if n != 1 else ""}.')
 
 
-@con_rol(Rol.DUENO, Rol.OFICINA)
+@con_permiso('procesos', 'ubicaciones')
 def procesos(request, taller):
     """Procesos de Producción: los procesos (los del taller y los fijos) y los puntos del control de calidad (solo el
-    dueño), y las ubicaciones del taller (dueño y oficina). Los fijos se renombran y se apagan; no se mueven ni se
+    permiso Procesos), y las ubicaciones del taller (permiso Ubicaciones). Los fijos se renombran y se apagan; no se mueven ni se
     borran."""
-    dueno = request.membresia.rol == Rol.DUENO
+    dueno = puede(request, 'procesos')            # procesos y puntos de control; si no, solo ubicaciones
     if request.method == 'POST':
         accion = request.POST.get('accion', '')
         if accion.endswith('-etapas') or '-etapas-' in accion:
             if not dueno:
-                raise PermissionDenied('Las etapas las cambia el dueño.')
+                raise PermissionDenied('Tu rol no puede cambiar los procesos.')
             todos = procesos_del_taller()
             editar_lista(request, Etapa, todos, 'etapas')
             if accion == 'guardar-etapas':
@@ -207,7 +207,7 @@ def procesos(request, taller):
                     e.save(update_fields=['activa'])
         elif accion.endswith('-puntos') or '-puntos-' in accion:
             if not dueno:
-                raise PermissionDenied('El control de calidad lo cambia el dueño.')
+                raise PermissionDenied('Tu rol no puede cambiar el control de calidad.')
             editar_lista(request, PuntoDeControl, puntos_de_control(), 'puntos')
         else:
             editar_lista(request, Ubicacion, list(Ubicacion.objects.all()), 'ubicaciones')
@@ -230,7 +230,7 @@ def procesos(request, taller):
         'control_prendido': any(e.tipo == Etapa.Tipo.CONTROL and e.activa for e in etapas or [])})
 
 
-@miembro
+@con_permiso('tablero')
 def tablero(request, taller):
     ver_terminados = request.GET.get('terminados') == '1'
     return render(request, 'avance/tablero.html', {**armar_tablero(ver_terminados), 'ver_terminados': ver_terminados})
@@ -240,13 +240,13 @@ def tablero(request, taller):
 def entrega(request, taller, id):
     """Lista del proyecto (ficha 18): cada mueble con sus pasos, del armado a la instalación. Con `?proceso=<id>`
     (ficha 20: el botón Lista de Mi puesto), el avance de ese proceso: qué muebles lo cumplieron, cuáles van a medias
-    y cuáles faltan. Se actualiza sola (`?filas=1` devuelve solo las filas). El dueño y la oficina marcan instalado o
+    y cuáles faltan. Se actualiza sola (`?filas=1` devuelve solo las filas). Con el permiso Corregir producción se marca instalado o
     lo deshacen desde acá."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
-    gestiona = request.membresia.rol in (Rol.DUENO, Rol.OFICINA)
+    gestiona = puede(request, 'produccion_gestion')
     if request.method == 'POST':
         if not gestiona:
-            raise PermissionDenied('Marcar o deshacer una instalación desde acá es del dueño o la oficina.')
+            raise PermissionDenied('Tu rol no puede marcar ni deshacer instalaciones desde acá.')
         mueble = request.POST.get('mueble', '')
         try:
             if request.POST.get('accion') == 'desinstalar':
@@ -307,7 +307,7 @@ def modificar_carga(request, taller, id):
 
 
 @require_POST
-@con_rol(Rol.DUENO, Rol.OFICINA)
+@con_permiso('produccion_gestion')
 def anular_carga(request, taller, id):
     """Baja de una carga que no salió: los bultos cargados vuelven a embalados."""
     c = get_object_or_404(Carga.objects.select_related('proyecto'), pk=id)
@@ -321,7 +321,7 @@ def anular_carga(request, taller, id):
                     + '?ver=produccion#cargas')
 
 
-@con_rol(Rol.DUENO, Rol.OFICINA)
+@con_permiso('procesos', 'ubicaciones')
 def etapas(request, taller):
     """La pantalla vieja de Etapas: ahora está en Procesos."""
     return redirect(url(request, 'procesos'))

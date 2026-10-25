@@ -8,6 +8,7 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied
 from django.http import Http404
 from django.db import transaction
+from django.db.models import Count, Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -16,22 +17,20 @@ from django.views.decorators.http import require_POST
 
 from . import pin as pines
 from .archivos import abrir_de_taller
-from .formularios import (FormAltaConPin, FormInvitar, FormMarca, FormMiembro, FormPin, FormDatosPin,
-                          roles_que_puede_dar)
+from .formularios import FormDatosPin, FormMarca, FormMiembro, FormPersona, FormPin, FormRol, roles_que_puede_dar
 from .mails import NO_SALIO
 from .menu import secciones
 from .mails import invitar as mandar_invitacion
 from .mails import reenviar as mandar_de_nuevo
 from .mails import link_absoluto
-from .models import Invitacion, LinkDeEntrada, Membresia
-from .roles import Rol, con_rol, miembro
-
-GESTION = (Rol.DUENO, Rol.OFICINA)
+from .models import Invitacion, LinkDeEntrada, Membresia, Rol
+from .roles import con_permiso, miembro, puede
 DIAS_INVITACION_VENCIDA = 30      # en Equipo se siguen viendo (para reenviarlas) hasta 30 días después de vencer
 
 
-def a_equipo(request):
-    return redirect('taller:equipo', taller=request.taller.slug)
+def a_equipo(request, ver=''):
+    destino = reverse('taller:equipo', kwargs={'taller': request.taller.slug})
+    return redirect(destino + (f'?ver={ver}' if ver else ''))
 
 
 @miembro
@@ -58,38 +57,63 @@ def invitaciones_sin_usar():
     return list(por_mail.values())
 
 
-@con_rol(*GESTION)
-def equipo(request, taller):
-    return render(request, 'talleres/equipo.html', {
-        'miembros': Membresia.objects.select_related('usuario').order_by('-activa', 'usuario__nombre'),
-        'invitaciones': invitaciones_sin_usar(),
-        'ahora': timezone.now(),
-        'form_invitar': FormInvitar(membresia=request.membresia),
-        'form_alta': FormAltaConPin(),
-    })
+SECCIONES_EQUIPO = [('personas', 'Personas', 'equipo'), ('roles', 'Roles', 'roles')]
+
+
+@con_permiso('equipo', 'roles')
+def equipo(request, taller, form_persona=None):
+    """Equipo (ficha 23), en dos secciones: Personas (miembros e invitaciones sin usar, en una tabla, y Agregar
+    persona) y Roles (los roles del taller con sus permisos)."""
+    secciones = [(c, n) for c, n, permiso in SECCIONES_EQUIPO if puede(request, permiso)]
+    ver = request.GET.get('ver', '')
+    ver = ver if ver in dict(secciones) else secciones[0][0]
+    contexto = {'ver': ver, 'secciones': secciones, 'ahora': timezone.now()}
+    if ver == 'personas':
+        contexto.update(
+            miembros=Membresia.objects.select_related('usuario', 'rol').order_by('-activa', 'usuario__nombre'),
+            invitaciones=invitaciones_sin_usar(),
+            roles=roles_que_puede_dar(request.membresia),
+            form_persona=form_persona or FormPersona(membresia=request.membresia))
+    else:
+        contexto['roles'] = Rol.objects.annotate(
+            personas=Count('membresias', filter=Q(membresias__activa=True))).order_by('orden', 'pk')
+    return render(request, 'talleres/equipo.html', contexto, status=400 if form_persona else 200)
 
 
 @require_POST
-@con_rol(*GESTION)
-def invitar(request, taller):
-    form = FormInvitar(request.POST, membresia=request.membresia)
-    if form.is_valid():
-        inv = mandar_invitacion(request.taller, form.cleaned_data['email'], form.cleaned_data['rol'], request.user)
-        if inv.mail_enviado:
-            messages.success(request, f'Invitación enviada a {inv.email}.')
-        else:
-            messages.error(request, NO_SALIO)
+@con_permiso('equipo')
+def agregar_persona(request, taller):
+    """Sin mail (rol que entra con PIN): se le arma la cuenta con usuario y PIN. Con mail: le llega la invitación."""
+    form = FormPersona(request.POST, membresia=request.membresia)
+    if not form.is_valid():
+        return equipo(request, taller=taller, form_persona=form)
+    d = form.cleaned_data
+    if d['entra'] == 'pin':
+        with transaction.atomic():
+            usuario = get_user_model().objects.create_user(email=None, nombre=d['nombre'], usuario=d['usuario'])
+            membresia = Membresia.objects.create(usuario=usuario, rol=d['rol'])
+            pines.asignar_pin(membresia, d['pin'])
+        messages.success(request, f'{usuario} ya puede entrar con el usuario «{usuario.usuario}» y su PIN.')
+        return a_equipo(request)
+    inv = mandar_invitacion(request.taller, d['email'], d['rol'], request.user)
+    if inv.mail_enviado:
+        messages.success(request, f'Invitación enviada a {inv.email} ({d["nombre"]}).')
     else:
-        messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
+        messages.error(request, NO_SALIO)
     return a_equipo(request)
 
 
+def invitacion_de(request, id):
+    inv = get_object_or_404(Invitacion.objects.select_related('rol'), pk=id, usada__isnull=True)
+    if inv.rol.es_admin and not request.membresia.es_admin:
+        raise PermissionDenied('Las invitaciones de administrador las maneja un administrador.')
+    return inv
+
+
 @require_POST
-@con_rol(*GESTION)
+@con_permiso('equipo')
 def reenviar_invitacion(request, taller, id):
-    inv = get_object_or_404(Invitacion, pk=id, usada__isnull=True)
-    if inv.rol not in dict(roles_que_puede_dar(request.membresia)):
-        raise PermissionDenied
+    inv = invitacion_de(request, id)
     if mandar_de_nuevo(request.taller, inv, request.user).mail_enviado:
         messages.success(request, f'Invitación reenviada a {inv.email}.')
     else:
@@ -98,36 +122,30 @@ def reenviar_invitacion(request, taller, id):
 
 
 @require_POST
-@con_rol(*GESTION)
-def alta_con_pin(request, taller):
-    form = FormAltaConPin(request.POST)
-    if not form.is_valid():
-        messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
-        return a_equipo(request)
-    with transaction.atomic():
-        usuario = get_user_model().objects.create_user(email=None, nombre=form.cleaned_data['nombre'],
-                                                       usuario=form.cleaned_data['usuario'])
-        membresia = Membresia.objects.create(usuario=usuario, rol=form.cleaned_data['rol'])
-        pines.asignar_pin(membresia, form.cleaned_data['pin'])
-    messages.success(request, f'{usuario} ya puede entrar con el usuario «{usuario.usuario}» y su PIN.')
+@con_permiso('equipo')
+def anular_invitacion(request, taller, id):
+    inv = invitacion_de(request, id)
+    Invitacion.objects.filter(email=inv.email, usada__isnull=True).update(vence=timezone.now() - timedelta(
+        days=DIAS_INVITACION_VENCIDA + 1))          # deja de valer y no se muestra más
+    messages.success(request, f'Anulaste la invitación a {inv.email}.')
     return a_equipo(request)
 
 
-def quedaria_sin_dueno(membresia, rol, activa):
-    if membresia.rol != Rol.DUENO or (rol == Rol.DUENO and activa):
+def quedaria_sin_admin(membresia, rol, activa):
+    if not membresia.es_admin or (rol.es_admin and activa):
         return False
-    return not Membresia.objects.filter(rol=Rol.DUENO, activa=True).exclude(pk=membresia.pk).exists()
+    return not Membresia.objects.filter(rol__base='admin', activa=True).exclude(pk=membresia.pk).exists()
 
 
-@con_rol(*GESTION)
+@con_permiso('equipo')
 def editar_miembro(request, taller, id):
-    otro = get_object_or_404(Membresia.objects.select_related('usuario'), pk=id)
-    if request.membresia.rol != Rol.DUENO and otro.rol == Rol.DUENO:
-        raise PermissionDenied('Solo un dueño puede cambiar a otro dueño.')
+    otro = get_object_or_404(Membresia.objects.select_related('usuario', 'rol'), pk=id)
+    if not request.membresia.es_admin and otro.es_admin:
+        raise PermissionDenied('Solo un administrador puede cambiar a otro administrador.')
     form = FormMiembro(initial={'rol': otro.rol, 'activa': otro.activa}, membresia=request.membresia)
     form_pin = FormPin()
     # Nombre y usuario se cambian acá solo si no tiene mail (los que tienen mail ponen su nombre al aceptar la
-    # invitación).
+    # invitación, y lo cambian en Mi cuenta).
     form_datos = FormDatosPin(usuario=otro.usuario) if not otro.usuario.email else None
     if request.method == 'POST':
         accion = request.POST.get('accion')
@@ -135,8 +153,11 @@ def editar_miembro(request, taller, id):
             form = FormMiembro(request.POST, membresia=request.membresia)
             if form.is_valid():
                 rol, activa = form.cleaned_data['rol'], form.cleaned_data['activa']
-                if quedaria_sin_dueno(otro, rol, activa):
-                    messages.error(request, 'El taller tiene que tener al menos un dueño activo.')
+                if quedaria_sin_admin(otro, rol, activa):
+                    messages.error(request, 'El taller tiene que tener al menos un administrador activo.')
+                elif not rol.con_pin and not otro.usuario.has_usable_password():
+                    messages.error(request, f'{otro.usuario} entra con PIN y no tiene mail: dale un rol que entre '
+                                            f'con usuario y PIN, o invitalo por mail con el rol {rol}.')
                 else:
                     otro.rol, otro.activa = rol, activa
                     otro.save(update_fields=['rol', 'activa'])
@@ -181,6 +202,38 @@ def editar_miembro(request, taller, id):
                                                      'bloqueado': pines.bloqueado_del_todo(otro)})
 
 
+@con_permiso('roles')
+def rol(request, taller, id=None):
+    """Agregar o cambiar un rol: nombre, si entra con PIN y sus permisos. Borrar: solo si nadie lo tiene."""
+    r = get_object_or_404(Rol, pk=id) if id else Rol(orden=Rol.objects.count())
+    personas = r.membresias.filter(activa=True).count() if r.pk else 0
+    if request.method == 'POST' and request.POST.get('accion') == 'borrar' and r.pk:
+        if r.es_admin:
+            raise PermissionDenied('El rol Administrador no se borra.')
+        if r.membresias.exists() or r.invitaciones.filter(usada__isnull=True, vence__gt=timezone.now()).exists():
+            messages.error(request, f'{r} lo tienen {r.membresias.count()} persona(s) o una invitación: pasalas a '
+                                    'otro rol antes de borrarlo (también a las inactivas).')
+            return redirect('taller:rol', taller=request.taller.slug, id=r.pk)
+        r.invitaciones.all().delete()               # vencidas o usadas: ya no sirven
+        nombre = r.nombre
+        r.delete()
+        messages.success(request, f'Borraste el rol {nombre}.')
+        return a_equipo(request, 'roles')
+    form = FormRol(request.POST or None, instance=r)
+    if request.method == 'POST' and form.is_valid():
+        nuevo = form.save(commit=False)
+        sin_mail = r.pk and not nuevo.con_pin and r.membresias.filter(usuario__email__isnull=True).exists()
+        if sin_mail:
+            form.add_error('con_pin', 'Hay personas con este rol que entran con PIN y no tienen mail: no podrían '
+                                      'entrar más. Pasalas a otro rol primero.')
+        else:
+            nuevo.save()
+            messages.success(request, f'Guardaste el rol {nuevo}.')
+            return a_equipo(request, 'roles')
+    return render(request, 'talleres/rol.html', {'rol': r, 'form': form, 'personas': personas},
+                  status=400 if form.is_bound else 200)
+
+
 def ip_de(request):
     """IP de quien entra. Detrás del túnel de Cloudflare todo llega desde cloudflared: la de verdad viene en
     CF-Connecting-IP (solo se le cree con DETRAS_DE_CLOUDFLARE=1)."""
@@ -205,7 +258,7 @@ def entrar_con_pin(request, taller):
     return redirect(f"{reverse('entrar')}?{urlencode({'next': siguiente})}")
 
 
-@con_rol(Rol.DUENO)
+@con_permiso('marca')
 def marca(request, taller):
     t = request.taller
     anterior = t.logo.name if t.logo else ''

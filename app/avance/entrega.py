@@ -229,7 +229,7 @@ def instalar_leido(usuario, slug, texto, proyecto_id=None):
 
 
 def instalar(usuario, proyecto_id, mueble, nota='', motivo=''):
-    """Marcar instalado desde la Lista (dueño u oficina), con una nota."""
+    """Marcar instalado desde la Lista (permiso Corregir producción), con una nota."""
     proceso_prendido(Etapa.Tipo.INSTALACION)
     proyecto = proyecto_o_rechazo(proyecto_id)
     mueble_de(proyecto, mueble)
@@ -240,7 +240,7 @@ def instalar(usuario, proyecto_id, mueble, nota='', motivo=''):
 
 
 def desinstalar(usuario, proyecto_id, mueble):
-    """Deshacer la instalación (dueño u oficina): queda con quién y cuándo. Los bultos siguen entregados."""
+    """Deshacer la instalación (Corregir producción): queda con quién y cuándo. Los bultos siguen entregados."""
     proyecto = proyecto_o_rechazo(proyecto_id)
     i = Instalacion.objects.filter(proyecto=proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if i is None:

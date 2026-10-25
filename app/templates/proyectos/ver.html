@@ -91,7 +91,7 @@
   <form method="post" action="{% url 'taller:proyectos:desarchivar' taller=request.taller.slug id=proyecto.pk %}" class="acciones">{% csrf_token %}
     <button type="submit">Desarchivar</button></form>
   {% endif %}
-  {% if es_dueno %}
+  {% if borra %}
   <details class="borrar" style="margin-top:.75rem">
     <summary>Borrar el proyecto</summary>
     <form method="post" action="{% url 'taller:proyectos:borrar' taller=request.taller.slug id=proyecto.pk %}"

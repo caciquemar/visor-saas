@@ -11,19 +11,18 @@ from django.views.decorators.http import require_POST
 from proyectos.models import Proyecto, para_produccion
 from talleres.limites import MENSAJES, permite
 from talleres.models import Membresia
-from talleres.roles import Rol, miembro
+from talleres.roles import con_permiso, miembro
 
 from .models import Trabajo
 
-# armadores e instaladores entran viendo lo suyo; dueño y oficina, todo
-CON_PARA_MI = (Rol.ARMADOR, Rol.INSTALADOR)
+# los que entran con PIN (armadores, instaladores) ven lo suyo; los demás, todo
 ORDEN = {'vencido': 0, 'pendiente': 1, 'en proceso': 2, 'hecho': 3, 'instalado': 4}
 
 
 def filtros_de(request):
     """Los filtros del pedido. Sin ninguno, el que corresponde al rol."""
     g = request.GET
-    f = {'para': g.get('para', 'mi' if not g and request.membresia.rol in CON_PARA_MI else ''),
+    f = {'para': g.get('para', 'mi' if not g and request.membresia.usa_pin else ''),
          'proyecto': g.get('proyecto', ''), 'estado': g.get('estado', ''), 'instalados': g.get('instalados') == '1'}
     for clave in ('para', 'proyecto'):
         if f[clave] not in ('', 'mi', 'nadie') and not f[clave].isdigit():
@@ -33,7 +32,7 @@ def filtros_de(request):
     return f
 
 
-@miembro
+@con_permiso('tareas')
 def lista(request, taller):
     f = filtros_de(request)
     qs = (Trabajo.objects.filter(proyecto__in=para_produccion(Proyecto.objects.all()))     # ficha 22
