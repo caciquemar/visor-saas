@@ -35,6 +35,7 @@ from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
 from talleres.archivos import abrir_de_taller
+from talleres.iconos import ICONOS
 from talleres.limites import permite
 from talleres.menu import pantallas
 from talleres.models import Membresia
@@ -103,13 +104,9 @@ def url_de_etiquetas(request):
 
 
 def menu_de(request):
-    """Las pantallas del servicio para el menú del visor: las mismas que el menú ☰ de las demás páginas."""
-    menu = [dict(x, actual=x['nombre'] == 'Visor') for x in pantallas(request)]
-    # debajo de Proyectos, la del proyecto que se está viendo: el visor pone el id en {id}
-    despues = next(i for i, x in enumerate(menu) if x['nombre'] == 'Proyectos') + 1
-    menu.insert(despues, {'nombre': 'Etiquetas del proyecto', 'url': url_de_etiquetas(request), 'actual': False,
-                          'proyecto': True, 'sub': True})
-    return menu
+    """El menú del visor: el mismo que el ☰ de las demás páginas (templates/menu.html), con el dibujo de cada ícono
+    (talleres/iconos.py) porque el visor lo arma en JavaScript."""
+    return [dict(x, actual=x['nombre'] == 'Visor', icono=ICONOS.get(x.get('icono'), '')) for x in pantallas(request)]
 
 
 def formato_para_el_visor():

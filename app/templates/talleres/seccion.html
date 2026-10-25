@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block titulo %}{{ seccion.nombre }}{% endblock %}
+{% load iconos %}
 {% block cabeza %}{% include 'talleres/botones.html' %}{% endblock %}
 {% block contenido %}
 <p class="suave" style="margin:0"><a href="{% url 'taller:inicio' taller=request.taller.slug %}">Inicio</a></p>
@@ -7,6 +8,7 @@
 <nav class="botones" aria-label="{{ seccion.nombre }}">
   {% for p in seccion.pantallas %}
   <a class="boton-grande" href="{{ p.url }}">
+    {% icono p.icono %}
     <span><strong>{{ p.nombre }}</strong><span class="suave">{{ p.descripcion }}</span></span>
   </a>
   {% endfor %}

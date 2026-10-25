@@ -1,6 +1,6 @@
 {# Menú ☰ de las pantallas, igual al del visor (visor/index.html). Lo usan base.html y avance/puesto.html; #}
 {# la lista sale de talleres/menu.py. #}
-{% if user.is_authenticated %}
+{% if user.is_authenticated %}{% load iconos %}
 {# la misma letra que el visor: Barlow en el menú y Barlow Condensed en el título de la barra #}
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -16,7 +16,7 @@
                 background:var(--panel); border:1px solid var(--borde); border-radius:12px;
                 box-shadow:0 8px 24px rgba(27,38,48,.18); display:flex; flex-direction:column; }
   .menu-lista[hidden] { display:none; }
-  .menu-lista a, .menu-lista button { display:block; width:100%; padding:10px 12px; border-radius:8px;
+  .menu-lista a, .menu-lista button { display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; border-radius:8px;
               color:var(--texto); font:500 16px "Barlow", system-ui, sans-serif; text-decoration:none; text-align:left;
               background:none; border:0; cursor:pointer; }
   .menu-lista a:hover, .menu-lista button:hover { background:var(--fondo); }
@@ -24,6 +24,9 @@
   .menu-lista a.seccion { font-weight:600; }
   .menu-lista a.seccion:not(:first-child) { margin-top:4px; }
   .menu-lista a.sub { padding:7px 12px 7px 26px; font-size:15px; }
+  .menu-lista .icono { width:20px; height:20px; flex:none; color:var(--suave); }
+  .menu-lista a.sub .icono { width:18px; height:18px; }
+  .menu-lista a[aria-current="page"] .icono { color:var(--acento); }
   .menu-lista .quien { padding:8px 12px 2px; font-size:13px; color:var(--suave); border-top:1px solid var(--borde);
                        margin-top:4px; }
   .menu-lista form { margin:0; }
@@ -33,7 +36,7 @@
     <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M4 7h16M4 12h16M4 17h16"/></svg>
   </button>
   <nav class="menu-lista" id="menuLista" hidden>
-    {% for x in menu %}<a href="{{ x.url }}"{% if x.seccion %} class="seccion"{% elif x.sub %} class="sub"{% endif %}{% if x.actual %} aria-current="page"{% endif %}>{{ x.nombre }}</a>
+    {% for x in menu %}<a href="{{ x.url }}"{% if x.seccion %} class="seccion"{% elif x.sub %} class="sub"{% endif %}{% if x.actual %} aria-current="page"{% endif %}>{% icono x.icono %}<span>{{ x.nombre }}</span></a>
     {% empty %}<a href="{% url 'inicio' %}">Mis talleres</a>{% endfor %}
     <div class="quien">{{ user }}</div>
     <a href="{% url 'entrar' %}?cambiar=1">Cambiar de persona</a>

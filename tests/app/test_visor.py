@@ -83,7 +83,7 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     original = INDEX.read_text(encoding='utf-8')
     html = r.content.decode()
     config = config_de(r)
-    crudo = json.dumps(config, ensure_ascii=False)
+    crudo = json.dumps(config, ensure_ascii=False).replace('<', '\\u003c')     # como proyectos/visor.py, pagina
     csrf = config.pop('csrf')
     assert csrf and r.cookies['csrftoken']
     menu = config.pop('menu')
@@ -96,7 +96,7 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert [(x['nombre'], x['url']) for x in menu] == [
         ('Inicio', '/taller-a/'), ('Armado', '/taller-a/armado/'), ('Visor', '/taller-a/visor/'),
         ('Tareas', '/taller-a/trabajos/'), ('Proyectos', '/taller-a/proyectos/'),
-        ('Etiquetas del proyecto', '/taller-a/proyectos/{id}/etiquetas/'), ('Producción', '/taller-a/produccion/'),
+        ('Producción', '/taller-a/produccion/'),
         ('Mi puesto', '/taller-a/puesto/'), ('Tablero de control', '/taller-a/tablero/')]
     assert [x['nombre'] for x in menu if x['actual']] == ['Visor']
     # equipo: la gente activa de A (no la de B), para "Para quién" en los trabajos
@@ -399,9 +399,9 @@ def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Etiquetas del proyecto', 'Producción',
+    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción',
                  'Mi puesto', 'Tablero de control', 'Procesos', 'Configuración', 'Materiales', 'Equipo', 'Marca']),
-    ('oficina_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Etiquetas del proyecto', 'Producción',
+    ('oficina_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción',
                    'Mi puesto', 'Tablero de control', 'Procesos', 'Configuración', 'Materiales', 'Equipo']),
 ])
 def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
@@ -409,7 +409,9 @@ def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
     assert [x['nombre'] for x in menu] == pantallas
     # cada una abre (no hay direcciones rotas en el menú)
     c = cliente_de(getattr(t, quien))
-    assert all(c.get(x['url'].replace('{id}', str(pa.pk))).status_code == 200 for x in menu)
+    assert all(c.get(x['url']).status_code == 200 for x in menu)
+    # con el dibujo de su ícono (el visor no tiene las plantillas): el mismo que el menú de las páginas
+    assert all(x['icono'].startswith('<') for x in menu)
 
 
 @pytest.mark.parametrize('quien,pantallas', [

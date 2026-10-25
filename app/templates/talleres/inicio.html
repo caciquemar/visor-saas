@@ -1,5 +1,6 @@
 {% extends 'base.html' %}
 {% block titulo %}Inicio{% endblock %}
+{% load iconos %}
 {% block cabeza %}{% include 'talleres/botones.html' %}{% endblock %}
 {% block contenido %}
 <h1>{{ request.taller.nombre }}</h1>
@@ -8,7 +9,7 @@
   {% for s in secciones %}
   {% if s.clave == 'configuracion' %}<hr class="separador">{% endif %}
   <a class="boton-grande" href="{{ s.url }}">
-    {% include 'talleres/icono.html' with clave=s.clave %}
+    {% icono s.clave %}
     <span><strong>{{ s.nombre }}</strong><span class="suave">{{ s.descripcion }}</span></span>
   </a>
   {% endfor %}

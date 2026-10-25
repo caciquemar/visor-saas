@@ -11,26 +11,31 @@ DUENO = (Rol.DUENO,)
 
 # (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Proyectos) va directo a ella; las
 # demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado; en Producción es un modo de Mi puesto.
-# Cada pantalla: (nombre, ruta, para qué sirve, roles que la ven).
+# Cada pantalla: (nombre, ruta, para qué sirve, roles que la ven, ícono de talleres/iconos.py). La sección usa el
+# ícono de su clave.
 SECCIONES = [
     ('armado', 'Armado', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
-        ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', TODOS),
-        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS),
+        ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', TODOS,
+         'visor'),
+        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', TODOS, 'tareas'),
     ]),
     ('proyectos', 'Proyectos', 'Subí los proyectos de Polyboard, mandale el link al cliente e imprimí etiquetas.', [
-        ('Proyectos', 'taller:proyectos:lista', '', TODOS),
+        ('Proyectos', 'taller:proyectos:lista', '', TODOS, 'proyectos'),
     ]),
     ('produccion', 'Producción', 'Mi puesto para escanear, el tablero de control y los procesos del taller.', [
         ('Mi puesto', 'taller:avance:puesto',
          'Escaneá las etiquetas para marcar cada etapa, dejar las piezas en su lugar, terminar un mueble o cargar.',
-         TODOS),
-        ('Tablero de control', 'taller:avance:tablero', 'El avance de cada proyecto, por etapa y en general.', TODOS),
-        ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.', GESTION),
+         TODOS, 'puesto'),
+        ('Tablero de control', 'taller:avance:tablero', 'El avance de cada proyecto, por etapa y en general.', TODOS,
+         'tablero'),
+        ('Procesos', 'taller:avance:procesos', 'Las etapas de las piezas y las ubicaciones del taller.', GESTION,
+         'procesos'),
     ]),
     ('configuracion', 'Configuración', 'Materiales, equipo y marca del taller.', [
-        ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', GESTION),
-        ('Equipo', 'taller:equipo', 'Quién entra al taller, con qué rol, invitaciones y PIN.', GESTION),
-        ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', DUENO),
+        ('Materiales', 'taller:proyectos:materiales', 'Texturas de tableros y cantos, y el color sin canto.', GESTION,
+         'materiales'),
+        ('Equipo', 'taller:equipo', 'Quién entra al taller, con qué rol, invitaciones y PIN.', GESTION, 'equipo'),
+        ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', DUENO, 'marca'),
     ]),
 ]
 
@@ -44,7 +49,7 @@ def secciones(request):
     url = lambda ruta, **kw: reverse(ruta, kwargs={'taller': taller.slug, **kw})
     lista = []
     for clave, nombre, descripcion, todas in SECCIONES:
-        pantallas = [{'nombre': n, 'url': url(ruta), 'descripcion': d} for n, ruta, d, roles in todas
+        pantallas = [{'nombre': n, 'url': url(ruta), 'descripcion': d, 'icono': i} for n, ruta, d, roles, i in todas
                      if membresia.rol in roles]
         if not pantallas:
             continue
@@ -61,11 +66,12 @@ def pantallas(request):
     lista = secciones(request)
     if not lista:
         return []
-    menu = [{'nombre': 'Inicio', 'url': reverse('taller:inicio', kwargs={'taller': request.taller.slug})}]
+    menu = [{'nombre': 'Inicio', 'url': reverse('taller:inicio', kwargs={'taller': request.taller.slug}),
+             'icono': 'inicio'}]
     for s in lista:
-        menu.append({'nombre': s['nombre'], 'url': s['url'], 'seccion': True})
+        menu.append({'nombre': s['nombre'], 'url': s['url'], 'seccion': True, 'icono': s['clave']})
         if not s['directa']:
-            menu += [{'nombre': p['nombre'], 'url': p['url'], 'sub': True} for p in s['pantallas']]
+            menu += [{'nombre': p['nombre'], 'url': p['url'], 'sub': True, 'icono': p['icono']} for p in s['pantallas']]
     return menu
 
 
