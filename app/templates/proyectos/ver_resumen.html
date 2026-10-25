@@ -1,18 +1,4 @@
 {# Proyecto → Resumen: datos, estado, avance general y accesos (proyectos/ver.html). #}
-{% if gestiona and base and texturas_nuevas %}
-<div class="caja aviso-texturas">
-  <strong>Subiste texturas que faltaban</strong> ({{ texturas_nuevas|join:", " }}). Volvé a convertir para verlas en el proyecto.
-  <form class="acciones" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=base.numero %}">{% csrf_token %}
-    <button type="submit">Volver a convertir</button></form>
-</div>
-{% endif %}
-{% if gestiona and faltan %}
-<div class="caja aviso-texturas">
-  <strong>Faltan texturas:</strong> {{ faltan|join:", " }}. Se ven con su color hasta que subas la imagen.
-  <div class="acciones"><a class="boton" href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Subir texturas</a></div>
-</div>
-{% endif %}
-
 {% if en_proceso %}<p class="suave">Se está convirtiendo una versión: mirala en <a href="?ver=versiones">Versiones</a>.</p>{% endif %}
 
 <div class="acciones" style="margin:0 0 1rem">

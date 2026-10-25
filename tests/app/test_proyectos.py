@@ -245,7 +245,7 @@ def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a
         m = Material.objects.get()
     assert (m.tipo, m.nombre, m.ruta_polyboard, m.ancho_mm, bool(m.textura)) == (
         'tablero', 'Roble Kendal', 'Egger\\H1145.jpg', 2800, False)
-    assert 'tablero Roble Kendal' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    assert 'tablero Roble Kendal' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     assert 'Roble Kendal' in dueno_a.get('/taller-a/materiales/').content.decode()
 
     r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'textura': png(), 'ancho_mm': '2800', 'color': ''})
@@ -254,7 +254,7 @@ def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a
         m.refresh_from_db()
     assert m.textura.name.startswith(f'talleres/{t.A.pk}/material/')
     assert dueno_a.get(f'/taller-a/materiales/{m.pk}/imagen/').status_code == 200
-    assert 'Subiste texturas que faltaban' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    assert 'Subiste texturas que faltaban' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
 
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
     llamada = falso.llamadas[1]
@@ -286,7 +286,7 @@ def test_tablero_y_canto_con_el_mismo_nombre_no_se_mezclan(dueno_a, t, monkeypat
 
     # se sube solo la del canto: el tablero sigue faltando y no toma la imagen del canto
     dueno_a.post(f'/taller-a/materiales/{canto.pk}/', {'textura': png((90, 60, 30)), 'color': ''})
-    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/').content.decode()
+    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     assert 'Subiste texturas que faltaban</strong> (canto roble kendal)' in pagina
     assert 'Faltan texturas:</strong> tablero Roble Kendal' in pagina
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
