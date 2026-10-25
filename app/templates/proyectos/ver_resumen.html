@@ -2,7 +2,7 @@
 {% if en_proceso %}<p class="suave">Se está convirtiendo una versión: mirala en <a href="?ver=versiones">Versiones</a>.</p>{% endif %}
 
 <div class="acciones" style="margin:0 0 1rem">
-  {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Abrir en el visor</a>
+  {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Ver 3D</a>
   <a class="boton secundario-enlace" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
   <a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}">Imprimir etiquetas</a>{% endif %}
   {% if gestiona and not versiones %}<a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión</a>{% endif %}
@@ -10,20 +10,15 @@
 
 {% if not proyecto.archivado_en %}
 <div class="caja estado-proyecto">
-  <div class="fila">
-    <div>
-      <strong>{% if proyecto.en_produccion %}En producción{% else %}En desarrollo{% endif %}</strong>
-      <div class="suave">{% if proyecto.en_produccion %}Aparece en Mi puesto, el Tablero de control, el visor y Tareas.
-        {% else %}El cliente lo ve en su link, pero no aparece en Mi puesto, el Tablero de control, el visor ni Tareas.{% endif %}</div>
-    </div>
-    {% if gestiona %}
-    <form method="post" action="{% url 'taller:proyectos:produccion' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
-      <input type="hidden" name="en_produccion" value="{% if proyecto.en_produccion %}0{% else %}1{% endif %}">
-      <button type="submit" class="interruptor" role="switch" aria-checked="{% if proyecto.en_produccion %}true{% else %}false{% endif %}"
-              aria-label="En producción"><span></span></button>
-    </form>
-    {% endif %}
-  </div>
+  {% if gestiona %}
+  <form class="selector-estado" method="post" action="{% url 'taller:proyectos:produccion' taller=request.taller.slug id=proyecto.pk %}"
+        role="radiogroup" aria-label="Estado del proyecto">{% csrf_token %}
+    <button type="submit" name="en_produccion" value="0" role="radio" aria-checked="{% if proyecto.en_produccion %}false{% else %}true{% endif %}">En desarrollo</button>
+    <button type="submit" name="en_produccion" value="1" role="radio" aria-checked="{% if proyecto.en_produccion %}true{% else %}false{% endif %}">En producción</button>
+  </form>
+  {% else %}<strong>{% if proyecto.en_produccion %}En producción{% else %}En desarrollo{% endif %}</strong>{% endif %}
+  <div class="suave" style="margin-top:.5rem">{% if proyecto.en_produccion %}Aparece en Mi puesto, el Tablero de control, el visor y Tareas.
+    {% else %}El cliente lo ve en su link, pero no aparece en Mi puesto, el Tablero de control, el visor ni Tareas.{% endif %}</div>
 </div>
 {% endif %}
 

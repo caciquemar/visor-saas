@@ -15,6 +15,12 @@
   .secciones a:hover { color:var(--texto); }
   .fila { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
   .estado-proyecto { margin-bottom:1rem; }
+  .selector-estado { display:inline-flex; border:1px solid var(--borde); border-radius:999px; padding:.2rem; gap:.2rem;
+                     background:var(--fondo); }
+  .selector-estado button { background:transparent; color:var(--suave); border:0; border-radius:999px;
+                            padding:.45rem 1rem; font-weight:600; }
+  .selector-estado button[aria-checked=true] { background:var(--panel); color:var(--texto); box-shadow:0 1px 3px rgba(0,0,0,.15); }
+  .selector-estado button[value="1"][aria-checked=true] { background:var(--acento); color:var(--acento-texto); }
   .interruptor { width:3.4rem; height:2rem; padding:0; border-radius:999px; border:1px solid var(--borde);
                  background:var(--borde); position:relative; flex:none; cursor:pointer; }
   .interruptor span { position:absolute; top:.2rem; left:.2rem; width:1.55rem; height:1.55rem; border-radius:50%;
