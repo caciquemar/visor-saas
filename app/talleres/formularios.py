@@ -116,7 +116,6 @@ class FormDatosPin(forms.Form):
 
 class FormMiembro(forms.Form):
     rol = CampoRol(label='Rol', queryset=Rol.objects.none(), empty_label=None)
-    activa = forms.BooleanField(label='Activo en el taller (sin tildar: no puede entrar)', required=False)
 
     def __init__(self, *args, membresia, **kwargs):
         super().__init__(*args, **kwargs)

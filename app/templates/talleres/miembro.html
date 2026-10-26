@@ -14,12 +14,29 @@
   <div class="acciones"><button type="submit">Guardar datos</button></div>
 </form>
 {% endif %}
-<h2>Rol y acceso</h2>
+<h2>Rol</h2>
 <form class="caja" method="post">{% csrf_token %}
   <input type="hidden" name="accion" value="guardar">
   {{ form.as_div }}
-  <div class="acciones"><button type="submit">Guardar</button></div>
+  <div class="acciones"><button type="submit">Guardar el rol</button></div>
 </form>
+
+{% if otro.pk != request.membresia.pk %}
+<h2>Acceso</h2>
+<div class="caja">
+  <p style="margin-top:0">{% if otro.activa %}Está <strong>activo</strong>: puede entrar al taller.{% else %}Está <strong>inactivo</strong>: no puede entrar.{% endif %}
+    Su nombre queda en lo que hizo (marcas, tareas, controles) aunque lo desactives o lo borres.</p>
+  <div class="acciones">
+    <form class="enlinea" method="post">{% csrf_token %}
+      {% if otro.activa %}<button type="submit" name="accion" value="desactivar" class="secundario">Desactivar</button>
+      {% else %}<button type="submit" name="accion" value="activar">Activar</button>{% endif %}
+    </form>
+    <form class="enlinea" method="post" onsubmit="return confirm('¿Borrar a {{ otro.usuario|escapejs }} del taller? No se puede deshacer; para que vuelva hay que agregarlo de nuevo.')">{% csrf_token %}
+      <button type="submit" name="accion" value="borrar" class="peligro">Borrar del taller</button>
+    </form>
+  </div>
+</div>
+{% endif %}
 
 {% if otro.usa_pin %}
 <h2 id="entrada">Link de entrada</h2>

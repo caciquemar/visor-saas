@@ -114,18 +114,24 @@ def test_agregar_persona_con_mail_o_con_pin(cliente_de, t):
 
 def test_desactivar_y_reactivar(cliente_de, t):
     c = cliente_de(t.oficina_a)
-    armador = rol_pk(t.A, 'armador')
-    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': armador})
+    ficha = c.get(f'/taller-a/equipo/{t.m_armador_a.pk}/').text
+    assert 'Desactivar' in ficha and 'Borrar del taller' in ficha
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'desactivar'})
     t.m_armador_a.refresh_from_db()
     assert not t.m_armador_a.activa
     assert 'Inactivo' in c.get('/taller-a/equipo/').text
-    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': armador, 'activa': 'on'})
+    assert '>Activar<' in c.get(f'/taller-a/equipo/{t.m_armador_a.pk}/').text
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'activar'})
     t.m_armador_a.refresh_from_db()
     assert t.m_armador_a.activa
-    # sin mail no puede tener un rol que no entra con PIN (no podría entrar)
-    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'oficina'), 'activa': 'on'})
+    # guardar el rol no cambia si está activo
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'instalador')})
     t.m_armador_a.refresh_from_db()
-    assert t.m_armador_a.rol.base == 'armador'
+    assert t.m_armador_a.activa and t.m_armador_a.rol.base == 'instalador'
+    # sin mail no puede tener un rol que no entra con PIN (no podría entrar)
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'guardar', 'rol': rol_pk(t.A, 'oficina')})
+    t.m_armador_a.refresh_from_db()
+    assert t.m_armador_a.rol.base == 'instalador'
 
 
 def test_anular_una_invitacion(cliente_de, t):
@@ -148,3 +154,21 @@ def test_roles_de_otro_taller_ni_se_ven_ni_se_asignan(cliente_de, t):
     t.m_armador_a.refresh_from_db()
     assert t.m_armador_a.rol.base == 'armador'
     assert c.post('/taller-a/equipo/agregar/', {'nombre': 'X', 'rol': rol_b.pk, 'email': 'x@a.com'}).status_code == 400
+
+
+def test_borrar_del_taller(cliente_de, t):
+    c = cliente_de(t.dueno_a)
+    # a uno mismo no; al único administrador tampoco
+    assert 'Borrar del taller' not in c.get(f'/taller-a/equipo/{t.m_dueno_a.pk}/').text
+    c.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'borrar'})
+    with con_taller(t.A):
+        assert Membresia.objects.filter(pk=t.m_dueno_a.pk).exists()
+    # al armador sí: se va del taller, la cuenta queda (su nombre sigue en lo que hizo)
+    c.post(f'/taller-a/equipo/{t.m_armador_a.pk}/', {'accion': 'borrar'})
+    with con_taller(t.A):
+        assert not Membresia.objects.filter(pk=t.m_armador_a.pk).exists()
+    assert Usuario.objects.filter(pk=t.armador_a.pk).exists()
+    assert '<strong>Arturo</strong>' not in c.get('/taller-a/equipo/').text
+    # la oficina no borra al administrador
+    o = cliente_de(t.oficina_a)
+    assert o.post(f'/taller-a/equipo/{t.m_dueno_a.pk}/', {'accion': 'borrar'}).status_code == 403

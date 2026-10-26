@@ -142,7 +142,7 @@ def editar_miembro(request, taller, id):
     otro = get_object_or_404(Membresia.objects.select_related('usuario', 'rol'), pk=id)
     if not request.membresia.es_admin and otro.es_admin:
         raise PermissionDenied('Solo un administrador puede cambiar a otro administrador.')
-    form = FormMiembro(initial={'rol': otro.rol, 'activa': otro.activa}, membresia=request.membresia)
+    form = FormMiembro(initial={'rol': otro.rol}, membresia=request.membresia)
     form_pin = FormPin()
     # Nombre y usuario se cambian acá solo si no tiene mail (los que tienen mail ponen su nombre al aceptar la
     # invitación, y lo cambian en Mi cuenta).
@@ -152,17 +152,39 @@ def editar_miembro(request, taller, id):
         if accion == 'guardar':
             form = FormMiembro(request.POST, membresia=request.membresia)
             if form.is_valid():
-                rol, activa = form.cleaned_data['rol'], form.cleaned_data['activa']
+                rol, activa = form.cleaned_data['rol'], otro.activa
                 if quedaria_sin_admin(otro, rol, activa):
                     messages.error(request, 'El taller tiene que tener al menos un administrador activo.')
                 elif not rol.con_pin and not otro.usuario.has_usable_password():
                     messages.error(request, f'{otro.usuario} entra con PIN y no tiene mail: dale un rol que entre '
                                             f'con usuario y PIN, o invitalo por mail con el rol {rol}.')
                 else:
-                    otro.rol, otro.activa = rol, activa
-                    otro.save(update_fields=['rol', 'activa'])
-                    messages.success(request, f'Se guardaron los cambios de {otro.usuario}.')
+                    otro.rol = rol
+                    otro.save(update_fields=['rol'])
+                    messages.success(request, f'{otro.usuario} ahora es {rol}.')
                     return a_equipo(request)
+        elif accion in ('activar', 'desactivar'):
+            activa = accion == 'activar'
+            if otro.pk == request.membresia.pk:
+                messages.error(request, 'No te podés desactivar a vos mismo.')
+            elif quedaria_sin_admin(otro, otro.rol, activa):
+                messages.error(request, 'El taller tiene que tener al menos un administrador activo.')
+            else:
+                otro.activa = activa
+                otro.save(update_fields=['activa'])
+                messages.success(request, f'{otro.usuario} ya puede entrar de nuevo.' if activa else
+                                 f'Desactivaste a {otro.usuario}: no puede entrar más. Su nombre queda en lo que hizo.')
+                return a_equipo(request)
+        elif accion == 'borrar':
+            if otro.pk == request.membresia.pk:
+                messages.error(request, 'No te podés borrar a vos mismo.')
+            elif quedaria_sin_admin(otro, otro.rol, False):
+                messages.error(request, 'El taller tiene que tener al menos un administrador activo.')
+            else:
+                nombre = str(otro.usuario)
+                otro.delete()          # solo la membresía: la cuenta queda y su nombre sigue en lo que hizo
+                messages.success(request, f'Borraste a {nombre} del taller. Su nombre queda en lo que hizo.')
+                return a_equipo(request)
         elif accion == 'pin' and otro.usa_pin:
             form_pin = FormPin(request.POST)
             if form_pin.is_valid():

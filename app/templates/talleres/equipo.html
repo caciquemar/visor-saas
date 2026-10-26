@@ -71,7 +71,7 @@
   </tbody>
 </table>
 </div>
-<p class="suave">Para dar de baja a alguien, abrilo y destildá "Activo": no entra más, pero su nombre queda en lo que hizo.</p>
+<p class="suave">Tocá a una persona para cambiarle el rol, desactivarla (no entra más) o borrarla del taller. Su nombre queda en lo que hizo.</p>
 
 <dialog id="agregar"{% if form_persona.errors %} data-abrir{% endif %}>
   <form method="post" action="{% url 'taller:agregar_persona' taller=request.taller.slug %}">{% csrf_token %}
