@@ -2227,10 +2227,10 @@ function leyendaAvance(){
     + (d.por_pieza ? '<div>muebles; en color, las piezas hechas</div>' : '');
 }
 // la lista "Avance" de arriba: elegir un proceso abre este mismo proyecto en modo avance (en color lo que lo
-// cumplió); "Sin avance" vuelve al visor de siempre
+// cumplió); "Armado" vuelve al visor de siempre
 if (!CLIENTE && VISOR.avance && (VISOR.avance.procesos || []).length){
   const s = $('selAvance');
-  s.innerHTML = `<option value="">${AVP.id ? 'Sin avance' : 'Avance…'}</option>`
+  s.innerHTML = '<option value="">Armado</option>'
     + VISOR.avance.procesos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
   s.value = AVP.id ? String(AVP.id) : '';
   s.hidden = false;
