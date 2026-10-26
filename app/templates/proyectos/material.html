@@ -1,0 +1,72 @@
+{% extends 'base.html' %}
+{% load iconos %}
+{% block titulo %}{{ m.nombre }} · Materiales{% endblock %}
+{% block cabeza %}
+<style>
+  .ficha-mat { display:grid; gap:1.25rem; grid-template-columns:14rem 1fr; align-items:start; }
+  @media (max-width: 600px) { .ficha-mat { grid-template-columns:1fr; } }
+  .muestra-grande { position:relative; aspect-ratio:1; border-radius:10px; border:1px solid var(--borde); overflow:hidden;
+                    display:flex; align-items:center; justify-content:center; text-align:center; color:var(--suave);
+                    background:var(--panel); max-width:14rem; }
+  .muestra-grande img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
+  .muestra-grande.falta { border:2px solid var(--error); color:var(--error); }
+  .flecha-veta { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; pointer-events:none; }
+  .flecha-veta svg { width:70%; height:2rem; filter:drop-shadow(0 0 2px rgba(0,0,0,.8)); }
+  .flecha-veta.v svg { transform:rotate(90deg); }
+  dl.datos { display:grid; grid-template-columns:auto 1fr; gap:.3rem 1rem; margin:.75rem 0 0; font-size:.9rem; }
+  dl.datos dt { color:var(--suave); }
+  dl.datos dd { margin:0; overflow-wrap:anywhere; }
+  .volver { display:inline-flex; align-items:center; gap:.35rem; margin-bottom:.5rem; }
+  .volver .icono { width:1.2rem; height:1.2rem; }
+  input[type=color] { width:4rem; height:2.5rem; padding:.15rem; }
+</style>
+{% endblock %}
+{% block contenido %}
+<a class="volver" href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}?ver={{ pestana }}">{% if pestana == 'cantos' %}{% icono 'cantos' %}{% else %}{% icono 'tableros' %}{% endif %}‹ {% if pestana == 'cantos' %}Cantos{% else %}Tableros{% endif %}</a>
+<h1>{{ m.nombre }} <span class="estado">{{ m.get_tipo_display }}</span></h1>
+
+<div class="ficha-mat">
+  <div>
+    <div class="muestra-grande{% if m.falta %} falta{% endif %}"{% if not m.textura and m.color %} style="background:{{ m.color }}"{% endif %}>
+      {% if m.textura %}<img src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m }}">
+        {% with veta=m.veta_efectiva %}{% if veta == 'h' or veta == 'v' %}
+        <span class="flecha-veta {{ veta }}" title="Veta {% if veta == 'h' %}horizontal{% else %}vertical{% endif %}">
+          <svg viewBox="0 0 100 20" aria-hidden="true"><path d="M2 10H98M2 10l12-8M2 10l12 8M98 10l-12-8M98 10l-12 8"
+            stroke="#fff" stroke-width="3" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+        </span>{% endif %}{% endwith %}
+      {% elif not m.color %}Sin textura ni color{% endif %}
+    </div>
+    <dl class="datos">
+      <dt>Tipo</dt><dd>{{ m.get_tipo_display }}</dd>
+      <dt>Se ve con</dt><dd>{% if m.textura %}textura{% elif m.color %}color {{ m.color }}{% else %}<span class="error">falta la textura o el color</span>{% endif %}</dd>
+      {% if m.textura %}
+      <dt>Veta</dt><dd>{% if m.veta %}{{ m.get_veta_display }} (elegida){% elif m.veta_detectada == 'h' %}Horizontal (detectada){% elif m.veta_detectada == 'v' %}Vertical (detectada){% elif m.veta_detectada == 'n' %}Sin veta (detectada){% else %}—{% endif %}</dd>
+      <dt>Ancho de la imagen</dt><dd>{% if m.ancho_mm %}{{ m.ancho_mm }} mm{% else %}1000 mm (sin dato){% endif %}</dd>
+      {% endif %}
+      {% if m.ruta_polyboard %}<dt>En Polyboard</dt><dd>{{ m.ruta_polyboard }}</dd>{% endif %}
+      <dt>Probador</dt><dd>{% if probadores %}lo ofrece en {{ probadores|join:", " }}{% else %}no se ofrece{% endif %}</dd>
+      <dt>Agregado</dt><dd>{{ m.creado|date:"d/m/Y H:i" }}</dd>
+      <dt>Cambiado</dt><dd>{{ m.actualizado|date:"d/m/Y H:i" }}</dd>
+    </dl>
+  </div>
+
+  <div>
+    <form class="caja" method="post" enctype="multipart/form-data" style="margin-top:0">{% csrf_token %}
+      {% if form.non_field_errors %}<p class="error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+      {% for campo in form %}
+        <label for="{{ campo.id_for_label }}"{% if forloop.first %} style="margin-top:0"{% endif %}>{% if campo.name == 'textura' %}{% if m.textura %}Cambiar textura{% else %}Subir textura{% endif %}{% else %}{{ campo.label|capfirst }}{% endif %}</label>
+        {{ campo }}{% if campo.errors %}<span class="error">{{ campo.errors|join:" " }}</span>{% endif %}
+        {% if campo.help_text %}<span class="ayuda">{{ campo.help_text }}</span>{% endif %}
+      {% endfor %}
+      <div class="acciones"><button type="submit">Guardar</button></div>
+    </form>
+
+    <form class="caja" method="post" action="{% url 'taller:proyectos:borrar_material' taller=request.taller.slug id=m.pk %}"
+          onsubmit="return confirm('¿Borrar el {{ m|escapejs }} de la biblioteca? Si un proyecto lo usa, vuelve a aparecer al convertirlo (sin textura).')">{% csrf_token %}
+      <label style="margin-top:0">Borrar</label>
+      <span class="ayuda">Lo saca de la biblioteca con su imagen.{% if probadores %} Antes sacalo del probador de colores de {{ probadores|join:", " }}.{% endif %}</span>
+      <div class="acciones"><button type="submit" class="peligro"{% if probadores %} disabled{% endif %}>Borrar {{ m.get_tipo_display|lower }}</button></div>
+    </form>
+  </div>
+</div>
+{% endblock %}

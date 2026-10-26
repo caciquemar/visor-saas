@@ -355,6 +355,11 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - 2026-10-25: **material con color = completo (decisión de Martín).** Si tiene color definido no lleva textura: ya no
   sale en rojo ni cuenta en "Faltan texturas" (`Material.falta`). Los colores de señalización de los cantos de otro
   nombre quedan: son a propósito.
+- 2026-10-25: **Materiales en dos pestañas (pedido de Martín).** Tableros y Cantos con ícono (`?ver=`), cada una
+  con su ABM: grilla de muestras (textura con la flecha de la veta, o color) con buscar, filtro (con textura, solo
+  color, sin nada, por veta) y orden; "Agregar tablero/canto" (`nuevo_material`, `/materiales/nuevo-<tipo>/`); la
+  muestra abre la ficha (`/materiales/<id>/`, `proyectos/material.html`) con todos los datos, nombre editable y
+  Borrar (no si lo ofrece un probador de colores). "Lados sin canto" quedó en la pestaña Cantos.
 
 ## Pendientes
 

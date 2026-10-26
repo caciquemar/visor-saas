@@ -248,7 +248,7 @@ def test_textura_faltante_se_sube_una_vez_y_se_usa_al_volver_a_convertir(dueno_a
     assert 'tablero Roble Kendal' in dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     assert 'Roble Kendal' in dueno_a.get('/taller-a/materiales/').content.decode()
 
-    r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'textura': png(), 'ancho_mm': '2800', 'color': ''})
+    r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'nombre': m.nombre, 'textura': png(), 'ancho_mm': '2800', 'color': ''})
     assert r.status_code == 302
     with en_a(t):
         m.refresh_from_db()
@@ -282,11 +282,13 @@ def test_tablero_y_canto_con_el_mismo_nombre_no_se_mezclan(dueno_a, t, monkeypat
         tablero = Material.objects.get(tipo='tablero')
         canto = Material.objects.get(tipo='canto')
     assert (canto.ruta_polyboard, canto.ancho_mm) == ('Cantos\\roble.jpg', None)
-    pagina = dueno_a.get('/taller-a/materiales/').content.decode()
-    assert '<h2>Tableros</h2>' in pagina and '<h2>Cantos</h2>' in pagina
+    tableros = dueno_a.get('/taller-a/materiales/').content.decode()
+    cantos = dueno_a.get('/taller-a/materiales/?ver=cantos').content.decode()
+    assert f'/materiales/{tablero.pk}/' in tableros and f'/materiales/{canto.pk}/' not in tableros
+    assert f'/materiales/{canto.pk}/' in cantos and f'/materiales/{tablero.pk}/' not in cantos
 
     # se sube solo la del canto: el tablero sigue faltando y no toma la imagen del canto
-    dueno_a.post(f'/taller-a/materiales/{canto.pk}/', {'textura': png((90, 60, 30)), 'color': ''})
+    dueno_a.post(f'/taller-a/materiales/{canto.pk}/', {'nombre': canto.nombre, 'textura': png((90, 60, 30)), 'color': ''})
     pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     assert 'Subiste texturas que faltaban</strong> (canto roble kendal)' in pagina
     assert 'Faltan texturas:</strong> tablero Roble Kendal' in pagina
@@ -305,8 +307,8 @@ def test_textura_que_no_es_imagen_se_rechaza(dueno_a, t, monkeypatch):
     with en_a(t):
         m = Material.objects.get()
     r = dueno_a.post(f'/taller-a/materiales/{m.pk}/',
-                     {'textura': SimpleUploadedFile('roble.jpg', b'no es imagen'), 'color': ''}, follow=True)
-    assert 'tablero Roble:' in r.content.decode()
+                     {'nombre': m.nombre, 'textura': SimpleUploadedFile('roble.jpg', b'no es imagen'), 'color': ''})
+    assert r.status_code == 400 and '<span class="error">' in r.content.decode()     # en la ficha, con el error
     with en_a(t):
         m.refresh_from_db()
     assert not m.textura
@@ -328,17 +330,17 @@ def test_veta_detectada_flecha_y_elegida_a_mano(dueno_a, t, monkeypatch):
     subir(dueno_a, 'taller-a')
     with en_a(t):
         m = Material.objects.get()
-    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'textura': rayada(vertical=True), 'veta': '', 'color': ''})
+    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'nombre': m.nombre, 'textura': rayada(vertical=True), 'veta': '', 'color': ''})
     with en_a(t):
         m.refresh_from_db()
     assert (m.veta, m.veta_detectada, m.proporcion) == ('', 'v', 0.5)
-    pagina = dueno_a.get('/taller-a/materiales/').content.decode()
-    assert 'flecha-veta v' in pagina and 'Detectada: vertical.' in pagina
+    assert 'class="flecha-veta v"' in dueno_a.get('/taller-a/materiales/').content.decode()
+    assert 'Vertical (detectada)' in dueno_a.get(f'/taller-a/materiales/{m.pk}/').content.decode()
 
     # elegida a mano: manda sobre la detectada, avisa volver a convertir, y es la que va al conversor
-    r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'veta': 'n', 'color': ''}, follow=True)
+    r = dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'nombre': m.nombre, 'veta': 'n', 'color': ''}, follow=True)
     assert 'Se guardó la veta de tablero Nogal' in r.content.decode()
-    assert 'flecha-veta' not in r.content.decode().split('<h2>Tableros</h2>')[1]
+    assert 'class="flecha-veta' not in r.content.decode()
     dueno_a.post(f'/taller-a/proyectos/{unico_proyecto(t).pk}/versiones/1/reconvertir/')
     assert falso.llamadas[1]['materiales']['tableros']['Nogal']['veta'] == 'n'
 
@@ -349,7 +351,7 @@ def test_color_del_material_va_al_conversor(dueno_a, t, monkeypatch):
     subir(dueno_a, 'taller-a')
     with en_a(t):
         m = Material.objects.get()
-    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'color': '#4c4f52'})
+    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'nombre': m.nombre, 'color': '#4c4f52'})
     dueno_a.post(f'/taller-a/proyectos/{unico_proyecto(t).pk}/versiones/1/reconvertir/')
     assert falso.llamadas[1]['materiales'] == {'tableros': {}, 'cantos': {'Grafito': {'color': '#4C4F52'}}}
 
@@ -362,9 +364,9 @@ def test_material_con_color_no_falta(dueno_a, t, monkeypatch):
     assert '1 sin textura' in dueno_a.get('/taller-a/materiales/').content.decode()
     with en_a(t):
         m = Material.objects.get()
-    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'color': '#808080'})
+    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'nombre': m.nombre, 'color': '#808080'})
     pagina = dueno_a.get('/taller-a/materiales/').content.decode()
-    assert 'sin textura' not in pagina.lower() and 'material falta' not in pagina
+    assert 'sin textura ni color.</strong>' not in pagina and 'class="falta"' not in pagina
     assert 'Faltan texturas' not in dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
     dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
     assert version(t, 2).faltan_texturas == []
@@ -412,3 +414,23 @@ def test_versiones_viejas_pasan_al_formato_con_tipo(dueno_a, t, falso):
         migracion.con_tipo(apps, None)
     assert version(t).faltan_texturas == [{'nombre': 'Roble', 'tipo': 'tablero'}]
     assert dueno_a.get(f'/taller-a/proyectos/{v.proyecto_id}/').status_code == 200
+
+
+def test_abm_de_cantos_y_borrar(dueno_a, t):
+    r = dueno_a.post('/taller-a/materiales/nuevo-canto/', {'nombre': 'Negro', 'color': '#111111'})
+    assert r.status_code == 302 and r['Location'].endswith('?ver=cantos')
+    with en_a(t):
+        canto = Material.objects.get()
+    assert canto.tipo == 'canto'
+    assert dueno_a.post('/taller-a/materiales/nuevo-canto/', {'nombre': 'negro', 'color': '#000000'}).status_code == 400
+    assert dueno_a.post('/taller-a/materiales/nuevo-otro/', {'nombre': 'X', 'color': '#000000'}).status_code == 404
+    ficha = dueno_a.get(f'/taller-a/materiales/{canto.pk}/')
+    assert ficha.status_code == 200 and 'Borrar canto' in ficha.content.decode()
+    dueno_a.post(f'/taller-a/materiales/{canto.pk}/', {'nombre': 'Negro mate', 'color': '#222222'})
+    with en_a(t):
+        canto.refresh_from_db()
+    assert (canto.nombre, canto.color) == ('Negro mate', '#222222')
+    r = dueno_a.post(f'/taller-a/materiales/{canto.pk}/borrar/')
+    assert r.status_code == 302 and r['Location'].endswith('?ver=cantos')
+    with en_a(t):
+        assert not Material.objects.exists()

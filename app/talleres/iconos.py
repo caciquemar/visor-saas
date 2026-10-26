@@ -18,6 +18,9 @@ ICONOS = {
     'procesos': '<circle cx="6" cy="6" r="2"/><circle cx="6" cy="18" r="2"/><path d="M6 8v8M10 6h10M10 18h10M14 12h6"/>'
                 '<path d="M6 12h4"/>',
     'materiales': '<rect x="4" y="4" width="10" height="10" rx="1"/><path d="M10 14v6h10V10h-6"/>',
+    # pestañas de Materiales: una placa con veta y un rollo de canto
+    'tableros': '<rect x="3" y="6" width="18" height="12" rx="1"/><path d="M6 10h7M9 14h9"/>',
+    'cantos': '<circle cx="8" cy="12" r="5"/><circle cx="8" cy="12" r="1.5"/><path d="M8 7h12v4h-9"/>',
     'equipo': '<circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/>'
               '<path d="M16 14.2A5 5 0 0 1 21 19"/>',
     'marca': '<path d="M12 3.5 14.6 9l5.9.6-4.4 4 1.3 5.9L12 16.5l-5.4 3 1.3-5.9-4.4-4 5.9-.6Z"/>',

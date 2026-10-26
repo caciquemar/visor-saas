@@ -110,17 +110,35 @@ class FormDatos(forms.ModelForm):
 
 
 class FormMaterial(forms.ModelForm):
+    """Ficha de un tablero o un canto de la biblioteca (alta y modificación)."""
     class Meta:
         model = Material
-        fields = ('textura', 'veta', 'ancho_mm', 'color')
+        fields = ('nombre', 'textura', 'veta', 'ancho_mm', 'color')
         widgets = {'color': forms.TextInput(attrs={'placeholder': '#A1B2C3', 'size': 8}),
                    'textura': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}
-        help_texts = {'ancho_mm': 'Cuántos milímetros del material cubre la imagen a lo ancho. '
+        help_texts = {'nombre': 'Igual que en Polyboard (sin importar mayúsculas ni acentos): así lo encuentra el '
+                                'conversor.',
+                      'ancho_mm': 'Cuántos milímetros del material cubre la imagen a lo ancho. '
                                   'Si no lo sabés, dejalo vacío (se usa 1 metro).',
                       'color': 'Opcional: el color que se ve si no hay textura (o en lugar del de Polyboard).',
                       'veta': 'Hacia dónde van las fibras en la imagen que subiste (la flecha de la muestra). '
                               'Automática: la detecta el sistema; si se equivoca, elegila. '
                               'Sin veta: lisos y dibujos simétricos (la imagen no se gira).'}
+
+    def __init__(self, *args, tipo=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        if tipo:                                  # alta: el tipo sale de la pestaña
+            self.instance.tipo = tipo
+
+    def clean_nombre(self):
+        nombre = ' '.join((self.cleaned_data.get('nombre') or '').split())
+        if not nombre:
+            raise forms.ValidationError('Poné el nombre.')
+        tipo = self.instance.tipo
+        otros = Material.objects.filter(tipo=tipo, clave=clave_de_material(nombre)).exclude(pk=self.instance.pk)
+        if otros.exists():
+            raise forms.ValidationError(f'Ya tenés el {Material.Tipo(tipo).label.lower()} {nombre}.')
+        return nombre
 
     def clean_textura(self):
         textura = self.cleaned_data.get('textura')
@@ -140,18 +158,11 @@ class FormMaterial(forms.ModelForm):
         return color.upper()
 
 
-class FormTableroNuevo(FormMaterial):
-    """Un tablero que todavía no usa ningún proyecto, para ofrecerlo en el probador de colores (ficha 14)."""
+class FormMaterialNuevo(FormMaterial):
+    """Un tablero o canto que todavía no usa ningún proyecto (un tablero, para ofrecerlo en el probador)."""
     class Meta(FormMaterial.Meta):
-        fields = ('nombre', 'textura', 'veta', 'ancho_mm', 'color')
         help_texts = {**FormMaterial.Meta.help_texts, 'nombre': 'Como se llama en Polyboard.',
                       'color': 'Si no tenés la imagen, el color que se ve.'}
-
-    def clean_nombre(self):
-        nombre = ' '.join(self.cleaned_data.get('nombre', '').split())
-        if Material.objects.filter(tipo=Material.Tipo.TABLERO, clave=clave_de_material(nombre)).exists():
-            raise forms.ValidationError(f'Ya tenés el tablero {nombre}: cambiale la imagen en la lista.')
-        return nombre
 
     def clean(self):
         datos = super().clean()

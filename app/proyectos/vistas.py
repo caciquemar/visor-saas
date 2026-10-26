@@ -23,7 +23,8 @@ from talleres.roles import con_permiso, miembro, puede
 from . import probador
 from .archivos import solo_nombre
 from . import borrar as borrado
-from .formularios import FormDatos, FormMaterial, FormProyectoNuevo, FormSinCanto, FormSubida, FormTableroNuevo
+from .formularios import (FormDatos, FormMaterial, FormMaterialNuevo, FormProyectoNuevo, FormSinCanto,
+                          FormSubida)
 from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version, para_produccion
 from .tareas import encolar
 from .visor import url_de_link
@@ -333,29 +334,55 @@ def original(request, taller, id, numero, original_id):
     return abrir_de_taller(request, o.archivo.name, descarga=True, nombre=o.nombre)
 
 
+# pestañas de Materiales: (clave en ?ver=, título, tipo de Material, ícono)
+PESTANAS_MATERIALES = [('tableros', 'Tableros', Material.Tipo.TABLERO, 'tableros'),
+                       ('cantos', 'Cantos', Material.Tipo.CANTO, 'cantos')]
+PESTANA_DE_TIPO = {tipo: clave for clave, _, tipo, _ in PESTANAS_MATERIALES}
+
+
+def a_materiales(request, tipo):
+    return redirect(reverse('taller:proyectos:materiales', kwargs={'taller': request.taller.slug})
+                    + f'?ver={PESTANA_DE_TIPO[tipo]}')
+
+
 @con_permiso('materiales')
 def materiales(request, taller, form_nuevo=None):
-    lista = sorted(Material.objects.all(), key=lambda m: (not m.falta, m.clave))
-    grupos = [(etiqueta, [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista if m.tipo == tipo])
-              for tipo, etiqueta in (('tablero', 'Tableros'), ('canto', 'Cantos'))]
+    """Biblioteca del taller en dos pestañas, Tableros y Cantos: una grilla de muestras (textura o color) con buscar,
+    filtro y orden en la página; cada muestra abre la ficha del material."""
+    ver = PESTANA_DE_TIPO[form_nuevo.instance.tipo] if form_nuevo else request.GET.get('ver')
+    ver = ver if ver in PESTANA_DE_TIPO.values() else 'tableros'
+    todos = list(Material.objects.all())
+    pestanas = [(c, n, icono, sum(1 for m in todos if m.tipo == t and m.falta))
+                for c, n, t, icono in PESTANAS_MATERIALES]
+    tipo = next(t for c, _, t, _ in PESTANAS_MATERIALES if c == ver)
+    lista = sorted((m for m in todos if m.tipo == tipo), key=lambda m: m.clave)
     return render(request, 'proyectos/materiales.html', {
-        'grupos': [(etiqueta, mats) for etiqueta, mats in grupos if mats],
-        'faltan': sum(1 for m in lista if m.falta),
+        'ver': ver, 'tipo': tipo, 'nombre_tipo': Material.Tipo(tipo).label.lower(), 'pestanas': pestanas,
+        'lista': lista, 'faltan': sum(1 for m in lista if m.falta),
         'form_sin_canto': FormSinCanto(instance=request.taller),
-        'form_nuevo': form_nuevo or FormTableroNuevo(auto_id='nuevo_%s'),
+        'form_nuevo': form_nuevo or FormMaterialNuevo(tipo=tipo, auto_id='nuevo_%s'),
     }, status=400 if form_nuevo else 200)
 
 
 @require_POST
 @con_permiso('materiales')
-def nuevo_tablero(request, taller):
-    """Agregar a la biblioteca un tablero que todavía no usa ningún proyecto (para ofrecerlo en el probador)."""
-    form = FormTableroNuevo(request.POST, request.FILES, auto_id='nuevo_%s')
+def nuevo_material(request, taller, tipo):
+    """Agregar un tablero o canto que todavía no usa ningún proyecto (un tablero, para ofrecerlo en el probador)."""
+    if tipo not in Material.Tipo.values:
+        raise Http404()
+    form = FormMaterialNuevo(request.POST, request.FILES, tipo=tipo, auto_id='nuevo_%s')
     if not form.is_valid():
         return materiales(request, taller=taller, form_nuevo=form)
     m = form.save()
-    messages.success(request, f'Agregaste el tablero {m.nombre}. Ya lo podés ofrecer en el probador de colores.')
-    return redirect('taller:proyectos:materiales', taller=request.taller.slug)
+    extra = ' Ya lo podés ofrecer en el probador de colores.' if tipo == Material.Tipo.TABLERO else ''
+    messages.success(request, f'Agregaste el {m}.{extra}')
+    return a_materiales(request, tipo)
+
+
+def probadores_con(material):
+    """Proyectos cuyo probador de colores ofrece este material."""
+    return sorted({g.proyecto.nombre for g in GrupoDeColor.objects.select_related('proyecto')
+                   if material.pk in g.opciones})
 
 
 @require_POST
@@ -368,35 +395,56 @@ def sin_canto(request, taller):
                                   'aumentada del link del cliente, tocá "Volver a convertir" en cada proyecto.')
     else:
         messages.error(request, ' '.join(e for errores in form.errors.values() for e in errores))
-    return redirect('taller:proyectos:materiales', taller=request.taller.slug)
+    return a_materiales(request, Material.Tipo.CANTO)
+
+
+@con_permiso('materiales')
+def material(request, taller, id):
+    """Ficha de un material: todos sus datos para ver y cambiar, y Borrar."""
+    m = get_object_or_404(Material, pk=id)
+    tenia_textura, veta = bool(m.textura), m.veta
+    form = FormMaterial(request.POST or None, request.FILES or None, instance=m)
+    if request.method == 'POST' and form.is_valid():
+        form.save()
+        if m.textura and not tenia_textura:
+            messages.success(request, f'Se guardó la textura de {m}. En los proyectos que la usan, tocá '
+                                      '"Volver a convertir" para verla.')
+        elif m.textura and m.veta != veta:
+            messages.success(request, f'Se guardó la veta de {m}. En los proyectos que la usan, tocá '
+                                      '"Volver a convertir" para verla.')
+        else:
+            messages.success(request, f'Se guardó {m}.')
+        return a_materiales(request, m.tipo)
+    if request.method == 'POST':
+        m.refresh_from_db()                  # la ficha muestra lo guardado, no lo que no pasó la revisión
+    return render(request, 'proyectos/material.html', {
+        'm': m, 'form': form, 'pestana': PESTANA_DE_TIPO[m.tipo], 'probadores': probadores_con(m),
+    }, status=400 if form.errors else 200)
 
 
 @require_POST
 @con_permiso('materiales')
-def material(request, taller, id):
+def borrar_material(request, taller, id):
+    """Lo saca de la biblioteca (y su imagen). No si lo ofrece algún probador: primero hay que sacarlo de ahí."""
     m = get_object_or_404(Material, pk=id)
-    tenia_textura, veta = bool(m.textura), m.veta
-    form = FormMaterial(request.POST, request.FILES, instance=m)
-    if not form.is_valid():
-        messages.error(request, f'{m}: ' + ' '.join(e for errores in form.errors.values() for e in errores))
-        return redirect('taller:proyectos:materiales', taller=request.taller.slug)
-    form.save()
-    if m.textura and not tenia_textura:
-        messages.success(request, f'Se guardó la textura de {m}. En los proyectos que la usan, tocá '
-                                  '"Volver a convertir" para verla.')
-    elif m.textura and m.veta != veta:
-        messages.success(request, f'Se guardó la veta de {m}. En los proyectos que la usan, tocá '
-                                  '"Volver a convertir" para verla.')
-    else:
-        messages.success(request, f'Se guardó {m}.')
-    return redirect('taller:proyectos:materiales', taller=request.taller.slug)
+    probadores = probadores_con(m)
+    if probadores:
+        messages.error(request, f'No se puede borrar el {m}: lo ofrece el probador de colores de '
+                                f'{", ".join(probadores)}. Sacalo de ahí primero.')
+        return redirect('taller:proyectos:material', taller=request.taller.slug, id=m.pk)
+    tipo, nombre = m.tipo, str(m)
+    if m.textura:
+        m.textura.delete(save=False)
+    m.delete()
+    messages.success(request, f'Borraste el {nombre}. Si un proyecto lo usa, vuelve a aparecer al convertirlo.')
+    return a_materiales(request, tipo)
 
 
 @con_permiso('materiales')
 def imagen_material(request, taller, id):
     m = get_object_or_404(Material, pk=id)
     if not m.textura:
-        return redirect('taller:proyectos:materiales', taller=request.taller.slug)
+        return a_materiales(request, m.tipo)
     return abrir_de_taller(request, m.textura.name)
 
 

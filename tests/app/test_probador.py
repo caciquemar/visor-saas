@@ -299,3 +299,13 @@ def test_opcion_con_veta_vertical_va_girada_y_con_su_alto():
     assert info_de(m) == {'textura': 'opciones/None.jpg', 'ancho': 1000, 'alto': 2000, 'girar': 1}
     m.veta, m.ancho_mm = 'h', 600                       # elegida a mano: manda sobre la detectada
     assert info_de(m) == {'textura': 'opciones/None.jpg', 'ancho': 600, 'alto': 1200}
+
+
+def test_no_se_borra_un_tablero_que_ofrece_el_probador(cliente_de, t, a):
+    c = cliente_de(t.dueno_a)
+    r = c.post(f'/taller-a/materiales/{a.nogal.pk}/borrar/', follow=True)
+    assert 'lo ofrece el probador de colores de Cocina' in r.content.decode()
+    assert 'Probador</dt><dd>lo ofrece en Cocina' in c.get(f'/taller-a/materiales/{a.nogal.pk}/').content.decode()
+    with con_taller(t.A):
+        assert Material.objects.filter(pk=a.nogal.pk).exists()
+    assert c.post(f'/taller-a/materiales/{a.canto_nogal.pk}/borrar/').status_code == 302     # el canto, sí

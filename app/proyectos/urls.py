@@ -25,8 +25,9 @@ urlpatterns = [
     path('proyectos/<int:id>/colores/<int:grupo_id>/', vistas.grupo_color, name='grupo_color'),
     path('materiales/', vistas.materiales, name='materiales'),
     path('materiales/sin-canto/', vistas.sin_canto, name='sin_canto'),
-    path('materiales/nuevo-tablero/', vistas.nuevo_tablero, name='nuevo_tablero'),
+    path('materiales/nuevo-<str:tipo>/', vistas.nuevo_material, name='nuevo_material'),
     path('materiales/<int:id>/', vistas.material, name='material'),
+    path('materiales/<int:id>/borrar/', vistas.borrar_material, name='borrar_material'),
     path('materiales/<int:id>/imagen/', vistas.imagen_material, name='imagen_material'),
     # el visor: sus rutas relativas (data/…, manifest.webmanifest) quedan debajo de visor/
     path('visor/', visor.visor, name='visor'),
