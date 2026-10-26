@@ -151,7 +151,7 @@ def ver(request, taller, id):
     texturas_nuevas, faltan = [], []
     if base and base.faltan_texturas:
         con_textura = set(Material.objects.filter(clave__in=[clave(f['nombre']) for f in base.faltan_texturas])
-                          .exclude(textura='').values_list('tipo', 'clave'))
+                          .exclude(textura='', color='').values_list('tipo', 'clave'))
         for f in base.faltan_texturas:
             texto = f"{f['tipo']} {f['nombre']}"
             (texturas_nuevas if (f['tipo'], clave(f['nombre'])) in con_textura else faltan).append(texto)
@@ -335,12 +335,12 @@ def original(request, taller, id, numero, original_id):
 
 @con_permiso('materiales')
 def materiales(request, taller, form_nuevo=None):
-    lista = sorted(Material.objects.all(), key=lambda m: (bool(m.textura), m.clave))
+    lista = sorted(Material.objects.all(), key=lambda m: (not m.falta, m.clave))
     grupos = [(etiqueta, [(m, FormMaterial(instance=m, auto_id=f'm{m.pk}_%s')) for m in lista if m.tipo == tipo])
               for tipo, etiqueta in (('tablero', 'Tableros'), ('canto', 'Cantos'))]
     return render(request, 'proyectos/materiales.html', {
         'grupos': [(etiqueta, mats) for etiqueta, mats in grupos if mats],
-        'faltan': sum(1 for m in lista if not m.textura),
+        'faltan': sum(1 for m in lista if m.falta),
         'form_sin_canto': FormSinCanto(instance=request.taller),
         'form_nuevo': form_nuevo or FormTableroNuevo(auto_id='nuevo_%s'),
     }, status=400 if form_nuevo else 200)

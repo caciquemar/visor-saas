@@ -354,6 +354,22 @@ def test_color_del_material_va_al_conversor(dueno_a, t, monkeypatch):
     assert falso.llamadas[1]['materiales'] == {'tableros': {}, 'cantos': {'Grafito': {'color': '#4C4F52'}}}
 
 
+def test_material_con_color_no_falta(dueno_a, t, monkeypatch):
+    monkeypatch.setattr(tareas, 'correr', CorrerFalso(con_imagen={'tableros': {'Gris': ['g.jpg', None]}}))
+    subir(dueno_a, 'taller-a')
+    p = unico_proyecto(t)
+    assert version(t).faltan_texturas == [{'nombre': 'Gris', 'tipo': 'tablero'}]
+    assert '1 sin textura' in dueno_a.get('/taller-a/materiales/').content.decode()
+    with en_a(t):
+        m = Material.objects.get()
+    dueno_a.post(f'/taller-a/materiales/{m.pk}/', {'color': '#808080'})
+    pagina = dueno_a.get('/taller-a/materiales/').content.decode()
+    assert 'sin textura' not in pagina.lower() and 'material falta' not in pagina
+    assert 'Faltan texturas' not in dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
+    dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
+    assert version(t, 2).faltan_texturas == []
+
+
 # ---------------------------------------------------------------- muestras de verdad, subidas como el navegador
 
 def carpetas_de_muestras():

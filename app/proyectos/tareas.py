@@ -236,6 +236,6 @@ def anotar_materiales(con_imagen):
                 if not m.ancho_mm and ancho:
                     m.ancho_mm = round(ancho)
                 m.save(update_fields=['ruta_polyboard', 'ancho_mm', 'actualizado'])
-            if not m.textura:
+            if m.falta:
                 faltan.append({'nombre': nombre, 'tipo': str(tipo)})   # como figura en este proyecto
     return faltan

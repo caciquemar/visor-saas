@@ -50,7 +50,7 @@
 {% for etiqueta, materiales in grupos %}
 <h2>{{ etiqueta }}</h2>
 {% for m, form in materiales %}
-<div class="caja material{% if not m.textura %} falta{% endif %}">
+<div class="caja material{% if m.falta %} falta{% endif %}">
   {% if m.textura %}
     <div class="con-veta">
       <img class="muestra" src="{% url 'taller:proyectos:imagen_material' taller=request.taller.slug id=m.pk %}" alt="Textura de {{ m }}">
@@ -61,7 +61,7 @@
       </span>{% endif %}{% endwith %}
     </div>
   {% else %}
-    <div class="muestra suave" {% if m.color %}style="background:{{ m.color }}"{% endif %}>Sin textura</div>
+    <div class="muestra suave" {% if m.color %}style="background:{{ m.color }}"{% endif %}>{% if m.falta %}Sin textura{% endif %}</div>
   {% endif %}
   <div>
     <h3>{{ m.nombre }} <span class="estado">{{ m.get_tipo_display }}</span></h3>

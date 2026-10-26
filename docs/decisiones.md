@@ -42,6 +42,12 @@ por taller). La sesión de PIN sigue igual (12 horas, solo ese taller), y con un
 siguiente sin tocar Salir (celular compartido). `/<taller>/pin/` ahora lleva a `/entrar/`.
 Reemplaza la pantalla de PIN del taller con la lista de nombres: ya no se ven los nombres sin sesión.
 
+## 2026-10-25 · Material con color no lleva textura; colores de señalización a propósito
+Martín: un material tiene color o textura, no los dos. Con color definido no falta nada: no sale en rojo en
+Materiales ni en "Faltan texturas" del proyecto (`Material.falta`: sin imagen y sin color). Los cantos de otro nombre
+que salen con el color de señalización de Polyboard (`negro` = `#408080`, `blanco` = `#FFFF31`) quedan así a
+propósito: sirven para ver qué lado tiene canto.
+
 ## 2026-10-25 · Veta de las texturas
 Pedido de Martín: a las texturas les faltaba saber hacia dónde va la veta. Cada material tiene **Veta de la imagen**
 (Automática, Horizontal, Vertical, Sin veta) y una flecha doble sobre la muestra en Materiales. Automática: al subir

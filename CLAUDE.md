@@ -352,6 +352,9 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
   `Material.veta_detectada`, migración `proyectos 0009`, que lee las ya subidas) y detecta "sin veta" en lisos y
   simétricos. Va al conversor en `materiales.json`; el probador manda `alto` y `girar` (visor y `glb_ar`). Arreglado
   de paso el formulario de Materiales, que no dejaba guardar con una textura ya cargada. Ver `docs/decisiones.md`.
+- 2026-10-25: **material con color = completo (decisión de Martín).** Si tiene color definido no lleva textura: ya no
+  sale en rojo ni cuenta en "Faltan texturas" (`Material.falta`). Los colores de señalización de los cantos de otro
+  nombre quedan: son a propósito.
 
 ## Pendientes
 
@@ -364,8 +367,6 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - **Ficha 14, probar con un celular de verdad** (en el NAS por HTTPS): abrir la AR de una combinación en Android
   (Scene Viewer) y en iPhone (Quick Look), y mirar cuánto tarda en prepararse con la cola de verdad (en la PC la cola
   es inmediata). Probar también pasar el límite de 20 (modelo del celular).
-- Materiales: un tablero cargado solo con color (sin imagen) cuenta como "sin textura" y sale en rojo; para los que
-  se agregan a mano para el probador quizás no corresponda avisar.
 
 - **Ficha 19, probar con celular de verdad** (en el NAS): fotos de anotaciones con la cámara, y la etiqueta del mueble
   impresa con esquema: que el QR (más chico) se lea y que el dibujo se entienda en térmica.
@@ -397,8 +398,6 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
 - Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
   se puede dejar de usar (no se tocó la PC).
-- Lados con un canto de otro nombre: usan el color que trae Polyboard para ese canto, que a veces es de señalización
-  (`negro` = `#408080`, `blanco` = `#FFFF31`). Revisar con Martín si molesta.
 - Visor del NAS (visor.nordgood.com.ar): desde el 2026-10-10 usa el visor y el conversor de este repo
   (`polyboard/armado/armado/traer_de_la_app.py` los copia con los cambios propios del NAS). Al cambiar
   `visor/index.html` o el conversor acá, para llevarlo allá: correr ese script y "Convertir proyecto" (o

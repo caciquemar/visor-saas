@@ -181,6 +181,11 @@ class Material(DatoDeTaller):
         return f'{self.get_tipo_display().lower()} {self.nombre}'
 
     @property
+    def falta(self):
+        """Sin imagen ni color. Con color definido no lleva textura (decisión de Martín): no falta nada."""
+        return not self.textura and not self.color
+
+    @property
     def veta_efectiva(self):
         """'h', 'v' o 'n' (sin veta); '' si no hay imagen o no se pudo leer."""
         return (self.veta or self.veta_detectada) if self.textura else ''
