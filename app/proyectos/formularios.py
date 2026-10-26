@@ -3,6 +3,7 @@ import re
 from django import forms
 from django.conf import settings
 from django.core.files.uploadedfile import UploadedFile
+from django.utils.html import format_html
 
 from .archivos import solo_nombre
 from conversor.polyboard_a_app import clave as clave_de_material
@@ -109,18 +110,35 @@ class FormDatos(forms.ModelForm):
         return nombre
 
 
+class SelectorDeColor(forms.TextInput):
+    """El color como texto (#A1B2C3, puede quedar vacío) con un selector de colores al lado; uno sigue al otro."""
+    def __init__(self, attrs=None):
+        super().__init__({'placeholder': '#A1B2C3', 'size': 8, 'style': 'flex:1;margin:0',
+                          'oninput': "if(/^#[0-9a-f]{6}$/i.test(this.value))this.previousElementSibling.value=this.value",
+                          **(attrs or {})})
+
+    def render(self, name, value, attrs=None, renderer=None):
+        muestra = value if isinstance(value, str) and re.fullmatch(r'#[0-9A-Fa-f]{6}', value) else '#B5B5B5'
+        return format_html(
+            '<span style="display:flex;gap:.5rem;align-items:center">'
+            '<input type="color" value="{}" aria-label="Elegir el color" style="width:3.5rem;height:2.5rem;padding:.15rem;margin:0" '
+            'oninput="this.nextElementSibling.value=this.value.toUpperCase()">{}</span>',
+            muestra.lower(), super().render(name, value, attrs, renderer))
+
+
 class FormMaterial(forms.ModelForm):
     """Ficha de un tablero o un canto de la biblioteca (alta y modificación)."""
     class Meta:
         model = Material
         fields = ('nombre', 'textura', 'veta', 'ancho_mm', 'color')
-        widgets = {'color': forms.TextInput(attrs={'placeholder': '#A1B2C3', 'size': 8}),
+        widgets = {'color': SelectorDeColor(),
                    'textura': forms.FileInput(attrs={'accept': 'image/jpeg,image/png,image/webp'})}
         help_texts = {'nombre': 'Igual que en Polyboard (sin importar mayúsculas ni acentos): así lo encuentra el '
                                 'conversor.',
                       'ancho_mm': 'Cuántos milímetros del material cubre la imagen a lo ancho. '
                                   'Si no lo sabés, dejalo vacío (se usa 1 metro).',
-                      'color': 'Opcional: el color que se ve si no hay textura (o en lugar del de Polyboard).',
+                      'color': 'Elegilo con el selector o escribilo (#A1B2C3). Opcional: el color que se ve si no hay textura '
+                               '(o en lugar del de Polyboard).',
                       'veta': 'Hacia dónde van las fibras en la imagen que subiste (la flecha de la muestra). '
                               'Automática: la detecta el sistema; si se equivoca, elegila. '
                               'Sin veta: lisos y dibujos simétricos (la imagen no se gira).'}

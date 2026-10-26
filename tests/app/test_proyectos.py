@@ -434,3 +434,12 @@ def test_abm_de_cantos_y_borrar(dueno_a, t):
     assert r.status_code == 302 and r['Location'].endswith('?ver=cantos')
     with en_a(t):
         assert not Material.objects.exists()
+
+
+def test_color_con_selector(dueno_a, t):
+    dueno_a.post('/taller-a/materiales/nuevo-canto/', {'nombre': 'Negro', 'color': '#1A2B3C'})
+    with en_a(t):
+        canto = Material.objects.get()
+    ficha = dueno_a.get(f'/taller-a/materiales/{canto.pk}/').content.decode()
+    assert '<input type="color" value="#1a2b3c"' in ficha and 'value="#1A2B3C"' in ficha
+    assert '<input type="color" value="#b5b5b5"' in dueno_a.get('/taller-a/materiales/?ver=cantos').content.decode()
