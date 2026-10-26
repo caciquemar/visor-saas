@@ -23,8 +23,8 @@ from talleres.roles import con_permiso, miembro, puede
 from . import probador
 from .archivos import solo_nombre
 from . import borrar as borrado
-from .formularios import (FormDatos, FormMaterial, FormMaterialNuevo, FormProyectoNuevo, FormSinCanto,
-                          FormSubida)
+from .formularios import (FormBiblioteca, FormDatos, FormMaterial, FormMaterialNuevo, FormProyectoNuevo,
+                          FormSinCanto, FormSubida)
 from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version, para_produccion
 from .tareas import encolar
 from .visor import url_de_link
@@ -404,6 +404,46 @@ def buscar_lisos(request, taller):
     return a_materiales(request, Material.Tipo.TABLERO if request.POST.get('ver') != 'cantos' else Material.Tipo.CANTO)
 
 
+@con_permiso('materiales')
+def importar_biblioteca(request, taller):
+    """Importar la biblioteca de Polyboard (proyectos/biblioteca.py): los .mat-boole y, después, las imágenes que
+    faltan desde la carpeta Textures (la página elige cuáles y las manda de a una a importar_textura)."""
+    from . import biblioteca
+    enviado = request.method == 'POST'
+    form = FormBiblioteca(request.POST if enviado else None, request.FILES if enviado else None)
+    if request.method == 'POST' and form.is_valid():
+        partes = []
+        for campo, tipo in (('tableros', Material.Tipo.TABLERO), ('cantos', Material.Tipo.CANTO)):
+            if form.cleaned_data.get(campo):
+                r = biblioteca.importar(form.cleaned_data[campo], tipo, form.cleaned_data['reemplazar_colores'])
+                partes.append(f'{campo}: {r.nuevos} nuevos, {r.cambiados} completados, {r.iguales} sin cambios')
+        messages.success(request, 'Importaste la biblioteca de Polyboard (' + '; '.join(partes) + '). Ahora subí las '
+                                  'imágenes que faltan desde la carpeta Textures y después tocá "Volver a convertir" '
+                                  'en los proyectos.')
+        return redirect('taller:proyectos:importar_biblioteca', taller=request.taller.slug)
+    return render(request, 'proyectos/importar_biblioteca.html', {
+        'form': form, 'faltan': biblioteca.faltan_imagenes(), 'max_mb': settings.MAX_TEXTURA_MB,
+    }, status=400 if form.errors else 200)
+
+
+@require_POST
+@con_permiso('materiales')
+def importar_textura(request, taller):
+    """Una imagen de la carpeta Textures para un material (JSON). Con las mismas revisiones que la ficha."""
+    from django.http import JsonResponse
+    m = get_object_or_404(Material, pk=request.POST.get('id') or 0)
+    if m.textura:
+        return JsonResponse({'ok': True, 'ya_tenia': True})
+    datos = {'nombre': m.nombre, 'veta': m.veta, 'ancho_mm': m.ancho_mm or '', 'color': m.color}
+    form = FormMaterial(datos, {'textura': request.FILES.get('archivo')} if request.FILES.get('archivo') else {},
+                        instance=m)
+    if not request.FILES.get('archivo') or not form.is_valid():
+        errores = ' '.join(e for es in form.errors.values() for e in es) or 'Falta la imagen.'
+        return JsonResponse({'ok': False, 'error': errores}, status=400)
+    form.save()
+    return JsonResponse({'ok': True})
+
+
 def probadores_con(material):
     """Proyectos cuyo probador de colores ofrece este material."""
     return sorted({g.proyecto.nombre for g in GrupoDeColor.objects.select_related('proyecto')
@@ -428,7 +468,8 @@ def material(request, taller, id):
     """Ficha de un material: todos sus datos para ver y cambiar, y Borrar."""
     m = get_object_or_404(Material, pk=id)
     tenia_textura, veta = bool(m.textura), m.veta
-    form = FormMaterial(request.POST or None, request.FILES or None, instance=m)
+    enviado = request.method == 'POST'
+    form = FormMaterial(request.POST if enviado else None, request.FILES if enviado else None, instance=m)
     if request.method == 'POST' and form.is_valid():
         form.save()
         if m.textura and not tenia_textura:

@@ -61,7 +61,8 @@
 <div class="acciones" style="margin:0 0 .5rem"><button type="button" id="abrirAgregar">Agregar {{ nombre_tipo }}</button>
   <form class="enlinea" method="post" action="{% url 'taller:proyectos:buscar_lisos' taller=request.taller.slug %}">{% csrf_token %}
     <input type="hidden" name="ver" value="{{ ver }}">
-    <button type="submit" class="secundario" title="Suma con su color los tableros y cantos lisos de los proyectos ya convertidos">Buscar los lisos en los proyectos</button></form></div>
+    <button type="submit" class="secundario" title="Suma con su color los tableros y cantos lisos de los proyectos ya convertidos">Buscar los lisos en los proyectos</button></form>
+  <a class="boton secundario" href="{% url 'taller:proyectos:importar_biblioteca' taller=request.taller.slug %}">Importar biblioteca de Polyboard</a></div>
 {% if faltan %}<p><strong>{{ faltan }} sin textura ni color.</strong> Subí la imagen que usás en Polyboard (está en la carpeta
   Textures) o poné un color.</p>{% endif %}
 

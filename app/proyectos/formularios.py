@@ -189,6 +189,44 @@ class FormMaterialNuevo(FormMaterial):
         return datos
 
 
+class FormBiblioteca(forms.Form):
+    """Las bibliotecas de materiales de Polyboard: Panel.mat-boole (tableros) y Edge.mat-boole (cantos)."""
+    MAX_MB = 5
+    tableros = forms.FileField(label='Tableros (Panel.mat-boole)', required=False,
+                               widget=forms.FileInput(attrs={'accept': '.mat-boole'}))
+    cantos = forms.FileField(label='Cantos (Edge.mat-boole)', required=False,
+                             widget=forms.FileInput(attrs={'accept': '.mat-boole'}))
+    reemplazar_colores = forms.BooleanField(
+        label='Usar los colores de la biblioteca también en los materiales que ya tienen color', required=False,
+        help_text='Si no lo marcás, solo se completa lo que falta. Las texturas que subiste nunca se tocan.')
+
+    def revisar(self, campo):
+        from .biblioteca import leer
+        archivo = self.cleaned_data.get(campo)
+        if not archivo:
+            return None
+        if not archivo.name.lower().endswith('.mat-boole'):
+            raise forms.ValidationError(f'{archivo.name} no es una biblioteca de Polyboard (.mat-boole).')
+        if archivo.size > self.MAX_MB * MB:
+            raise forms.ValidationError(f'{archivo.name} pesa más de {self.MAX_MB} MB.')
+        materiales = leer(archivo)
+        if not materiales:
+            raise forms.ValidationError(f'{archivo.name} no trae materiales: ¿es la biblioteca de Polyboard?')
+        return materiales
+
+    def clean_tableros(self):
+        return self.revisar('tableros')
+
+    def clean_cantos(self):
+        return self.revisar('cantos')
+
+    def clean(self):
+        datos = super().clean()
+        if not self.errors and not datos.get('tableros') and not datos.get('cantos'):
+            raise forms.ValidationError('Elegí Panel.mat-boole, Edge.mat-boole o los dos.')
+        return datos
+
+
 class FormSinCanto(forms.ModelForm):
     class Meta:
         model = Taller

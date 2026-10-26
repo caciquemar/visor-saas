@@ -1,0 +1,169 @@
+{% extends 'base.html' %}
+{% block titulo %}Importar biblioteca · Materiales{% endblock %}
+{% block cabeza %}
+<style>
+  .paso { margin-top:1rem; }
+  .paso h2 { margin-top:0; font-size:1.1rem; }
+  .zona { border:2px dashed var(--borde); border-radius:10px; padding:1.25rem; text-align:center; margin-top:.5rem; }
+  .zona.encima { border-color:var(--acento); background:var(--fondo); }
+  .zona a { color:var(--acento); }
+  #lista { list-style:none; padding:0; margin:.75rem 0 0; font-size:.9rem; max-height:22rem; overflow:auto; }
+  #lista li { padding:.3rem 0; border-bottom:1px solid var(--borde); display:flex; gap:.5rem; justify-content:space-between; }
+  #lista .ok { color:var(--acento); }
+  #lista .mal { color:var(--error); }
+  .barra { height:.5rem; background:var(--borde); border-radius:1rem; overflow:hidden; margin-top:.75rem; }
+  .barra span { display:block; height:100%; width:0; background:var(--acento); transition:width .2s; }
+  input[type=checkbox] { width:auto; }
+</style>
+{% endblock %}
+{% block contenido %}
+<a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">‹ Materiales</a>
+<h1>Importar biblioteca de Polyboard</h1>
+<p class="suave">Trae los colores y las texturas de tus tableros y cantos tal como están en Polyboard, aunque el
+  proyecto (.ocp) no los tenga. Se hace en dos pasos y se puede repetir cuando cambies algo en Polyboard: solo se suma
+  lo nuevo.</p>
+
+<div class="caja paso">
+  <h2>1. Los materiales</h2>
+  <p class="suave" style="margin-top:0">Están en la carpeta <strong>Materials</strong> de Polyboard (al lado de
+    Textures): <code>Panel.mat-boole</code> son los tableros y <code>Edge.mat-boole</code> los cantos.</p>
+  <form method="post" enctype="multipart/form-data">{% csrf_token %}
+    {% if form.non_field_errors %}<p class="error">{{ form.non_field_errors|join:" " }}</p>{% endif %}
+    {% for campo in form %}
+      {% if campo.name == 'reemplazar_colores' %}
+      <label style="display:flex;gap:.5rem;align-items:center;font-weight:400">{{ campo }} {{ campo.label }}</label>
+      {% else %}
+      <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}
+      {% endif %}
+      {% if campo.errors %}<span class="error">{{ campo.errors|join:" " }}</span>{% endif %}
+      {% if campo.help_text %}<span class="ayuda">{{ campo.help_text }}</span>{% endif %}
+    {% endfor %}
+    <div class="acciones"><button type="submit">Importar</button></div>
+  </form>
+</div>
+
+<div class="caja paso">
+  <h2>2. Las imágenes que faltan</h2>
+  {% if faltan %}
+  <p class="suave" style="margin-top:0"><strong>{{ faltan|length }} material{{ faltan|length|pluralize:"es" }} sin
+    imagen.</strong> Arrastrá la carpeta <strong>Textures</strong> de Polyboard: la página busca en tu computadora solo
+    esas imágenes y sube nada más que esas (no toda la carpeta).</p>
+  <div class="zona" id="zona" tabindex="0">
+    <input type="file" id="carpeta" webkitdirectory multiple hidden>
+    <strong>Arrastrá acá la carpeta Textures</strong><br>
+    <span class="suave"><a href="#" id="elegir">o elegila</a></span>
+  </div>
+  <div class="barra" hidden id="barra"><span></span></div>
+  <p id="estado" class="suave" style="margin:.5rem 0 0"></p>
+  <ul id="lista"></ul>
+  <details style="margin-top:.75rem"><summary class="suave">Ver cuáles faltan</summary>
+    <ul class="suave" style="font-size:.85rem">{% for f in faltan %}<li>{{ f.tipo }} {{ f.nombre }} — {{ f.ruta }}</li>{% endfor %}</ul>
+  </details>
+  {{ faltan|json_script:"faltan" }}
+  {% else %}
+  <p class="suave" style="margin:0">No falta ninguna imagen: todos los materiales con textura en Polyboard ya la tienen.</p>
+  {% endif %}
+</div>
+
+{% if faltan %}
+<script>
+(function () {
+  const faltan = JSON.parse(document.getElementById('faltan').textContent);
+  const MAX = {{ max_mb }} * 1048576, URL_SUBIR = '{% url "taller:proyectos:importar_textura" taller=request.taller.slug %}';
+  const csrf = document.querySelector('[name=csrfmiddlewaretoken]').value;
+  const zona = document.getElementById('zona'), carpeta = document.getElementById('carpeta'),
+        estado = document.getElementById('estado'), lista = document.getElementById('lista'),
+        barra = document.getElementById('barra');
+  const norma = t => t.replace(/\\/g, '/').toLowerCase();
+  const base = t => norma(t).split('/').pop();
+
+  // a cada material, el archivo de la carpeta con su misma ruta (Egger\x.jpg); si no está, uno con el mismo nombre
+  function emparejar(archivos) {
+    const pares = [];
+    for (const m of faltan) {
+      const ruta = norma(m.ruta);
+      let a = archivos.find(x => norma(x.ruta) === ruta || norma(x.ruta).endsWith('/' + ruta));
+      if (!a) { const mismos = archivos.filter(x => base(x.ruta) === base(m.ruta)); if (mismos.length === 1) a = mismos[0]; }
+      if (a) pares.push({m, archivo: a.archivo});
+    }
+    return pares;
+  }
+  function renglon(m, texto, clase) {
+    const li = document.createElement('li');
+    li.innerHTML = '<span></span><span></span>';
+    li.children[0].textContent = m.tipo + ' ' + m.nombre;
+    li.children[1].textContent = texto; li.children[1].className = clase || '';
+    lista.appendChild(li); return li.children[1];
+  }
+  async function subir(pares) {
+    let hechos = 0, bien = 0;
+    barra.hidden = false;
+    const avanzar = () => { barra.firstElementChild.style.width = (100 * hechos / pares.length) + '%';
+                            estado.textContent = `Subiendo ${hechos} de ${pares.length}…`; };
+    avanzar();
+    const cola = pares.slice();
+    async function trabajador() {
+      while (cola.length) {
+        const {m, archivo} = cola.shift(), celda = renglon(m, 'subiendo…');
+        if (archivo.size > MAX) { celda.textContent = 'pesa más de {{ max_mb }} MB'; celda.className = 'mal'; }
+        else {
+          const datos = new FormData(); datos.append('id', m.id); datos.append('archivo', archivo, archivo.name);
+          try {
+            const r = await fetch(URL_SUBIR, {method: 'POST', body: datos, headers: {'X-CSRFToken': csrf}});
+            const j = await r.json();
+            if (j.ok) { celda.textContent = '✓ ' + archivo.name; celda.className = 'ok'; bien++; }
+            else { celda.textContent = j.error || 'no se pudo'; celda.className = 'mal'; }
+          } catch (e) { celda.textContent = 'no se pudo (¿sin conexión?)'; celda.className = 'mal'; }
+        }
+        hechos++; avanzar();
+      }
+    }
+    await Promise.all([trabajador(), trabajador(), trabajador()]);
+    estado.textContent = `Listo: se subieron ${bien} de ${pares.length}. Recargá la página para ver lo que queda, y tocá `
+      + '"Volver a convertir" en los proyectos que las usan.';
+  }
+  function desdeCarpeta(archivos) {
+    archivos = archivos.filter(x => /\.(jpe?g|png|webp)$/i.test(x.ruta));
+    lista.innerHTML = '';
+    const pares = emparejar(archivos);
+    if (!pares.length) {
+      estado.textContent = archivos.length ? 'En esa carpeta no está ninguna de las imágenes que faltan.'
+                                           : 'Esa carpeta no tiene imágenes: tiene que ser Textures de Polyboard.';
+      return;
+    }
+    const sin = faltan.length - pares.length;
+    estado.textContent = `Se encontraron ${pares.length} de ${faltan.length}` + (sin ? ` (${sin} no están en la carpeta).` : '.');
+    subir(pares);
+  }
+  function leerCarpeta(entrada, ruta) {       // FileSystemEntry de lo arrastrado -> [{ruta, archivo}]
+    return new Promise(listo => {
+      if (entrada.isFile) { entrada.file(f => listo([{ruta: ruta + entrada.name, archivo: f}]), () => listo([])); return; }
+      const lector = entrada.createReader(); let todos = [];
+      (function seguir() {
+        lector.readEntries(async hijos => {
+          if (!hijos.length) {
+            let res = [];
+            for (const h of todos) res = res.concat(await leerCarpeta(h, ruta + entrada.name + '/'));
+            listo(res); return;
+          }
+          todos = todos.concat([...hijos]); seguir();
+        }, () => listo([]));
+      })();
+    });
+  }
+  document.getElementById('elegir').onclick = e => { e.preventDefault(); carpeta.click(); };
+  carpeta.addEventListener('change', () => desdeCarpeta([...carpeta.files].map(f => ({ruta: f.webkitRelativePath || f.name, archivo: f}))));
+  ['dragenter', 'dragover'].forEach(ev => zona.addEventListener(ev, e => { e.preventDefault(); zona.classList.add('encima'); }));
+  zona.addEventListener('dragleave', () => zona.classList.remove('encima'));
+  zona.addEventListener('drop', async e => {
+    e.preventDefault(); zona.classList.remove('encima');
+    estado.textContent = 'Leyendo la carpeta…';
+    const entradas = [...(e.dataTransfer.items || [])].map(i => i.webkitGetAsEntry && i.webkitGetAsEntry()).filter(Boolean);
+    let archivos = [];
+    for (const en of entradas) archivos = archivos.concat(await leerCarpeta(en, ''));
+    desdeCarpeta(archivos);
+  });
+})();
+</script>
+{% endif %}
+{% endblock %}

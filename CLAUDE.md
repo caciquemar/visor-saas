@@ -366,6 +366,12 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   `sumar_lisos_de_proyectos`, lee el proyecto.json de la versión en uso). En Versiones, "Borrar versión" en las que
   no están en uso ni convirtiéndose (`borrar.borrar_version`): conserva los originales que usan otras versiones
   (Volver a convertir no los copia).
+- 2026-10-25: **Importar biblioteca de Polyboard (pedido de Martín)** en Materiales (`/materiales/importar/`,
+  `proyectos/biblioteca.py`). Paso 1: se suben `Panel.mat-boole` y `Edge.mat-boole` y se cargan sus tableros y cantos
+  (con textura: ruta y ancho; sin textura: color; sin los separadores `---` de la lista); lo cargado no se pisa salvo
+  "Usar los colores de la biblioteca…". Paso 2: se arrastra la carpeta Textures y la página sube solo las imágenes
+  que faltan (por la ruta de Polyboard o, si no, por el nombre), de a tres, a `importar_textura` (mismas revisiones
+  que la ficha). Las bibliotecas de Nord Good están en `muestras/biblioteca` para las pruebas.
 
 ## Pendientes
 

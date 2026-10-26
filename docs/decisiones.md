@@ -42,6 +42,14 @@ por taller). La sesión de PIN sigue igual (12 horas, solo ese taller), y con un
 siguiente sin tocar Salir (celular compartido). `/<taller>/pin/` ahora lleva a `/entrar/`.
 Reemplaza la pantalla de PIN del taller con la lista de nombres: ya no se ven los nombres sin sesión.
 
+## 2026-10-25 · Importar la biblioteca de Polyboard
+Cambia lo descartado el 2026-10-06 (subir las bibliotecas .mat-boole). El .ocp no siempre trae el color o la textura
+de cada material: f-Tribal tiene su color solo en la biblioteca y f-Yute su textura; el visor viejo convertía en la
+PC con la biblioteca y la carpeta Textures, y por eso se veían bien. Martín eligió que sea una funcionalidad de
+Materiales para todos los talleres: se suben `Panel.mat-boole` y `Edge.mat-boole` (pocos KB) y la carpeta Textures se
+arrastra, pero el navegador sube solo las imágenes que faltan (no los cientos de MB). Las bibliotecas no se guardan:
+sus datos quedan en Materiales, que es lo que usa la conversión. Lo cargado a mano no se pisa.
+
 ## 2026-10-25 · Material con color no lleva textura; colores de señalización a propósito
 Martín: un material tiene color o textura, no los dos. Con color definido no falta nada: no sale en rojo en
 Materiales ni en "Faltan texturas" del proyecto (`Material.falta`: sin imagen y sin color). Los cantos de otro nombre

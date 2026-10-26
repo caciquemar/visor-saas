@@ -293,8 +293,10 @@ def test_proyecto_de_b_por_la_direccion_de_a(cliente_de, con_proyectos):
                       f'/taller-a/materiales/{t.material_b.pk}/imagen/'):
         assert c.get(direccion).status_code == 404, direccion
     for direccion in (f'/taller-a/proyectos/{pb}/versiones/1/usar/', f'/taller-a/proyectos/{pb}/versiones/1/reconvertir/',
-                      f'/taller-a/materiales/{t.material_b.pk}/'):
+                      f'/taller-a/proyectos/{pb}/versiones/1/borrar/', f'/taller-a/materiales/{t.material_b.pk}/',
+                      f'/taller-a/materiales/{t.material_b.pk}/borrar/'):
         assert c.post(direccion).status_code == 404, direccion
+    assert c.post('/taller-a/materiales/importar/textura/', {'id': t.material_b.pk}).status_code == 404
     assert c.post(f'/taller-a/proyectos/{pb}/versiones/nueva/', {'archivos': []}).status_code == 404
     lista = c.get('/taller-a/proyectos/').content.decode()
     assert 'cocina taller-a' in lista and 'cocina taller-b' not in lista
