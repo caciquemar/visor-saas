@@ -60,6 +60,7 @@ header h1{font-family:var(--cond);font-weight:700;font-size:22px;margin:0;letter
 header select{font:inherit;font-size:16px;color:var(--tinta);background:var(--hoja);
   border:1px solid var(--linea);border-radius:8px;padding:6px 10px;min-width:0;flex:0 1 auto;text-overflow:ellipsis}
 header h1,.btn-muebles{flex:none}
+body.modo-avance #proyecto{margin-left:auto}
 .btn-muebles.btn-trabajos{margin-left:0}
 @media (max-width:430px){ header{gap:8px} .btn-muebles{padding:6px 8px;font-size:14px} .btn-muebles .txt{display:none} }
 .insignia{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--alerta);color:#fff;
@@ -441,6 +442,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
       <span class="txt">Tareas</span><span class="insignia" id="tbInsignia" hidden></span>
     </button>
     <select id="proyecto" class="solo-taller" aria-label="Proyecto"></select>
+    <select id="selAvance" class="solo-taller" aria-label="Ver el avance de un proceso" hidden></select>
   </header>
 
   <main id="escena">
@@ -2223,6 +2225,22 @@ function leyendaAvance(){
   $('leyendaEntrega').innerHTML = `<div class="proceso">${esc(d.proceso.nombre)}</div>`
     + ver.map(k => `<div><i style="background:${d.colores[k]}"></i>${esc(d.nombres[k])} <b>${d.totales[k]}</b></div>`).join('')
     + (d.por_pieza ? '<div>muebles; en color, las piezas hechas</div>' : '');
+}
+// la lista "Avance" de arriba: elegir un proceso abre este mismo proyecto en modo avance (en color lo que lo
+// cumplió); "Sin avance" vuelve al visor de siempre
+if (!CLIENTE && VISOR.avance && (VISOR.avance.procesos || []).length){
+  const s = $('selAvance');
+  s.innerHTML = `<option value="">${AVP.id ? 'Sin avance' : 'Avance…'}</option>`
+    + VISOR.avance.procesos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  s.value = AVP.id ? String(AVP.id) : '';
+  s.hidden = false;
+  s.onchange = () => {
+    const q = new URLSearchParams(location.search);
+    q.delete('avance'); q.delete('carga'); q.delete('pz'); q.delete('m');
+    if (item && item.id != null) q.set('p', item.id);
+    if (s.value) q.set('avance', s.value);
+    location.search = q.toString();
+  };
 }
 // escáner del modo avance (ficha 21): se registra en el proceso, igual que en Mi puesto, y el 3D se repinta
 AVP.carga = +new URLSearchParams(location.search).get('carga') || 'nueva';

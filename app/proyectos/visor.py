@@ -34,6 +34,7 @@ from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
 
+from avance.models import procesos as procesos_del_taller
 from talleres.archivos import abrir_de_taller
 from talleres.iconos import ICONOS
 from talleres.limites import permite
@@ -131,7 +132,9 @@ def visor(request, taller):
         'menu': menu_de(request),
         'etiquetas': {'pantalla': url_de_etiquetas(request), 'formato': formato_para_el_visor()},
         'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}),
-                   'api': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}) + 'api/'},
+                   'api': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}) + 'api/',
+                   # para la lista "Avance" del visor: elegir un proceso pinta lo que lo cumplió
+                   'procesos': [{'id': e.pk, 'nombre': e.nombre} for e in procesos_del_taller() if e.activa]},
         'salir': reverse('salir'),
         'cuenta': reverse('taller:cuenta', kwargs={'taller': request.taller.slug}),
         'cambiar': reverse('entrar') + '?cambiar=1',         # celular compartido: entra otro

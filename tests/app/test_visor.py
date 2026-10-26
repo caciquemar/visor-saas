@@ -92,7 +92,9 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert config.pop('cambiar') == '/entrar/?cambiar=1'
     assert config.pop('etiquetas') == {'pantalla': '/taller-a/proyectos/{id}/etiquetas/', 'formato': {
         'nombre': 'Hoja A4 · 3 × 8 · 70 × 37 mm', 'hoja': True, 'columnas': 3, 'filas': 8}}
-    assert config.pop('avance') == {'puesto': '/taller-a/puesto/', 'api': '/taller-a/puesto/api/'}
+    avance = config.pop('avance')
+    assert avance.pop('procesos')[0]['nombre'] == 'Cortada'          # la lista "Avance" del visor
+    assert avance == {'puesto': '/taller-a/puesto/', 'api': '/taller-a/puesto/api/'}
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
         ('Inicio', '/taller-a/'), ('Armado', '/taller-a/armado/'), ('Visor', '/taller-a/visor/'),
