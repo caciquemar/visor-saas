@@ -316,6 +316,20 @@ def usar_version(request, taller, id, numero):
 
 
 @require_POST
+@require_POST
+@con_permiso('proyectos_gestion')
+def borrar_version(request, taller, id, numero):
+    """Borrar una versión vieja: nunca la que está en uso ni una que se está convirtiendo."""
+    proyecto = get_object_or_404(Proyecto, pk=id)
+    version = get_object_or_404(proyecto.versiones, numero=numero)
+    if version.pk == proyecto.version_actual_id or version.en_proceso:
+        messages.error(request, f'La versión {numero} no se puede borrar: está en uso o convirtiéndose.')
+    else:
+        borrado.borrar_version(version)
+        messages.success(request, f'Borraste la versión {numero}.')
+    return a_proyecto(request, proyecto, 'versiones')
+
+
 @con_permiso('proyectos_gestion')
 def reconvertir(request, taller, id, numero):
     proyecto = get_object_or_404(Proyecto, pk=id)
@@ -377,6 +391,17 @@ def nuevo_material(request, taller, tipo):
     extra = ' Ya lo podés ofrecer en el probador de colores.' if tipo == Material.Tipo.TABLERO else ''
     messages.success(request, f'Agregaste el {m}.{extra}')
     return a_materiales(request, tipo)
+
+
+@require_POST
+@con_permiso('materiales')
+def buscar_lisos(request, taller):
+    """Suma los tableros y cantos de color liso de los proyectos ya convertidos (en la cola)."""
+    from .tareas import encolar_lisos
+    encolar_lisos(request.taller)
+    messages.success(request, 'Se están buscando los tableros y cantos de color liso en los proyectos. En un rato '
+                              'aparecen acá (recargá la página).')
+    return a_materiales(request, Material.Tipo.TABLERO if request.POST.get('ver') != 'cantos' else Material.Tipo.CANTO)
 
 
 def probadores_con(material):

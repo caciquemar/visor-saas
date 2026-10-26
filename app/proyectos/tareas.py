@@ -25,7 +25,7 @@ from modulos import registro
 from talleres.separacion import tarea_de_taller
 
 from .archivos import nombre_local
-from .models import Material, Original, Version
+from .models import Material, Original, Version, lisos_de
 
 log = logging.getLogger('visor.conversion')
 
@@ -166,6 +166,10 @@ def guardar_resultado(version, resultado, res):
             archivo_proyecto = guardado
 
     faltan = anotar_materiales(res.get('con_imagen', {}))
+    try:
+        anotar_lisos(json.loads((resultado / res['archivo']).read_text(encoding='utf-8')))
+    except (OSError, ValueError):
+        log.warning('No se pudieron leer los materiales lisos de la versión %s', version.pk)
     # Las imágenes que faltan se muestran aparte, con el botón para subirlas: no se repiten como avisos (el
     # conversor los escribe "tablero X: no se encontró la imagen …" o "canto X: …").
     sin_imagen = {(f['tipo'], clave(f['nombre'])) for f in faltan}
@@ -215,6 +219,44 @@ def generar_combinacion(combinacion_id):
         log.exception('Falló la combinación de colores %s', combinacion_id)
         combinacion.estado = Combinacion.Estado.ERROR
     combinacion.save(update_fields=['ar', 'estado'])
+
+
+def anotar_lisos(datos):
+    """Suma a la biblioteca, con el color de Polyboard, los tableros y cantos lisos que todavía no están (así se ven
+    en Materiales y se les puede cambiar el color o subir una imagen). Los que ya están no se tocan. Devuelve cuántos
+    sumó."""
+    sumados = 0
+    for tipo, nombre, color in lisos_de(datos):
+        if not Material.objects.filter(tipo=tipo, clave=clave(nombre)).exists():
+            try:
+                with transaction.atomic():
+                    Material.objects.create(tipo=tipo, nombre=nombre, color=color)
+                sumados += 1
+            except IntegrityError:                # otra conversión lo creó recién
+                pass
+    return sumados
+
+
+def encolar_lisos(taller):
+    transaction.on_commit(partial(sumar_lisos_de_proyectos, taller.pk))
+
+
+@db_task()
+@tarea_de_taller
+def sumar_lisos_de_proyectos():
+    """Los lisos de los proyectos ya convertidos (antes de 2026-10-25 la conversión no los sumaba): lee el
+    proyecto.json de la versión en uso de cada uno. Corre en la cola, que tiene más memoria que la web."""
+    from .models import Proyecto
+    sumados = 0
+    for p in Proyecto.objects.select_related('version_actual').filter(version_actual__estado=Version.Estado.LISTO):
+        if not p.version_actual.archivo_proyecto:
+            continue
+        try:
+            with default_storage.open(p.version_actual.archivo_proyecto, 'rb') as f:
+                sumados += anotar_lisos(json.load(f))
+        except (OSError, ValueError):
+            log.warning('No se pudieron leer los materiales lisos del proyecto %s', p.pk)
+    log.info('Materiales lisos sumados de los proyectos: %s', sumados)
 
 
 def anotar_materiales(con_imagen):

@@ -1,6 +1,7 @@
 """Proyectos de Polyboard subidos por el taller. Cada subida es una Version con sus archivos originales; el conversor
 corre en la cola (proyectos/tareas.py) y deja el resultado en la carpeta de la versión (proyectos/archivos.py).
 Material es la biblioteca de texturas del taller (lo que en el visor actual es materiales.json)."""
+import re
 import secrets
 from datetime import timedelta
 
@@ -197,6 +198,23 @@ class Material(DatoDeTaller):
         elif not self.textura._committed:          # imagen recién subida
             analizar_textura(self, self.textura)
         super().save(*args, **kwargs)
+
+
+def lisos_de(datos):
+    """[(tipo, nombre, color)] de los tableros y cantos que usa un proyecto convertido (su proyecto.json) sin imagen
+    en Polyboard: los de color liso. Los que tienen imagen los suma la conversión aparte (con su ruta)."""
+    usados = {Material.Tipo.TABLERO: {p.get('mat') for p in datos.get('paneles', [])},
+              Material.Tipo.CANTO: {c.get('mat') for p in datos.get('paneles', []) for c in p.get('cantos') or []}}
+    fuentes = {Material.Tipo.TABLERO: datos.get('materiales') or {},
+               Material.Tipo.CANTO: {**(datos.get('materiales') or {}), **(datos.get('cantos') or {})}}
+    lisos = []
+    for tipo, nombres in usados.items():
+        for nombre in sorted(n for n in nombres if n):
+            info = fuentes[tipo].get(nombre) or {}
+            color = info.get('color') if isinstance(info, dict) else None
+            if color and not info.get('textura') and re.fullmatch(r'#[0-9A-Fa-f]{6}', color):
+                lisos.append((tipo, nombre, color.upper()))
+    return lisos
 
 
 def analizar_textura(material, archivo):

@@ -51,6 +51,11 @@
     {% if not v.en_proceso %}
       <form class="enlinea" method="post" action="{% url 'taller:proyectos:reconvertir' taller=request.taller.slug id=proyecto.pk numero=v.numero %}">{% csrf_token %}
         <button class="secundario" type="submit">Volver a convertir</button></form>
+      {% if v.pk != proyecto.version_actual_id %}
+      <form class="enlinea" method="post" action="{% url 'taller:proyectos:borrar_version' taller=request.taller.slug id=proyecto.pk numero=v.numero %}"
+            onsubmit="return confirm('¿Borrar la versión {{ v.numero }}? No se puede deshacer.')">{% csrf_token %}
+        <button class="peligro" type="submit">Borrar versión</button></form>
+      {% endif %}
     {% endif %}
   </div>
   {% endif %}

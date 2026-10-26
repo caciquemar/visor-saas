@@ -49,9 +49,10 @@ class CorrerFalso:
     """Reemplaza proyectos.tareas.correr: no lanza el conversor, deja un resultado mínimo y guarda lo que recibió
     (la entrada, el materiales.json y las imágenes de Textures) para revisarlo."""
 
-    def __init__(self, con_imagen=None, avisos=None):
+    def __init__(self, con_imagen=None, avisos=None, proyecto=None):
         self.con_imagen = con_imagen or {}
         self.avisos = avisos or []
+        self.proyecto = proyecto or {}           # lo que se suma al proyecto.json (paneles, materiales, cantos)
         self.llamadas = []
 
     def __call__(self, entrada, tmp):
@@ -63,7 +64,7 @@ class CorrerFalso:
             texturas=sorted(f.name for f in Path(entrada['texturas'][0]).iterdir()),
             originales=sorted(f.name for f in (tmp / 'originales').iterdir()),
         ))
-        (destino / 'Falso.json').write_text('{"proyecto": "Falso"}', encoding='utf-8')
+        (destino / 'Falso.json').write_text(json.dumps({'proyecto': 'Falso', **self.proyecto}), encoding='utf-8')
         (destino / 'clientes').mkdir(exist_ok=True)
         (destino / 'clientes' / f"{entrada['codigo']}.json").write_text('{}', encoding='utf-8')
         resumen = dict(piezas_ocp=2, paneles=3, con_mecanizado=2, piezas_con_numero=2, vinculados=2, taladros=0,

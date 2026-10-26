@@ -22,15 +22,31 @@ def archivos_de(proyecto):
     return carpetas, [s for s in sueltos if s]
 
 
-def borrar_carpeta(carpeta):
+def borrar_carpeta(carpeta, conservar=frozenset()):
     try:
         carpetas, archivos = default_storage.listdir(carpeta)
     except (FileNotFoundError, NotADirectoryError):
         return
     for a in archivos:
-        default_storage.delete(carpeta + a)
+        if carpeta + a not in conservar:
+            default_storage.delete(carpeta + a)
     for c in carpetas:
-        borrar_carpeta(f'{carpeta}{c}/')
+        borrar_carpeta(f'{carpeta}{c}/', conservar)
+
+
+def borrar_version(version):
+    """Una versión vieja: su fila (con sus originales, combinaciones y Zicar en cascada) y su carpeta. "Volver a
+    convertir" no copia los archivos subidos, la versión nueva apunta a los de la vieja: esos quedan."""
+    from .models import Original
+    otros = set(Original.objects.filter(version__proyecto_id=version.proyecto_id).exclude(version=version)
+                .values_list('archivo', flat=True))
+    carpeta = version.carpeta()
+    with transaction.atomic():
+        version.delete()
+    try:
+        borrar_carpeta(carpeta, otros)
+    except Exception:                     # noqa: BLE001 — la base ya se borró: que no falle el pedido
+        log.exception('No se pudo borrar la carpeta %s', carpeta)
 
 
 def borrar(proyecto):

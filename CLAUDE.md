@@ -360,6 +360,12 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   color, sin nada, por veta) y orden; "Agregar tablero/canto" (`nuevo_material`, `/materiales/nuevo-<tipo>/`); la
   muestra abre la ficha (`/materiales/<id>/`, `proyectos/material.html`) con todos los datos, nombre editable y
   Borrar (no si lo ofrece un probador de colores). "Lados sin canto" quedó en la pestaña Cantos.
+- 2026-10-25: **lisos en Materiales y borrar versiones (pedidos de Martín).** La conversión suma a la biblioteca, con
+  su color de Polyboard, los tableros y cantos sin imagen (`lisos_de`, `tareas.anotar_lisos`); los que ya están no se
+  tocan. "Buscar los lisos en los proyectos" en Materiales lo hace para los ya convertidos (tarea de la cola
+  `sumar_lisos_de_proyectos`, lee el proyecto.json de la versión en uso). En Versiones, "Borrar versión" en las que
+  no están en uso ni convirtiéndose (`borrar.borrar_version`): conserva los originales que usan otras versiones
+  (Volver a convertir no los copia).
 
 ## Pendientes
 

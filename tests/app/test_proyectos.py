@@ -443,3 +443,63 @@ def test_color_con_selector(dueno_a, t):
     ficha = dueno_a.get(f'/taller-a/materiales/{canto.pk}/').content.decode()
     assert '<input type="color" value="#1a2b3c"' in ficha and 'value="#1A2B3C"' in ficha
     assert '<input type="color" value="#b5b5b5"' in dueno_a.get('/taller-a/materiales/?ver=cantos').content.decode()
+
+
+LISOS = {'paneles': [{'mat': 'e-Gris Cachemira', 'cantos': [{'mat': 'gris', 'v': []}, {'mat': None, 'v': []}]},
+                     {'mat': 'Roble', 'cantos': []}, {'mat': 'f-Tribal', 'cantos': []}],
+         'materiales': {'e-Gris Cachemira': {'color': '#d8cabd'}, 'Roble': {'color': '#AA7142', 'textura': 'texturas/r.jpg'},
+                        'f-Tribal': {'color': '#222222'}},
+         'cantos': {'gris': {'color': '#808080', 'espesor': 0.45}}}
+
+
+def test_lisos_de():
+    from proyectos.models import lisos_de
+    assert lisos_de(LISOS) == [('tablero', 'e-Gris Cachemira', '#D8CABD'), ('tablero', 'f-Tribal', '#222222'),
+                               ('canto', 'gris', '#808080')]
+
+
+def test_la_conversion_suma_los_lisos_sin_pisar_los_que_estan(dueno_a, t, monkeypatch):
+    with en_a(t):
+        Material.objects.create(nombre='f-tribal', color='#FF0000')
+    monkeypatch.setattr(tareas, 'correr', CorrerFalso(proyecto=LISOS))
+    subir(dueno_a, 'taller-a')
+    with en_a(t):
+        assert sorted(Material.objects.values_list('tipo', 'nombre', 'color')) == [
+            ('canto', 'gris', '#808080'), ('tablero', 'e-Gris Cachemira', '#D8CABD'), ('tablero', 'f-tribal', '#FF0000')]
+    assert version(t).faltan_texturas == []          # con color no falta nada
+
+
+def test_buscar_lisos_en_los_proyectos_ya_convertidos(dueno_a, t, monkeypatch, django_capture_on_commit_callbacks):
+    monkeypatch.setattr(tareas, 'correr', CorrerFalso(proyecto=LISOS))
+    monkeypatch.setattr(tareas, 'anotar_lisos', lambda datos: 0)     # como si la conversión fuera de antes
+    subir(dueno_a, 'taller-a')
+    monkeypatch.undo()
+    with en_a(t):
+        assert not Material.objects.exists()
+    with django_capture_on_commit_callbacks(execute=True):
+        r = dueno_a.post('/taller-a/materiales/buscar-lisos/', {'ver': 'cantos'})
+    assert r['Location'].endswith('?ver=cantos')
+    with en_a(t):
+        assert Material.objects.count() == 3
+
+
+def test_borrar_version_vieja_conserva_los_archivos_que_usa_la_nueva(dueno_a, t, monkeypatch):
+    monkeypatch.setattr(tareas, 'correr', CorrerFalso())
+    subir(dueno_a, 'taller-a')
+    p = unico_proyecto(t)
+    dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/reconvertir/')
+    v1, v2 = version(t, 1), version(t, 2)
+    with en_a(t):
+        originales = [o.archivo.name for o in v2.originales.all()]
+        resultado_v1 = v1.archivo_proyecto
+    assert unico_proyecto(t).version_actual_id == v2.pk
+    pagina = dueno_a.get(f'/taller-a/proyectos/{p.pk}/?ver=versiones').content.decode()
+    assert pagina.count('Borrar versión</button>') == 1                 # solo la que no está en uso
+    assert dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/2/borrar/', follow=True).status_code == 200
+    assert version(t, 2)                                                 # la que está en uso no se borra
+    dueno_a.post(f'/taller-a/proyectos/{p.pk}/versiones/1/borrar/')
+    with en_a(t):
+        assert list(p.versiones.values_list('numero', flat=True)) == [2]
+    assert all(default_storage.exists(o) for o in originales)            # eran de la versión 1 y los usa la 2
+    assert not default_storage.exists(resultado_v1)
+    assert dueno_a.get(f'/taller-a/proyectos/{p.pk}/').status_code == 200
