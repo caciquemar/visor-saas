@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
+{% include 'icono_pestana.html' %}
 <title>{% block titulo %}Visor{% endblock %}{% if request.taller %} · {{ request.taller.nombre }}{% endif %}</title>
 <style>
   :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;

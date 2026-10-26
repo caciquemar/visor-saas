@@ -11,6 +11,7 @@ from django.db.models import Max, Q
 from django.http import Http404
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils.http import urlencode
 from django.utils import timezone
 from django.views.decorators.http import require_POST
 
@@ -82,10 +83,16 @@ FILTROS = [('', 'En curso'), ('produccion', 'En producción'), ('desarrollo', 'E
 @con_permiso('proyectos')
 def lista(request, taller):
     """Buscar por nombre, cliente o número de pedido y filtrar por estado. "En curso": en producción y en desarrollo
-    (sin los archivados)."""
+    (sin los archivados). Los filtros quedan en la sesión: al volver a la lista (desde un proyecto, el menú…) sin
+    filtros en la dirección, se vuelven a poner."""
+    if 'q' not in request.GET and 'estado' not in request.GET:
+        guardados = request.session.get('proyectos.filtros')
+        if guardados:
+            return redirect(reverse('taller:proyectos:lista', kwargs={'taller': taller}) + '?' + urlencode(guardados))
     q = request.GET.get('q', '').strip()[:80]
     estado = request.GET.get('estado', '')
     estado = estado if estado in dict(FILTROS) else ''
+    request.session['proyectos.filtros'] = {'estado': estado, **({'q': q} if q else {})}
     qs = Proyecto.objects.select_related('version_actual').prefetch_related('versiones')
     if estado == 'produccion':
         qs = para_produccion(qs)

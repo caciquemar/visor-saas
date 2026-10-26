@@ -32,13 +32,13 @@
 </div>
 {% endif %}
 <form class="buscar" method="get" role="search">
-  {% if estado %}<input type="hidden" name="estado" value="{{ estado }}">{% endif %}
+  <input type="hidden" name="estado" value="{{ estado }}">
   <input type="search" name="q" value="{{ q }}" placeholder="Buscar por nombre, cliente o pedido" aria-label="Buscar proyectos">
   <button type="submit">Buscar</button>
 </form>
 <nav class="chips" aria-label="Filtrar por estado">
   {% for clave, nombre in filtros %}
-  <a href="?{% if clave %}estado={{ clave }}{% endif %}{% if q %}{% if clave %}&{% endif %}q={{ q|urlencode }}{% endif %}"{% if clave == estado %} aria-current="page"{% endif %}>{{ nombre }}{% if clave == 'archivados' and archivados %} ({{ archivados }}){% endif %}</a>
+  <a href="?estado={{ clave }}{% if q %}&q={{ q|urlencode }}{% endif %}"{% if clave == estado %} aria-current="page"{% endif %}>{{ nombre }}{% if clave == 'archivados' and archivados %} ({{ archivados }}){% endif %}</a>
   {% endfor %}
 </nav>
 {% if proyectos %}

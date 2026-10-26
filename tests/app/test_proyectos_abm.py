@@ -180,3 +180,13 @@ def test_desde_b_no_se_toca_nada_de_a(cliente_de, t, pa):
     assert pa.nombre not in cb.get('/taller-b/proyectos/?estado=todos').content.decode()
     pa.refresh_from_db()
     assert pa.en_produccion and pa.archivado_en is None
+
+
+def test_la_lista_recuerda_los_filtros(cliente_de, t, pa):
+    c = cliente_de(t.armador_a)
+    assert c.get('/taller-a/proyectos/').status_code == 200                 # la primera vez, sin nada guardado
+    c.get('/taller-a/proyectos/?estado=desarrollo&q=coc')
+    r = c.get('/taller-a/proyectos/')                                         # al volver (desde un proyecto, el menú…)
+    assert r.status_code == 302 and 'estado=desarrollo' in r['Location'] and 'q=coc' in r['Location']
+    c.get('/taller-a/proyectos/?estado=')                                     # "En curso" y sin buscar
+    assert c.get('/taller-a/proyectos/')['Location'].endswith('?estado=')
