@@ -170,6 +170,9 @@ def test_instalar_al_escanear_entrega_los_bultos_y_deshacer_solo_gestion(cliente
     assert d['resultado'] == 'ya'
     with con_taller(t.A):
         assert Instalacion.objects.filter(anulado_en__isnull=True).count() == 1
+    # quien la escaneó la deshace solo en los primeros minutos; después, solo Corregir producción
+    with con_taller(t.A):
+        Instalacion.objects.update(cuando=timezone.now() - timezone.timedelta(minutes=20))
     assert post(c, '/taller-a/puesto/api/desinstalar', {'proyecto': pa.pk, 'mueble': m}).status_code == 403
     assert post(cliente_de(t.oficina_a), '/taller-a/puesto/api/desinstalar',
                 {'proyecto': pa.pk, 'mueble': m}).json()['resultado'] == 'ok'

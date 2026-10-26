@@ -244,6 +244,20 @@ def entrega(request, taller, id):
     lo deshacen desde acá."""
     proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
     gestiona = puede(request, 'produccion_gestion')
+    if request.method == 'POST' and request.POST.get('accion') == 'marcar':
+        # marcar el proceso desde la Lista, sin escanear (como en Mi puesto; pedido de Martín, 2026-10-26)
+        if not puede(request, 'puesto'):
+            raise PermissionDenied('Tu rol no marca procesos.')
+        mueble, proceso = request.POST.get('mueble', ''), request.POST.get('proceso', '')
+        try:
+            r = entrega_.marcar_desde_lista(request.user, proyecto.pk, mueble, int(proceso) if proceso.isdigit() else None)
+            if r.get('resultado') == 'ya':
+                messages.info(request, f'{mueble}: ya estaba.')
+            else:
+                messages.success(request, f'{mueble}: listo.')
+        except Rechazo as e:
+            messages.error(request, f'{mueble}: {e.error}')
+        return redirect(url(request, 'entrega', id=proyecto.pk) + f'?proceso={proceso}#' + slugify(mueble))
     if request.method == 'POST':
         if not gestiona:
             raise PermissionDenied('Tu rol no puede marcar ni deshacer instalaciones desde acá.')
@@ -270,6 +284,7 @@ def entrega(request, taller, id):
     colores, nombres = {k: c for k, _, c in d['pasos']}, {k: n for k, n, _ in d['pasos']}
     contexto = {
         'proyecto': proyecto, 'gestiona': gestiona,
+        'marca': puede(request, 'puesto') and elegido is not None and elegido.tipo != Etapa.Tipo.CARGA,
         'muebles': [dict(m, nombre=n, ancla=slugify(n), color=colores[m['paso']], paso_nombre=nombres[m['paso']],
                          av=dict(av['muebles'][n], color=COLORES_AVANCE[av['muebles'][n]['estado']],
                                  nombre=NOMBRES_AVANCE[av['muebles'][n]['estado']]) if av else None)

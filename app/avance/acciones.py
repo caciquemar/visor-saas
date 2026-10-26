@@ -8,6 +8,8 @@ Martín, 2026-10-11).
 Ficha 17: el puesto ya no elige proyecto (lo dice la etiqueta). Para los números de mecanizado manda el de la última
 pieza leída; sin ninguno, el error trae `falta_proyecto`. Con una ubicación elegida, cada pieza o bulto leído queda
 ahí (`Ubicado`)."""
+from datetime import timedelta
+
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
@@ -288,11 +290,25 @@ def terminar(usuario, proyecto_id, mueble, bultos, motivo, ubicacion_id=None):
     return estado_del_mueble(proyecto, mueble, piezas)
 
 
-def reabrir(usuario, proyecto_id, mueble):
+MINUTOS_PARA_DESHACER = 15
+
+
+def puede_deshacer(usuario, por_id, cuando, gestiona):
+    """Lo escaneado por error: lo deshace quien lo escaneó, en los primeros minutos; después (o lo de otro), solo un
+    rol con el permiso Corregir producción."""
+    if gestiona:
+        return
+    if por_id != usuario.pk or timezone.now() - cuando > timedelta(minutes=MINUTOS_PARA_DESHACER):
+        raise Rechazo(403, f'Solo podés deshacer lo que escaneaste vos en los últimos {MINUTOS_PARA_DESHACER} '
+                           'minutos. Para lo demás, pedíselo a quien corrige la producción.')
+
+
+def reabrir(usuario, proyecto_id, mueble, gestiona=True):
     proyecto = proyecto_o_rechazo(proyecto_id)
     fin = FinDeMueble.objects.filter(proyecto=proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if fin is None:
         raise Rechazo(404, 'Ese mueble no está embalado.')
+    puede_deshacer(usuario, fin.por_id, fin.cuando, gestiona)
     if fin.lista_de_bultos.exclude(estado=Bulto.Estado.EMBALADO).exists():
         raise Rechazo(409, 'Hay bultos de este mueble cargados o entregados: no se puede reabrir.')
     fin.anulado_por, fin.anulado_en = usuario, timezone.now()

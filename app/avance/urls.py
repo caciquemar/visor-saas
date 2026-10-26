@@ -17,6 +17,7 @@ urlpatterns = [
     path('puesto/api/embalar', api.embalar, name='embalar'),
     path('puesto/api/bultos', api.bultos, name='bultos'),
     path('puesto/api/control', api.control, name='control'),
+    path('puesto/api/control/borrar', api.borrar_control, name='borrar_control'),
     path('puesto/api/instalacion', api.instalacion, name='instalacion'),
     path('puesto/api/instalar', api.instalar, name='instalar'),
     path('puesto/api/desinstalar', api.desinstalar, name='desinstalar'),

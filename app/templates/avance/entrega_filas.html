@@ -9,6 +9,12 @@
   <li class="mueble" id="{{ m.ancla }}" style="--c:{{ m.av.color }}">
     <div class="cabeza"><strong>{{ m.nombre }}</strong><span class="paso">{{ m.av.nombre }}{% if m.av.de %} · {{ m.av.hechas }}/{{ m.av.de }}{% endif %}</span></div>
     {% if m.av.cuando %}<div class="meta">{{ elegido.nombre }}: {{ m.av.por|default:"—" }}, {{ m.av.cuando }}</div>{% endif %}
+    {% if marca and m.av.estado != 'hecho' and m.av.estado != 'obs' %}
+    <form method="post" class="acciones marcar" onsubmit="return confirm('¿Marcar {{ elegido.nombre|escapejs }} en {{ m.nombre|escapejs }}?{% if elegido.tipo == 'control' %} Queda con todos los puntos ok.{% endif %}')">{% csrf_token %}
+      <input type="hidden" name="accion" value="marcar"><input type="hidden" name="mueble" value="{{ m.nombre }}">
+      <input type="hidden" name="proceso" value="{{ elegido.pk }}">
+      <button type="submit">✓ Marcar {{ elegido.nombre|lower }}{% if elegido.tipo == 'control' %} (todo ok){% endif %}</button></form>
+    {% endif %}
   </li>
 {% endfor %}
 </ul>

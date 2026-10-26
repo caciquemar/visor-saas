@@ -15,7 +15,7 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     POST puesto/api/control                {texto, proyecto?} lee; {proyecto, mueble, resultados} guarda
     POST puesto/api/instalacion            {proyecto, mueble}          la tarjeta de instalar
     POST puesto/api/instalar               {texto, proyecto?}          instalado al escanear
-    POST puesto/api/desinstalar            {proyecto, mueble}          Corregir producción
+    POST puesto/api/desinstalar            {proyecto, mueble}          Corregir producción, o quien instaló recién
     POST puesto/api/instalaciones/<id>/fotos   cuerpo = la imagen
     GET  puesto/api/fotos-de-instalacion/<id>
     POST puesto/api/anotar                 {proyecto, mueble, panel?, proceso?, texto, tarea?}   anotación
@@ -23,7 +23,8 @@ DatoDeTaller: ids y códigos de otro taller no se encuentran.
     GET  puesto/api/fotos-de-anotacion/<id>
     GET  visor/api/entrega?proyecto=<id>   el paso de cada mueble (bloque del mueble en el visor), con sus anotaciones
     GET  visor/api/avance-proceso?proyecto=<id>&proceso=<id>   qué muebles y piezas cumplieron un proceso (3D)
-    POST puesto/api/reabrir                {proyecto, mueble}
+    POST puesto/api/reabrir                {proyecto, mueble}          Corregir producción, o quien lo embaló recién
+    POST puesto/api/control/borrar         {control}                   Corregir producción, o quien lo hizo recién
     GET  puesto/api/cargas/<id>
     POST puesto/api/cargas/<id>/bulto      {texto}
     POST puesto/api/cargas/<id>/deshacer   {bulto}
@@ -128,10 +129,9 @@ def tareas(request, taller):
 @api
 def reabrir(request, taller):
     solo(request, 'POST')
-    if not puede(request, 'produccion_gestion'):
-        raise Rechazo(403, 'Tu rol no puede reabrir muebles.')
     d = leer_json(request)
-    return responder(200, acciones.reabrir(request.user, entero(d.get('proyecto')), d.get('mueble')))
+    return responder(200, acciones.reabrir(request.user, entero(d.get('proyecto')), d.get('mueble'),
+                                           puede(request, 'produccion_gestion')))
 
 
 @api
@@ -254,10 +254,17 @@ def instalar(request, taller):
 @api
 def desinstalar(request, taller):
     solo(request, 'POST')
-    if not puede(request, 'produccion_gestion'):
-        raise Rechazo(403, 'Tu rol no puede deshacer instalaciones.')
     d = leer_json(request)
-    return responder(200, entrega.desinstalar(request.user, entero(d.get('proyecto')), d.get('mueble')))
+    return responder(200, entrega.desinstalar(request.user, entero(d.get('proyecto')), d.get('mueble'),
+                                              puede(request, 'produccion_gestion')))
+
+
+@api
+def borrar_control(request, taller):
+    solo(request, 'POST')
+    d = leer_json(request)
+    return responder(200, entrega.borrar_control(request.user, entero(d.get('control')),
+                                                 puede(request, 'produccion_gestion')))
 
 
 @api

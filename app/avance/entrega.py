@@ -13,8 +13,8 @@ from etiquetas.vistas import MAX_BULTOS
 from talleres.limites import permite
 from trabajos.api import Rechazo, hora, nombre
 
-from .acciones import (estado_del_mueble, mover, proceso_prendido, proyecto_a_dic, proyecto_o_rechazo, que_se_leyo,
-                       tareas_abiertas, terminar, ubicacion_o_rechazo, ubicar)
+from .acciones import (estado_del_mueble, mover, proceso_prendido, proyecto_a_dic, proyecto_o_rechazo, puede_deshacer,
+                       que_se_leyo, tareas_abiertas, terminar, ubicacion_o_rechazo, ubicar)
 from .calculo import marcas_vigentes, piezas_de
 from .models import (Anotacion, Bulto, Carga, Control, Etapa, FinDeMueble, FotoDeAnotacion, FotoDeInstalacion,
                      Instalacion, Marca, Movimiento, etapas_activas, procesos as procesos_del_taller, puntos_de_control)
@@ -60,6 +60,11 @@ def armar_mueble(usuario, slug, texto, proyecto_id=None, ubicacion_id=None, etap
     if isinstance(leido, dict):
         return leido
     proyecto, piezas, mueble, _ = leido
+    return marcar_mueble(usuario, proyecto, piezas, mueble, armado, ubicacion)
+
+
+def marcar_mueble(usuario, proyecto, piezas, mueble, armado, ubicacion=None):
+    """Todas las piezas del mueble en ese proceso (las que ya estaban no cambian)."""
     del_mueble = [x for x in piezas if x['panel']['mueble'] == mueble]
     hechas = set(marcas_vigentes(proyecto, [armado]).filter(mueble=mueble).values_list('huella', flat=True))
     ahora, nuevas = timezone.now(), []
@@ -135,8 +140,47 @@ def controlar(usuario, taller, proyecto_id, mueble, resultados):
             salida.append({'punto': p.pk, 'nombre': p.nombre, 'ok': ok, 'nota': nota, 'tarea': tarea})
         c = Control.objects.create(proyecto=proyecto, mueble=mueble, resultados=salida,
                                    ok=all(r['ok'] for r in salida), por=usuario, cuando=timezone.now())
-    return {'resultado': 'ok', 'proyecto': proyecto_a_dic(proyecto), 'mueble': mueble, 'control': control_a_dic(c),
-            'tareas': [r['tarea'] for r in salida if r['tarea']]}
+    return {'resultado': 'ok', 'proyecto': proyecto_a_dic(proyecto), 'mueble': mueble,
+            'control': {**control_a_dic(c), 'id': c.pk}, 'tareas': [r['tarea'] for r in salida if r['tarea']]}
+
+
+def borrar_control(usuario, control_id, gestiona=True):
+    """Un control guardado por error: se borra, con las tareas que creó si nadie las empezó."""
+    from trabajos.models import Trabajo
+    c = Control.objects.select_related('proyecto').filter(pk=control_id).first() \
+        if isinstance(control_id, int) and not isinstance(control_id, bool) else None
+    if c is None:
+        raise Rechazo(404, 'Ese control no existe o ya se borró.')
+    puede_deshacer(usuario, c.por_id, c.cuando, gestiona)
+    tareas = [r['tarea'] for r in c.resultados if r.get('tarea')]
+    with transaction.atomic():
+        Trabajo.objects.filter(pk__in=tareas, estado=Trabajo.Estado.PENDIENTE).delete()
+        c.delete()
+    return {'resultado': 'ok', 'mueble': c.mueble}
+
+
+def marcar_desde_lista(usuario, proyecto_id, mueble, etapa_id):
+    """El botón "Marcar" de la Lista de un proceso (sin escanear): el mueble entero en ese proceso. Control (todo ok),
+    Embalaje (1 bulto) e Instalación como al escanear; Carga no (va por bulto, en una carga)."""
+    proyecto = proyecto_o_rechazo(proyecto_id)
+    piezas = mueble_de(proyecto, mueble)
+    e = next((e for e in procesos_del_taller() if e.pk == etapa_id and e.activa), None)
+    if e is None:
+        raise Rechazo(400, 'Ese proceso no existe o está apagado.')
+    if e.tipo in (Etapa.Tipo.PIEZA, Etapa.Tipo.ARMADO):
+        return marcar_mueble(usuario, proyecto, piezas, mueble, e)
+    if e.tipo == Etapa.Tipo.EMBALAJE:
+        if FinDeMueble.objects.filter(proyecto=proyecto, mueble=mueble, anulado_en__isnull=True).exists():
+            return {'resultado': 'ya', 'mueble': mueble}
+        terminar(usuario, proyecto.pk, mueble, 1, '')
+        return {'resultado': 'ok', 'mueble': mueble}
+    if e.tipo == Etapa.Tipo.CONTROL:
+        return controlar(usuario, proyecto.taller, proyecto.pk, mueble,
+                         [{'punto': p.pk, 'ok': True} for p in puntos_activos()])
+    if e.tipo == Etapa.Tipo.INSTALACION:
+        i = registrar_instalacion(usuario, proyecto, mueble)
+        return {'resultado': 'ok' if i else 'ya', 'mueble': mueble}
+    raise Rechazo(400, 'La carga se marca escaneando cada bulto en Mi puesto.')
 
 
 # ---------------------------------------------------------------- embalaje
@@ -239,12 +283,14 @@ def instalar(usuario, proyecto_id, mueble, nota='', motivo=''):
     return proyecto, i
 
 
-def desinstalar(usuario, proyecto_id, mueble):
-    """Deshacer la instalación (Corregir producción): queda con quién y cuándo. Los bultos siguen entregados."""
+def desinstalar(usuario, proyecto_id, mueble, gestiona=True):
+    """Deshacer la instalación (Corregir producción, o quien la escaneó recién): queda con quién y cuándo. Los bultos
+    siguen entregados."""
     proyecto = proyecto_o_rechazo(proyecto_id)
     i = Instalacion.objects.filter(proyecto=proyecto, mueble=mueble, anulado_en__isnull=True).first()
     if i is None:
         raise Rechazo(404, 'Ese mueble no está marcado instalado.')
+    puede_deshacer(usuario, i.por_id, i.cuando, gestiona)
     i.anulado_por, i.anulado_en = usuario, timezone.now()
     i.save(update_fields=['anulado_por', 'anulado_en'])
     return {'resultado': 'ok', 'mueble': mueble}

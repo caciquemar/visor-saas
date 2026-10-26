@@ -166,7 +166,7 @@
       <button type="button" id="btnCancelarAnot">Cancelar</button>
     </div>
     <div id="pedirProyecto" hidden>
-      <label class="campo" for="selProyecto">Proyecto de los números de mecanizado</label>
+      <label class="campo" for="selProyecto" id="selProyectoTitulo">Proyecto de los números de mecanizado</label>
       <select id="selProyecto"></select>
     </div>
     <form class="escribir" id="formEscribir" autocomplete="off">
@@ -195,6 +195,9 @@ let estado = {
   carga: q.get('c') ? +q.get('c') : guardado.carga,
   ubicacion: guardado.ubicacion || null,
 };
+// el último proyecto con que se trabajó en este celular: solo para Lista y 3D (los números de mecanizado no lo usan,
+// así no se marcan en un proyecto viejo)
+let proyectoVisto = C.proyectos.some(p => p.id === guardado.proyecto) ? guardado.proyecto : null;
 let pendiente = '';               // lo leído que esperaba el proyecto
 let ultimas = [], muebleActual = null, cargaActual = null;
 
@@ -252,22 +255,41 @@ camposSegunModo();
 const ubicacionElegida = () => C.ubicaciones.find(u => u.id === estado.ubicacion);
 $('selProyecto').onchange = () => {
   estado.proyecto = +$('selProyecto').value || null;
+  recordarProyecto(); links();
+  if (estado.proyecto){ $('pedirProyecto').hidden = true; $('selProyectoTitulo').textContent = 'Proyecto de los números de mecanizado'; }
   if (estado.proyecto && pendiente){ const t = pendiente; pendiente = ''; ultimoTexto = ''; leido(t); }
 };
+function recordarProyecto(){
+  if (estado.proyecto) proyectoVisto = estado.proyecto;
+  try { localStorage.setItem('puesto.eleccion', JSON.stringify({...JSON.parse(localStorage.getItem('puesto.eleccion') || '{}'),
+    proyecto: proyectoVisto})); } catch (e) {}
+}
 function usarProyecto(p){                // el de la última pieza leída, para los números de mecanizado
   if (!p) return;
   estado.proyecto = p.id; $('selProyecto').value = p.id; $('pedirProyecto').hidden = true;
-  links();
+  recordarProyecto(); links();
 }
 // Lista y 3D: el avance del proceso que se está trabajando en el proyecto de la última lectura (qué muebles, o
 // piezas, ya lo cumplieron), para mirar; no es el visor de armado
 function links(){
-  const p = procesoActual(), ver = !!p && !!estado.proyecto;
-  $('verLista').hidden = $('ver3D').hidden = !ver;
-  if (ver){ $('verLista').href = `${C.entrega.replace('{id}', estado.proyecto)}?proceso=${p.id}`;
-            $('ver3D').href = `${C.visor}?p=${estado.proyecto}&avance=${p.id}`
-              + (estado.modo === 'carga' && estado.carga !== 'nueva' ? `&carga=${estado.carga}` : ''); }
+  const p = procesoActual();
+  $('verLista').hidden = $('ver3D').hidden = !p || !C.proyectos.length;
+  if (!p) return;
+  const id = estado.proyecto || proyectoVisto;
+  if (!id){                               // todavía no se leyó nada: Lista y 3D piden el proyecto
+    $('verLista').href = $('ver3D').href = '#';
+    return;
+  }
+  $('verLista').href = `${C.entrega.replace('{id}', id)}?proceso=${p.id}`;
+  $('ver3D').href = `${C.visor}?p=${id}&avance=${p.id}`
+    + (estado.modo === 'carga' && estado.carga !== 'nueva' ? `&carga=${estado.carga}` : '');
 }
+['verLista', 'ver3D'].forEach(id => $(id).addEventListener('click', ev => {
+  if (estado.proyecto || proyectoVisto) return;
+  ev.preventDefault();
+  $('selProyectoTitulo').textContent = '¿De qué proyecto? (o escaneá una etiqueta)';
+  $('pedirProyecto').hidden = false; $('selProyecto').focus();
+}));
 function faltaProyecto(d, txt){
   if (!d.falta_proyecto) return false;
   pendiente = txt; $('pedirProyecto').hidden = false;
@@ -285,7 +307,7 @@ $('btnEmpezar').onclick = () => {
   const err = validarEleccion();
   if (err){ $('errElegir').textContent = err; $('errElegir').hidden = false; return; }
   try { localStorage.setItem('puesto.eleccion', JSON.stringify({modo: estado.modo, etapa: estado.etapa,
-    carga: estado.carga, ubicacion: estado.ubicacion})); } catch (e) {}
+    carga: estado.carga, ubicacion: estado.ubicacion, proyecto: proyectoVisto})); } catch (e) {}
   activarSonido(); empezar();
 };
 $('btnCambiar').onclick = () => { detenerCamara(); $('trabajo').hidden = true; $('elegir').hidden = false;
@@ -410,6 +432,9 @@ function sumarUltima(d, p){
   ultimas.unshift({marca: d.marca, corto: numero(p), texto: `${numero(p)} ${p.nombre}${copia(p)} · ${p.mueble}`});
   ultimas = ultimas.slice(0, 10); dibujarUltimas();
 }
+function sumarDeshacible(u){
+  ultimas.unshift(u); ultimas = ultimas.slice(0, 10); dibujarUltimas();
+}
 function dibujarUltimas(){
   const vigente = ultimas.find(u => !u.deshecha);
   $('btnDeshacer').hidden = !vigente;
@@ -421,6 +446,17 @@ function dibujarUltimas(){
 }
 async function deshacer(u){
   if (!u) return;
+  if (u.tipo){                            // embalaje, control o instalación: deshace lo último escaneado
+    const [ruta, cuerpo] = u.tipo === 'fin' ? ['reabrir', {proyecto: u.proyecto, mueble: u.mueble}]
+      : u.tipo === 'control' ? ['control/borrar', {control: u.control}]
+      : ['desinstalar', {proyecto: u.proyecto, mueble: u.mueble}];
+    if (!confirm(`¿Deshacer ${u.texto}?`)) return;
+    const r = await pedir('POST', ruta, cuerpo);
+    if (!r.ok) return mostrar('mal', r.datos.error || 'No se pudo deshacer');
+    u.deshecha = true; dibujarUltimas();
+    $('tarjeta').hidden = true; $('aviso').hidden = false; ultimoTexto = '';
+    return mostrar('', 'Deshecho', '', u.texto, u.tipo === 'control' ? 'Se borraron también sus tareas sin empezar' : '');
+  }
   if (estado.modo === 'carga'){
     const r = await pedir('POST', `cargas/${estado.carga}/deshacer`, {bulto: u.bulto});
     if (!r.ok) return mostrar('mal', r.datos.error);
@@ -449,6 +485,8 @@ async function leerMueble(txt){
   if (!r.ok || r.datos.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', r.datos.error); }
   usarProyecto(r.datos.proyecto);
   (r.datos.resultado === 'ok' ? SONIDOS.ok : SONIDOS.ya)();
+  if (r.datos.resultado === 'ok') sumarDeshacible({tipo: 'fin', proyecto: r.datos.proyecto.id, mueble: r.datos.mueble,
+                                                   corto: r.datos.mueble, texto: `el embalaje de ${r.datos.mueble}`});
   tarjetaMueble(r.datos);
 }
 function tarjetaMueble(d){
@@ -645,6 +683,7 @@ function tarjetaControl(d){
     }
     const c = r.datos.control;
     (c.ok ? SONIDOS.ok : SONIDOS.ya)();
+    sumarDeshacible({tipo: 'control', control: c.id, corto: d.mueble, texto: `el control de ${d.mueble}`});
     t.innerHTML = `<h2>${esc(d.mueble)}</h2><p>${resumenControl(c)}</p>
       ${r.datos.tareas.length ? `<p class="suave">Se ${r.datos.tareas.length > 1 ? `crearon ${r.datos.tareas.length} tareas` : 'creó una tarea'} del mueble. Se puede embalar igual.</p>` : ''}
       ${fotosMal ? `<p class="error">${fotosMal} foto${fotosMal > 1 ? 's' : ''} no se pudo subir.</p>` : ''}
@@ -661,7 +700,10 @@ async function leerInstalacion(txt){
   if (r.ok && faltaProyecto(d, txt)){ $('tarjeta').hidden = true; return; }
   if (!r.ok || d.resultado === 'error'){ $('tarjeta').hidden = true; return mostrar('mal', d.error || 'No se pudo'); }
   usarProyecto(d.proyecto);
-  (d.resultado === 'ok' ? SONIDOS.ok : SONIDOS.ya)(); tarjetaInstalacion(d);
+  (d.resultado === 'ok' ? SONIDOS.ok : SONIDOS.ya)();
+  if (d.resultado === 'ok') sumarDeshacible({tipo: 'instalacion', proyecto: d.proyecto.id, mueble: d.mueble,
+                                             corto: d.mueble, texto: `la instalación de ${d.mueble}`});
+  tarjetaInstalacion(d);
 }
 function tarjetaInstalacion(d){
   $('aviso').hidden = true; $('tarjeta').hidden = false;
@@ -743,7 +785,7 @@ async function leerBulto(txt){
     C.cargas.unshift({id: d.carga.id, proyecto: d.carga.proyecto.id, nombre: `${d.carga.proyecto.nombre} · carga ${d.carga.id}`,
                       estado: d.carga.estado});
     opcionesCarga(); usarCarga(d.carga.id);
-    try { localStorage.setItem('puesto.eleccion', JSON.stringify({modo: 'carga', carga: d.carga.id})); } catch (e) {}
+    try { localStorage.setItem('puesto.eleccion', JSON.stringify({modo: 'carga', carga: d.carga.id, proyecto: proyectoVisto})); } catch (e) {}
   }
   const verbo = 'Cargado';
   anotable({proyecto: d.carga.proyecto.id, mueble: d.mueble, nombre: d.mueble});

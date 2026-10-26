@@ -3,9 +3,11 @@
 Con el proyecto.json real de *cocina grondona* (como test_etiquetas.py), sin correr el conversor."""
 import copy
 import json
+from datetime import timedelta
 
 import pytest
 from django.conf import settings
+from django.utils import timezone
 
 from avance import calculo
 from avance.estado import estado_del_pedido
@@ -233,6 +235,9 @@ def test_fin_sin_faltantes_y_reabrir(cliente_de, t, pa):
     marcar_todas(t.A, pa, m, etapas(t.A)['Armado'])
     assert terminar(cliente_de(t.armador_a), pa, m).json()['fin']['motivo'] == ''
     reabrir = {'proyecto': pa.pk, 'mueble': m}
+    # quien lo embaló lo deshace solo en los primeros minutos (pasado eso, Corregir producción)
+    with con_taller(t.A):
+        FinDeMueble.objects.update(cuando=timezone.now() - timedelta(minutes=20))
     assert post(cliente_de(t.armador_a), '/taller-a/puesto/api/reabrir', reabrir).status_code == 403
     assert post(cliente_de(t.oficina_a), '/taller-a/puesto/api/reabrir', reabrir).status_code == 200
     with con_taller(t.A):
