@@ -109,8 +109,8 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 
 ## Relación con el visor actual
 
-El visor de Nord Good sigue funcionando en el NAS hasta que este servicio esté probado. Si se corrige algo del
-conversor acá que también afecta al visor actual, avisar a Martín para llevarlo allá (no hacerlo automáticamente).
+Desde el 2026-10-25 Nord Good **ya no usa el visor viejo** (visor.nordgood.com.ar, `polyboard/armado/armado`):
+todo va solo a este servicio. No hace falta llevar allá los cambios del visor ni del conversor.
 
 ## Estado
 
@@ -403,13 +403,6 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
 - Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
   se puede dejar de usar (no se tocó la PC).
-- Visor del NAS (visor.nordgood.com.ar): desde el 2026-10-10 usa el visor y el conversor de este repo
-  (`polyboard/armado/armado/traer_de_la_app.py` los copia con los cambios propios del NAS). Al cambiar
-  `visor/index.html` o el conversor acá, para llevarlo allá: correr ese script y "Convertir proyecto" (o
-  `convertir.publicar_visor()`). Quedaron **sin reconvertir**, a decidir con Martín: *placards 1p grondona*,
-  *rack tv terrero* y *al heladera* (su `.ocp` o DXF cambió después de publicarlos: reconvertir publicaría la lista
-  nueva; *placards* pasaría de 150 a 120 piezas con número) y *Mueble guardado vinilos* y *hospital* (no está el DXF
-  3D en `a imprimir` ni en Descargas). Siguen andando con el visor nuevo (sin cantos separados ni lados nuevos en AR).
 - Ficha 08: completar `talleres/limites.py` (`trabajos`, `fotos_de_trabajos`); el plan Taller de `docs/plan.md` no
   dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
 - Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con
@@ -430,7 +423,7 @@ conversor acá que también afecta al visor actual, avisar a Martín para llevar
 - Docker en la PC (opcional): permitiría probar la imagen y el compose antes de subir una versión. Hoy se prueban en
   GitHub Actions y en el NAS.
 - Pasar a Django 6.2 LTS cuando salga (abril de 2027); 5.2 tiene soporte hasta abril de 2028.
-- Conversor, para revisar con Martín (no se tocó en la 01; si se arregla, avisar para llevarlo al visor actual):
+- Conversor, para revisar con Martín:
   en *Rack florencia* el mueble "escritorio flotante\`1cajon con ajuste izq" queda sin vincular (10 avisos "Sin
   panel 3D"): en el .ocp el nombre tiene un acento grave (\`) y en el DXF aparece como `_`. *cocina grondona*
   tiene 8 avisos. Ver `muestras/*/esperado/resumen.json`.
