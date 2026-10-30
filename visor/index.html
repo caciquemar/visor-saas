@@ -2101,10 +2101,36 @@ addEventListener('resize', () => aplicarAlto(leerTam('armado.hoja.alto')));
 let flujo = null, detenido = true, zxing = null;
 const FORMATOS = ['code_128','code_39','code_93','ean_13','ean_8','itf','codabar','qr_code','data_matrix'];
 
+
+// Code 39 con dígito de control (OptiCut lo agrega: la etiqueta 0014 trae "00145"): si el último carácter es el
+// control módulo 43 del resto, se lo saca; si no, se deja como vino
+const CARACTERES_39 = '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ-. $/+%';
+function sinControl(txt, formato){
+  txt = String(txt);
+  if (!/^code_?39$/i.test(String(formato || '').replace(/\s/g, '_')) || txt.length < 2) return txt;
+  const cuerpo = txt.slice(0, -1).toUpperCase();
+  let suma = 0;
+  for (const c of cuerpo){ const i = CARACTERES_39.indexOf(c); if (i < 0) return txt; suma += i; }
+  return CARACTERES_39[suma % 43] === txt.slice(-1).toUpperCase() ? txt.slice(0, -1) : txt;
+}
+/* Una lectura vale cuando sale igual varias veces seguidas: con muchos formatos a la vez, un código borroso o leído
+   a medias a veces se lee como otro (sobre todo ITF y Codabar, que "ven" números en cualquier barra) y salía
+   cualquier número. Dos veces igual; ITF y Codabar, tres. */
+const DUDOSOS = ['itf', 'codabar'];
+let lecturaPrevia = null;
+function lecturaFirme(txt, formato){
+  const ahora = Date.now(), f = String(formato || '').toLowerCase();
+  if (!lecturaPrevia || lecturaPrevia.txt !== txt || ahora - lecturaPrevia.t > 1500) lecturaPrevia = {txt, n: 0};
+  lecturaPrevia.n++; lecturaPrevia.t = ahora;
+  if (lecturaPrevia.n < (DUDOSOS.some(d => f.replace('_', '') === d) ? 3 : 2)) return false;
+  lecturaPrevia = null;
+  return true;
+}
+
 async function abrirEscaner(){
   $('scanMsg').textContent = 'Apuntá al código de la etiqueta (barras o QR)';
   $('scanner').classList.add('visible');
-  detenido = false;
+  detenido = false; lecturaPrevia = null;
   try{
     flujo = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}}});
   }catch(err){
@@ -2117,7 +2143,7 @@ async function abrirEscaner(){
     const det = new BarcodeDetector({formats: FORMATOS.filter(f => disp.includes(f))});
     const leer = async () => {
       if (detenido) return;
-      try{ const r = await det.detect(v); if (r.length){ leido(r[0].rawValue); return; } }catch(e){}
+      try{ const r = await det.detect(v); if (r.length && lecturaFirme(r[0].rawValue, r[0].format)){ leido(sinControl(r[0].rawValue, r[0].format)); return; } }catch(e){}
       requestAnimationFrame(leer);
     };
     leer();
@@ -2125,7 +2151,9 @@ async function abrirEscaner(){
     await cargarZXing();
     const lector = new ZXing.BrowserMultiFormatReader();
     zxing = lector;
-    lector.decodeFromVideoElementContinuously(v, (res) => { if (res && !detenido) leido(res.getText()); });
+    lector.decodeFromVideoElementContinuously(v, (res) => {
+      if (res && !detenido && lecturaFirme(res.getText(), ZXing.BarcodeFormat[res.getBarcodeFormat()])) leido(sinControl(res.getText(), ZXing.BarcodeFormat[res.getBarcodeFormat()]));
+    });
   }
 }
 function cargarZXing(){

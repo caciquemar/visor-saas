@@ -372,6 +372,11 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   "Usar los colores de la biblioteca…". Paso 2: se arrastra la carpeta Textures y la página sube solo las imágenes
   que faltan (por la ruta de Polyboard o, si no, por el nombre), de a tres, a `importar_textura` (mismas revisiones
   que la ficha). Las bibliotecas de Nord Good están en `muestras/biblioteca` para las pruebas.
+- 2026-10-30: **escáner de etiquetas de OptiCut (pedido de Martín).** Las etiquetas traen **Code 39 con dígito de
+  control** (la 0014 trae `00145`): el visor y Mi puesto buscaban la pieza 145. Ahora, si es Code 39 y el último
+  carácter es el control módulo 43, se saca (`sinControl`). Además una lectura vale cuando sale igual dos veces
+  seguidas (ITF y Codabar, tres: inventan números en barras borrosas; `lecturaFirme`). En `visor/index.html` y
+  `templates/avance/puesto.html`. Comprobado decodificando la foto de una etiqueta real con zxing.
 
 ## Pendientes
 
