@@ -106,23 +106,20 @@ def _dibujar(c, e, x, y, w, h, bordes):
     c.restoreState()
 
 
-def _qr(c, url, x, y, lado):
-    """QR con corrección M y 2 módulos de margen blanco (el resto lo da el margen de la etiqueta). Se
-    dibuja en tramos negros que se pisan un poco: módulo por módulo quedan rayitas blancas al imprimir."""
+def _qr(c, url, x, y, lado, margen=2):
+    """QR con corrección M y `margen` módulos de margen blanco a cada lado (el resto lo da el margen de la
+    etiqueta). Todos los módulos negros van en UN solo trazado relleno: así no quedan rayitas blancas entre
+    módulos vecinos al imprimir, y los blancos no se achican (con la tinta que corre de la térmica ya alcanza)."""
     q = QRCode(None, QRErrorCorrectLevel.M)
     q.addData(url); q.make()
     n = q.getModuleCount()
-    m = lado / (n + 4)
+    m = lado / (n + 2 * margen)
     c.setFillColor(black)
-    solapa = .06 * m
-    for f in range(n):                                    # tramos por fila y por columna: tapan las costuras
-        for tramo in _tramos([q.isDark(f, k) for k in range(n)]):
-            c.rect(x + (tramo[0] + 2) * m - solapa, y + lado - (f + 3) * m - solapa,
-                   (tramo[1] - tramo[0]) * m + 2 * solapa, m + 2 * solapa, stroke=0, fill=1)
-    for k in range(n):
-        for tramo in _tramos([q.isDark(f, k) for f in range(n)]):
-            c.rect(x + (k + 2) * m - solapa, y + lado - (tramo[1] + 2) * m - solapa,
-                   m + 2 * solapa, (tramo[1] - tramo[0]) * m + 2 * solapa, stroke=0, fill=1)
+    p = c.beginPath()
+    for f in range(n):
+        for a, b in _tramos([q.isDark(f, k) for k in range(n)]):
+            p.rect(x + (a + margen) * m, y + lado - (f + 1 + margen) * m, (b - a) * m, m)
+    c.drawPath(p, stroke=0, fill=1, fillMode=1)       # 1 = nonzero: los rectángulos que se tocan se unen
 
 
 def _tramos(oscuros):
@@ -265,30 +262,55 @@ def _flecha(c, x0, y0, x1, y1, u):
 
 
 def _mueble(c, e, x, y, w, h):
-    # con esquema (y lugar): el dibujo a la derecha; el QR y los textos se achican a la izquierda
-    dw = min(w * .27, h * 1.1) if e.get('esquema') and w > h * 1.3 else 0
-    if dw:
-        _esquema(c, e['esquema'], x + w - dw, y, dw, h)
-        w -= dw + h * .05
-    lado = min(h, w * (.33 if dw else .4))          # con dibujo, el QR un poco más chico: el bulto tiene que entrar
-    _qr(c, e['url'], x, y + (h - lado) / 2, lado)
-    tx = x + lado + h * .06
-    tw = x + w - tx
+    """Lo primero que se lee es el proyecto; después el mueble, y el bulto más chico. El QR, lo más grande posible
+    (a lo alto de la etiqueta), con margen blanco amplio: se lee con la cámara del celular sobre el mueble. El
+    esquema va a la derecha solo en etiquetas grandes, donde igual queda lugar para el texto."""
     u = h / 30
+    lado = min(h, w * .42)
+    if e.get('esquema'):
+        dw, lado_con = min(w * .22, h * .9), min(h * .8, w * .36)
+        queda = w - lado_con - dw - 2 * h * .05
+        # con dibujo (y el QR un poco más chico) solo si el proyecto y el mueble entran enteros y grandes
+        if (queda >= 30 * mm and stringWidth(e['proyecto'], 'Helvetica-Bold', 5.2 * u) <= queda
+                and stringWidth(e['mueble'], 'Helvetica-Bold', 3.2 * u) <= queda):
+            _esquema(c, e['esquema'], x + w - dw, y, dw, h)
+            w -= dw + h * .05
+            lado = lado_con
+    _qr(c, e['url'], x, y + (h - lado) / 2, lado, margen=3)
+    tx = x + lado + h * .04
+    tw = x + w - tx
     top = y + h
-    _texto(c, e['proyecto'] + (f" · {e['cliente']}" if e['cliente'] else ''), tx, top - 3.4 * u, tw,
-           'Helvetica', 3 * u, GRIS)
-    _texto(c, e['mueble'], tx, top - 9.6 * u, tw, 'Helvetica-Bold', 5.4 * u, minimo=3.4 * u)
-    # bulto, recuadrado para que se vea de lejos (sin bultos: la etiqueta del mueble armado, ficha 18)
+    # el proyecto, lo más grande: en un renglón y, si no entra, en dos (nunca cortado si se puede evitar)
+    if stringWidth(e['proyecto'], 'Helvetica-Bold', 5 * u) <= tw:
+        _texto(c, e['proyecto'], tx, top - 6 * u, tw, 'Helvetica-Bold', 7 * u)
+        yy = top - 11.8 * u
+    else:
+        uno, dos, tam = _partir(e['proyecto'], 'Helvetica-Bold', 5 * u, 3.6 * u, tw)
+        _texto(c, uno, tx, top - 4.6 * u, tw, 'Helvetica-Bold', tam, minimo=tam)
+        _texto(c, dos, tx, top - 9.6 * u, tw, 'Helvetica-Bold', tam, minimo=tam)
+        yy = top - 14.4 * u
+    _texto(c, e['mueble'], tx, yy, tw, 'Helvetica', 3.8 * u, minimo=3 * u)
+    # bulto y piezas: chico (sin bultos: la etiqueta del mueble armado, ficha 18)
     bulto = f"Bulto {e['bulto']} de {e['bultos']}" if e['bultos'] else 'Mueble armado'
-    tb = 5 * u
-    bw = stringWidth(bulto, 'Helvetica-Bold', tb) + 2.4 * u
-    by = top - 18.4 * u
-    c.setFillColor(black); c.roundRect(tx, by - 1.3 * u, min(bw, tw), tb + 1.9 * u, .8 * u, stroke=0, fill=1)
-    _texto(c, bulto, tx + 1.2 * u, by, tw - 2.4 * u, 'Helvetica-Bold', tb, white, minimo=tb * .6)
-    _texto(c, f"{e['piezas']} piezas", tx, by - 6 * u, tw, 'Helvetica', 3.2 * u)
-    if e['direccion']:
-        _texto(c, e['direccion'], tx, by - 10.2 * u, tw, 'Helvetica', 3 * u, GRIS)
+    _texto(c, f"{bulto} · {e['piezas']} piezas", tx, yy - 5 * u, tw, 'Helvetica', 3.3 * u, minimo=2.6 * u)
+    abajo = [t for t in (e['cliente'], e['direccion']) if t][:2 if yy > top - 13 * u else 1]
+    for k, t in enumerate(reversed(abajo)):
+        _texto(c, t, tx, y + .6 * u + k * 4 * u, tw, 'Helvetica', 3 * u, GRIS, minimo=2.4 * u)
+
+
+def _partir(s, fuente, tam, minimo, ancho):
+    """`s` en dos renglones del mismo tamaño de letra: el más grande (de `tam` a `minimo`) en que entra todo,
+    cortando entre palabras. Si ni así entra, el segundo renglón se corta al escribirlo. (uno, dos, tamaño)."""
+    palabras = s.split()
+    cortes = [(' '.join(palabras[:k]), ' '.join(palabras[k:])) for k in range(1, len(palabras))] or [(s, '')]
+    while True:
+        for uno, dos in cortes:
+            if stringWidth(uno, fuente, tam) <= ancho and stringWidth(dos, fuente, tam) <= ancho:
+                return uno, dos, tam
+        if tam <= minimo:
+            uno, dos = max(cortes, key=lambda c: stringWidth(c[0], fuente, tam) <= ancho and len(c[0]))
+            return uno, dos, tam
+        tam = max(minimo, tam - .25)
 
 
 def _esquema(c, cajas, x, y, w, h):
