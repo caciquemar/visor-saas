@@ -387,6 +387,12 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   planos (`hojaPlano` ahora recibe el dibujo hecho; `mostrarHojas`). "Anotar tarea" se fue: las tareas se agregan
   y editan en la lista, que tiene arriba [este mueble/pieza] [Todo el proyecto] (`TR.origen`), sin la leyenda, y
   en cada tarea a qué pieza o mueble es.
+- 2026-10-31: **espesor del canto por pieza.** En el .ocp un canto puede estar definido varias veces con el mismo
+  nombre y otro espesor (Rack florencia: 'negro' de 0,45 y de 2 mm); el visor mostraba el de la primera definición.
+  Ahora `leer_ocp` guarda en cada pieza `esp_cantos` ({canto: espesor} de las definiciones que usa: cada lado es la
+  definición o una referencia marca de clase + nº de objeto, `definiciones_de_cantos`/`espesores_por_pieza`) y cada
+  canto del proyecto lleva `esp`. El visor usa ese (`espesorCanto`); los proyectos convertidos antes, el del material
+  hasta que se vuelvan a convertir.
 
 ## Pendientes
 

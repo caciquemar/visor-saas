@@ -697,6 +697,14 @@ function muestra(mat, canto, info = infoMaterial(mat), color = colorMaterial(mat
 }
 const muestraCanto = (mat, tablero) => comoTablero(mat, tablero) ? muestra(tablero, true)
   : muestra(mat, true, infoCanto(mat), colorDeCanto(mat));
+/* Espesor de un canto en su pieza: el del .ocp para esa pieza (un nombre puede tener varios espesores). Los proyectos
+   convertidos antes no lo traen: el del material, salvo que el proyecto ya tenga espesores por pieza. */
+let conEspesorPorPieza = null;
+function espesorCanto(c){
+  if (c.esp) return c.esp;
+  if (conEspesorPorPieza === null) conEspesorPorPieza = paneles.some(m => (m.userData.p.cantos || []).some(k => k.esp));
+  return conEspesorPorPieza ? null : (infoCanto(c.mat) || {}).espesor;
+}
 function textoMaterial(p, conTablero = true){
   const esp = Math.round(p.med[2]*10)/10;
   let t = conTablero ? `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>` : '';
@@ -704,11 +712,11 @@ function textoMaterial(p, conTablero = true){
   const con = (p.cantos || []).filter(c => c.mat);
   if (!con.length) return t + br + 'Sin cantos';
   const porMat = {};
-  con.forEach(c => (porMat[c.mat] = porMat[c.mat] || []).push(c));
-  const lineas = Object.entries(porMat).map(([mat, cs]) => {
-    const lista = cs.length === 4 ? 'en los 4 lados'
+  con.forEach(c => { const k = c.mat + '|' + (espesorCanto(c) || ''); (porMat[k] = porMat[k] || []).push(c); });
+  const lineas = Object.values(porMat).map(cs => {
+    const mat = cs[0].mat, lista = cs.length === 4 ? 'en los 4 lados'
       : cs.map(c => `${c.lado} ${Math.round(c.largo)} ${POS[c.pos] || c.pos}`).join(', ');
-    const esp = (infoCanto(mat) || {}).espesor;   // del .ocp o de la biblioteca de cantos
+    const esp = espesorCanto(cs[0]);
     return `${muestraCanto(mat, p.mat)}Canto <b>${mat}${esp ? ` ${String(esp).replace('.', ',')} mm` : ''}</b>: ${lista}`;
   });
   return t + br + lineas.join('<br>');
@@ -772,7 +780,7 @@ function esquemaCantos(p){
   const rw = 210, rh = Math.min(Math.max(rw * ancho / largo, 76), 120), rx = 45, ry = 22, W = rw + 2 * rx, H = rh + 2 * ry;
   const corta = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
   const nombre = (k, n) => {
-    const esp = k.mat && (infoCanto(k.mat) || {}).espesor;
+    const esp = k.mat && espesorCanto(k);
     return corta(k.mat ? `${k.mat}${esp ? ' ' + String(esp).replace('.', ',') : ''} · ${Math.round(k.largo)}` : `sin canto · ${Math.round(k.largo)}`, n);
   };
   const seg = {abajo: [rx, ry + rh, rx + rw, ry + rh], arriba: [rx, ry, rx + rw, ry],

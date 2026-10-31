@@ -81,19 +81,63 @@ def leer_ocp(path):
         proyecto, o4 = texto(o3) if mueble else (None, o3)
         if mueble and proyecto is not None:     # el proyecto puede venir vacío
             numero, o5 = texto(o4)          # nº de mecanizado ('' si no se mecaniza)
-            pieza, _ = texto(o5 + 8)        # nº de pieza dentro del mueble
+            pieza, o6 = texto(o5 + 8)       # nº de pieza dentro del mueble
             largo, ancho = struct.unpack_from('<dd', d, medidas)
             cant = struct.unpack_from('<I', d, en_cant)[0]
             if largo > 0 and ancho > 0:
                 piezas.append(dict(num=numero or '', pieza=pieza or '', nombre=nombre, mueble=mueble,
                                    proyecto=proyecto, L=round(largo, 1),
-                                   W=round(ancho, 1), cant=max(cant, 1)))
+                                   W=round(ancho, 1), cant=max(cant, 1), desde=o6))
                 o = o5
                 continue
         o += 1
     if not piezas:
         raise ErrorConversion(f"{nombre_archivo} no tiene piezas. Revisá que sea la lista de OptiCut del proyecto.")
+    espesores_por_pieza(d, piezas)
     return piezas
+
+def definiciones_de_cantos(d):
+    """Los cantos definidos en el .ocp: (marca de su clase, {nº de objeto: (posición, nombre, espesor)}). Un mismo
+    nombre puede estar varias veces con otro espesor (en Rack florencia, 'negro' de 0,45 y de 2 mm): el espesor es
+    de cada definición, no del nombre. Antes del nombre van la marca de la clase (2 bytes; 0 la primera vez que
+    aparece la clase, primero la de tableros y después la de cantos) y el nº de objeto (4 bytes)."""
+    ss, regs = cadenas(d), []
+    for k, (o, t, fin) in enumerate(ss):
+        if IMAGEN.search(t) or o < 6 or d[fin + 16:fin + 20] != b'\0\0\0\0':
+            continue
+        if k and ss[k - 1][2] == o:
+            continue
+        info = registro_tras(d, fin + 20, fin + 72)
+        if info:
+            marca, n = struct.unpack_from('<HI', d, o - 6)
+            regs.append((marca, n, o, t, info.get('espesor')))
+    nuevas, marcas = [r for r in regs if r[0] == 0], sorted({r[0] for r in regs if r[0]})
+    if len(nuevas) < 2 or len(marcas) != 2:
+        return None, {}
+    return marcas[1], {r[1]: (r[2], r[3], r[4]) for r in regs if r[0] == marcas[1] or r is nuevas[1]}
+
+def espesores_por_pieza(d, piezas):
+    """En cada pieza, 'esp_cantos': {canto: espesor} de los cantos que usa. Después del nº de pieza vienen el tablero
+    y los 4 lados; cada lado es la definición del canto (la primera vez) o una referencia: marca + nº de objeto."""
+    marca, defs = definiciones_de_cantos(d)
+    if not defs:
+        return
+    patron = struct.pack('<H', marca)
+    limites = [p['desde'] for p in piezas] + [len(d)]
+    for p, a, b in zip(piezas, limites, limites[1:]):
+        usados = [n for n, (o, _, _) in defs.items() if a <= o < b]       # definidos en la pieza
+        i = d.find(patron, a, b)
+        while 0 <= i <= b - 6:
+            n = struct.unpack_from('<I', d, i + 2)[0]
+            if n in defs:
+                usados.append(n)
+            i = d.find(patron, i + 1, b)
+        esp = {}
+        for n in usados:
+            _, nombre, e = defs[n]
+            if e:
+                esp.setdefault(nombre, e)
+        p['esp_cantos'] = esp
 
 # ---------------------------------------------------------------- DXF 3D
 def leer_dxf(path):
@@ -289,6 +333,7 @@ def vincular(piezas, paneles, cuenta):
             p['num'] = q['num']
             p['nombre_ocp'] = q['nombre']
             p['cant'] = q['cant']
+            p['esp_cantos'] = q.get('esp_cantos', {})
             # Polyboard escribe primero la medida en el sentido de la veta: si el largo del .ocp
             # es el lado menor de la pieza, la veta va a lo ancho (en piezas cuadradas no se sabe)
             p['veta_cruzada'] = abs(q['L'] - q['W']) > 1.5 and q['L'] < q['W']
@@ -633,6 +678,11 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
     proyecto, avisos = vincular(piezas, paneles, cuenta)
     for p in paneles:
         p['mat'], p['cantos'] = materiales(p)
+        esp = p.get('esp_cantos') or {}
+        for c in p['cantos']:          # el espesor de ese canto en esa pieza (el del .ocp; la capa del DXF es el nombre)
+            e = c['mat'] and (esp.get(c['mat']) or next((v for k, v in esp.items() if clave(k) == clave(c['mat'])), None))
+            if e:
+                c['esp'] = e
     if not proyecto or len(ocps) > 1:    # con varias partes, el nombre es el del DXF
         proyecto = Path(dxf).stem
     mats, mats_cantos = {}, {}
@@ -656,7 +706,7 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
         paneles=[dict(id=p['id'], num=p['num'], pieza=p.get('pieza', ''), nombre=p.get('nombre_ocp', p['nombre']), mueble=p['mueble'],
                       med=[round(x, 1) for x in p['med']], cant=p.get('cant', 1),
                       mat=p['mat'], **({'vt': 1} if p.get('veta_cruzada') else {}),
-                      cantos=[dict(mat=c['mat'], lado=c['lado'], largo=c['largo'], pos=c['pos'],
+                      cantos=[dict(mat=c['mat'], lado=c['lado'], largo=c['largo'], pos=c['pos'], **({'esp': c['esp']} if c.get('esp') else {}),
                                    v=[x for q in c['v'] for x in a_y_arriba(q)]) for c in p['cantos']],
                       tal=[a_y_arriba(h['c']) + [round(h['n'][0], 3), round(h['n'][2], 3), round(-h['n'][1], 3),
                            h['d'], h['prof'], round(h['vis'], 1), 1 if h['canto'] else 0] for h in p['taladros']],

@@ -94,7 +94,7 @@ from pathlib import Path  # noqa: E402
 import pytest  # noqa: E402
 
 from conversor import convertir  # noqa: E402
-from conversor.polyboard_a_app import materiales_del_ocp, resolver_materiales  # noqa: E402
+from conversor.polyboard_a_app import leer_ocp, materiales_del_ocp, resolver_materiales  # noqa: E402
 
 MUESTRAS = Path(__file__).resolve().parents[2] / 'muestras'
 
@@ -109,6 +109,14 @@ def test_ocp_separa_tableros_y_cantos_con_el_mismo_nombre():
     assert 'blanco' in rack['cantos'] and 'blanco' not in rack['tableros']
     assert rack['tableros']['c-guatambu']['textura'] == (r'enchapados\enchapado guatambu.jpg', 500.0)
     assert 'textura' not in rack['cantos']['c-guatambu']
+
+
+def test_espesor_del_canto_es_de_cada_pieza():
+    """Un canto puede estar definido varias veces con el mismo nombre y otro espesor: vale el que usa la pieza."""
+    piezas = {p['num']: p for p in leer_ocp(MUESTRAS / 'Rack florencia' / 'Rack florencia.ocp') if p['num']}
+    assert piezas['0053']['esp_cantos'] == {'negro': 2.0, 'c-guatambu': 1.0}     # Suelo: negro de 2 mm
+    assert piezas['0048']['esp_cantos']['negro'] == 0.45
+    assert materiales_del_ocp(MUESTRAS / 'Rack florencia' / 'Rack florencia.ocp')['cantos']['negro']['espesor'] == 0.45
 
 
 @pytest.mark.parametrize('ocp', sorted(MUESTRAS.glob('*/*.ocp')), ids=lambda p: p.parent.name)
