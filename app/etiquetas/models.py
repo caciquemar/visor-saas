@@ -72,6 +72,7 @@ class FormatoEtiquetas(DatoDeTaller):
         ('a4-2x4', 'Hoja A4 · 2 × 4 · 99,1 × 67,7 mm'),
         (MEDIDA_HOJA, 'Hoja A4 a medida'),
         ('rollo-100x50', 'Rollo térmico · 100 × 50 mm'),
+        ('rollo-80x50', 'Rollo térmico · 80 × 50 mm'),
         ('rollo-62x40', 'Rollo térmico · 62 × 40 mm'),
         (MEDIDA_ROLLO, 'Rollo a medida'),
     ]

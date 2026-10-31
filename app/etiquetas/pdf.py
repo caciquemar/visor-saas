@@ -47,6 +47,7 @@ FORMATOS = {
     'a4-2x7': Formato('hoja', 99.1, 38.1, 2, 7, margen_sup=15.15, margen_izq=4.65, sep_h=2.5),
     'a4-2x4': Formato('hoja', 99.1, 67.7, 2, 4, margen_sup=13, margen_izq=4.65, sep_h=2.5),
     'rollo-100x50': Formato('rollo', 100, 50),
+    'rollo-80x50': Formato('rollo', 80, 50),
     'rollo-62x40': Formato('rollo', 62, 40),
 }
 
@@ -262,40 +263,32 @@ def _flecha(c, x0, y0, x1, y1, u):
 
 
 def _mueble(c, e, x, y, w, h):
-    """Lo primero que se lee es el proyecto; después el mueble, y el bulto más chico. El QR, lo más grande posible
-    (a lo alto de la etiqueta), con margen blanco amplio: se lee con la cámara del celular sobre el mueble. El
-    esquema va a la derecha solo en etiquetas grandes, donde igual queda lugar para el texto."""
+    """Arriba, a todo el ancho, el proyecto: lo más grande. Debajo, el QR a la izquierda (grande y con margen blanco
+    amplio: se lee con la cámara del celular sobre el mueble) y a la derecha el mueble, el bulto (chico), cliente y
+    dirección en gris y, en lo que queda, el dibujo de dónde va el mueble (el proyecto con el mueble marcado, o el
+    mueble de frente)."""
     u = h / 30
-    lado = min(h, w * .42)
-    if e.get('esquema'):
-        dw, lado_con = min(w * .22, h * .9), min(h * .8, w * .36)
-        queda = w - lado_con - dw - 2 * h * .05
-        # con dibujo (y el QR un poco más chico) solo si el proyecto y el mueble entran enteros y grandes
-        if (queda >= 30 * mm and stringWidth(e['proyecto'], 'Helvetica-Bold', 5.2 * u) <= queda
-                and stringWidth(e['mueble'], 'Helvetica-Bold', 3.2 * u) <= queda):
-            _esquema(c, e['esquema'], x + w - dw, y, dw, h)
-            w -= dw + h * .05
-            lado = lado_con
-    _qr(c, e['url'], x, y + (h - lado) / 2, lado, margen=3)
-    tx = x + lado + h * .04
-    tw = x + w - tx
     top = y + h
-    # el proyecto, lo más grande: en un renglón y, si no entra, en dos (nunca cortado si se puede evitar)
-    if stringWidth(e['proyecto'], 'Helvetica-Bold', 5 * u) <= tw:
-        _texto(c, e['proyecto'], tx, top - 6 * u, tw, 'Helvetica-Bold', 7 * u)
-        yy = top - 11.8 * u
-    else:
-        uno, dos, tam = _partir(e['proyecto'], 'Helvetica-Bold', 5 * u, 3.6 * u, tw)
-        _texto(c, uno, tx, top - 4.6 * u, tw, 'Helvetica-Bold', tam, minimo=tam)
-        _texto(c, dos, tx, top - 9.6 * u, tw, 'Helvetica-Bold', tam, minimo=tam)
-        yy = top - 14.4 * u
-    _texto(c, e['mueble'], tx, yy, tw, 'Helvetica', 3.8 * u, minimo=3 * u)
+    t = _texto(c, e['proyecto'], x, top - 6.4 * u * .78, w, 'Helvetica-Bold', 6.4 * u, minimo=3.8 * u)
+    abajo_del_proyecto = top - 6.4 * u * .78 - t * .42
+    hh = abajo_del_proyecto - y
+    lado = min(hh, w * .42)
+    _qr(c, e['url'], x, y + (hh - lado) / 2, lado, margen=3)
+    tx = x + lado + h * .03
+    tw = x + w - tx
+    yy = abajo_del_proyecto - 3.4 * u
+    _texto(c, e['mueble'], tx, yy, tw, 'Helvetica', 3.6 * u, minimo=2.8 * u)
     # bulto y piezas: chico (sin bultos: la etiqueta del mueble armado, ficha 18)
     bulto = f"Bulto {e['bulto']} de {e['bultos']}" if e['bultos'] else 'Mueble armado'
-    _texto(c, f"{bulto} · {e['piezas']} piezas", tx, yy - 5 * u, tw, 'Helvetica', 3.3 * u, minimo=2.6 * u)
-    abajo = [t for t in (e['cliente'], e['direccion']) if t][:2 if yy > top - 13 * u else 1]
-    for k, t in enumerate(reversed(abajo)):
-        _texto(c, t, tx, y + .6 * u + k * 4 * u, tw, 'Helvetica', 3 * u, GRIS, minimo=2.4 * u)
+    yy -= 3.9 * u
+    _texto(c, f"{bulto} · {e['piezas']} piezas", tx, yy, tw, 'Helvetica', 3 * u, minimo=2.5 * u)
+    gris = [t for t in (e['cliente'], e['direccion']) if t]
+    if gris:
+        yy -= 3.6 * u
+        _texto(c, ' · '.join(gris), tx, yy, tw, 'Helvetica', 2.7 * u, GRIS, minimo=2.3 * u)
+    alto = yy - 1.4 * u - y
+    if e.get('esquema') and alto >= 7 * mm:
+        _esquema(c, e['esquema'], tx, y, tw, alto)
 
 
 def _partir(s, fuente, tam, minimo, ancho):
@@ -316,8 +309,8 @@ def _partir(s, fuente, tam, minimo, ancho):
 def _esquema(c, cajas, x, y, w, h):
     """El mueble de frente (o el proyecto con el mueble marcado), escalado para entrar en el rectángulo. Cada pieza es
     la caja de su proyección, de atrás hacia adelante: lo de adelante tapa. Solo el mueble: piezas blancas con borde
-    negro. Con el proyecto: lo demás blanco con borde gris claro y el mueble en gris con borde negro (se ve igual en
-    blanco y negro y en térmica)."""
+    negro. Con el proyecto: lo demás blanco con borde gris oscuro y el mueble en negro. Las líneas son más gruesas
+    que un punto de la térmica (203 dpi): más finas salen cortadas."""
     u0 = min(k['caja'][0] for k in cajas); v0 = min(k['caja'][1] for k in cajas)
     u1 = max(k['caja'][2] for k in cajas); v1 = max(k['caja'][3] for k in cajas)
     if u1 - u0 <= 0 or v1 - v0 <= 0:
@@ -326,14 +319,13 @@ def _esquema(c, cajas, x, y, w, h):
     ox = x + (w - (u1 - u0) * escala) / 2
     oy = y + (h - (v1 - v0) * escala) / 2
     solo = all(k['del_mueble'] for k in cajas)
-    marcado = Color(.78, .78, .78)
     for k in cajas:
         a, b, cc, d = k['caja']
-        if k['del_mueble'] and not solo:
-            c.setFillColor(marcado); c.setStrokeColor(black); c.setLineWidth(.45)
+        if k['del_mueble'] and not solo:            # el mueble de la etiqueta, negro: se ve en cualquier impresora
+            c.setFillColor(black); c.setStrokeColor(black); c.setLineWidth(.7)
         elif k['del_mueble']:
-            c.setFillColor(white); c.setStrokeColor(black); c.setLineWidth(.35)
-        else:
-            c.setFillColor(white); c.setStrokeColor(GRIS_CLARO); c.setLineWidth(.25)
+            c.setFillColor(white); c.setStrokeColor(black); c.setLineWidth(.7)
+        else:                                       # los otros: gris oscuro (el gris claro la térmica no lo imprime)
+            c.setFillColor(white); c.setStrokeColor(GRIS); c.setLineWidth(.6)
         c.rect(ox + (a - u0) * escala, oy + (b - v0) * escala, max((cc - a) * escala, .2), max((d - b) * escala, .2),
                stroke=1, fill=1)
