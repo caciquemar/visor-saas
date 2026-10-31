@@ -264,8 +264,8 @@ def _flecha(c, x0, y0, x1, y1, u):
 
 def _mueble(c, e, x, y, w, h):
     """Arriba, a todo el ancho, el proyecto: lo más grande. Debajo, el QR a la izquierda (grande y con margen blanco
-    amplio: se lee con la cámara del celular sobre el mueble) y a la derecha el mueble, el bulto (chico), cliente y
-    dirección en gris y, en lo que queda, el dibujo de dónde va el mueble (el proyecto con el mueble marcado, o el
+    amplio: se lee con la cámara del celular sobre el mueble) y a la derecha el mueble, el bulto (chico), el cliente
+    en gris y, en lo que queda, el dibujo de dónde va el mueble (el proyecto con el mueble marcado, o el
     mueble de frente)."""
     u = h / 30
     top = y + h
@@ -282,10 +282,9 @@ def _mueble(c, e, x, y, w, h):
     bulto = f"Bulto {e['bulto']} de {e['bultos']}" if e['bultos'] else 'Mueble armado'
     yy -= 3.9 * u
     _texto(c, f"{bulto} · {e['piezas']} piezas", tx, yy, tw, 'Helvetica', 3 * u, minimo=2.5 * u)
-    gris = [t for t in (e['cliente'], e['direccion']) if t]
-    if gris:
+    if e['cliente']:                                  # la dirección de la obra no va (pedido de Martín)
         yy -= 3.6 * u
-        _texto(c, ' · '.join(gris), tx, yy, tw, 'Helvetica', 2.7 * u, GRIS, minimo=2.3 * u)
+        _texto(c, e['cliente'], tx, yy, tw, 'Helvetica', 2.7 * u, GRIS, minimo=2.3 * u)
     alto = yy - 1.4 * u - y
     if e.get('esquema') and alto >= 7 * mm:
         _esquema(c, e['esquema'], tx, y, tw, alto)

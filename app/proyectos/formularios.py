@@ -89,7 +89,7 @@ class FormProyectoNuevo(FormSubida):
 
 
 class FormDatos(forms.ModelForm):
-    """Datos del proyecto (ficha 22). Cliente y dirección de entrega van en la etiqueta de cada bulto; nada de
+    """Datos del proyecto (ficha 22). El cliente va en la etiqueta de cada bulto (la dirección no); nada de
     esto lo ve el cliente."""
     class Meta:
         model = Proyecto
