@@ -2145,10 +2145,10 @@ function actualizarCamino(){
   const el = $('camino');
   if (CLIENTE || !seleccion || !datos){ el.hidden = true; return; }
   const p = seleccion.mallas.length ? seleccion.mallas[0].userData.p : null;
-  const partes = [`<button data-ir="proyecto">${esc(datos.proyecto)}</button>`,
-    p ? `<button data-ir="mueble">${esc(seleccion.mueble)}</button>` : `<span aria-current="true">${esc(seleccion.mueble)}</span>`];
-  if (p) partes.push(`<span aria-current="true">${esc(p.num ? p.num + ' · ' + limpiarNombre(p.nombre) : limpiarNombre(p.nombre))}</span>`);
-  const html = partes.join('<span aria-hidden="true">›</span>');
+  // hasta un nivel antes: lo elegido es el título del panel, abajo
+  const partes = [`<button data-ir="proyecto">${esc(datos.proyecto)}</button>`];
+  if (p) partes.push(`<button data-ir="mueble">${esc(seleccion.mueble)}</button>`);
+  const html = partes.join('<span aria-hidden="true">›</span>') + '<span aria-hidden="true">›</span>';
   if (el.innerHTML !== html) el.innerHTML = html;
   el.hidden = false;
 }
