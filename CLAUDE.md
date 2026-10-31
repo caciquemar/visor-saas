@@ -377,6 +377,16 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   carácter es el control módulo 43, se saca (`sinControl`). Además una lectura vale cuando sale igual dos veces
   seguidas (ITF y Codabar, tres: inventan números en barras borrosas; `lecturaFirme`). En `visor/index.html` y
   `templates/avance/puesto.html`. Comprobado decodificando la foto de una etiqueta real con zxing.
+- 2026-10-31: **pantallas de mueble, pieza y tareas del visor (pedido de Martín, con maqueta).** Mueble: nombre al
+  lado de la X, medidas, [Ver tareas · n] [Imprimir etiqueta], avance (el %; tocándolo, el detalle, se recuerda) y
+  la lista de piezas con nombre, medidas, tablero y nº de mecanizado. Pieza (sin plegar): camino, nombre destacado,
+  medidas · tablero, nº de mecanizado, [Ver tareas · n] [Imprimir etiqueta], **esquema de cantos** (`esquemaCantos`,
+  como el de la etiqueta impresa) y **Plano de mecanizado** (`abrirPlanoMecanizado`): una hoja A4 por cada cara o
+  canto con taladros, vista desde afuera, a escala, cotas desde la esquina de abajo a la izquierda, largo y ancho y
+  la lista de taladros; el nombre de la cara es hacia dónde mira con el mueble armado. Usa la capa y el rótulo de los
+  planos (`hojaPlano` ahora recibe el dibujo hecho; `mostrarHojas`). "Anotar tarea" se fue: las tareas se agregan
+  y editan en la lista, que tiene arriba [este mueble/pieza] [Todo el proyecto] (`TR.origen`), sin la leyenda, y
+  en cada tarea a qué pieza o mueble es.
 
 ## Pendientes
 

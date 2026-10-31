@@ -127,6 +127,8 @@ body.modo-avance #proyecto{margin-left:auto}
 .vencido{color:var(--alerta);font-weight:600}
 .t-detalle{white-space:pre-wrap;font-size:17px;margin:8px 0}
 .chips{display:flex;flex-wrap:wrap;gap:6px;margin:6px 0}
+.filtro-trab{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 10px}
+.filtro-trab .chip[aria-pressed="true"]{background:var(--tiza);border-color:var(--tiza)}
 .chip{font:500 14px var(--sans);color:var(--tinta);background:var(--fondo);border:1px solid var(--linea);border-radius:16px;padding:5px 10px}
 .chip[aria-pressed="true"],.chip.pieza{background:#7B3FE4;border-color:#7B3FE4;color:#fff}
 .form-trab label{display:block;font-size:14px;color:var(--tinta-2);margin:12px 0 4px}
@@ -250,7 +252,7 @@ body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:no
 .logo-marca[hidden],.pie-marca[hidden]{display:none}
 .pie-marca{margin:10px 0 0;text-align:center;font-size:13px;color:var(--tinta-2)}
 .pie-marca a{color:inherit}
-body.sin-trabajos #btnTrabajos,body.sin-trabajos #fAnotar,body.sin-trabajos #pmAnotar{display:none!important}
+body.sin-trabajos #btnTrabajos,body.sin-trabajos #fTareas,body.sin-trabajos #pmTareas{display:none!important}
 .compartir{margin:4px 0 12px;padding:10px 12px;border:1px solid var(--linea);border-radius:10px;background:var(--fondo)}
 .compartir input{display:block;width:100%;margin:6px 0 8px;font:15px var(--sans);color:var(--tinta);background:var(--hoja);
   border:1px solid var(--linea);border-radius:8px;padding:7px 9px}
@@ -273,6 +275,10 @@ body.modo-cliente .hoja{max-height:36vh}
 .capa-planos path.pl-luz{fill:none;stroke:#1D5FE0;stroke-width:.18}
 .capa-planos text.pl-luz{font-size:2.8px;fill:#1D5FE0;text-anchor:middle;paint-order:stroke;stroke:#fff;stroke-width:.8px}
 .capa-planos text.pl-nota{font-size:3px;fill:#555;text-anchor:middle}
+.capa-planos text.pl-ayuda{font-size:3px;fill:#555}
+.capa-planos path.pl-ord{fill:none;stroke:#555;stroke-width:.12}
+.capa-planos text.pl-ord{font-size:2.6px;fill:#111}
+.capa-planos text.pl-leyenda{font-size:3.6px;fill:#111;font-weight:bold}
 .capa-planos .pl-rot-et{font-size:2.6px;fill:#555}
 .capa-planos .pl-rot-va{font-size:4px;fill:#111}
 .capa-planos .pl-rot-gr{font-size:4.6px;fill:#111;font-weight:bold}
@@ -350,20 +356,24 @@ body.modo-cliente .hoja{max-height:36vh}
 }
 .ficha{display:none;margin-bottom:14px}
 .ficha.visible{display:block}
-.ficha .fila{display:flex;align-items:center;gap:14px;width:100%;padding:0;margin:0;border:0;background:none;
-  color:inherit;font:inherit;text-align:left}
-.bloque-num{display:flex;flex-direction:column;flex:none}
 .etiqueta-num{font-size:14px;font-weight:500;color:var(--tinta-2);margin-bottom:2px}
 .titulo{display:flex;flex-direction:column;min-width:0;flex:1}
-.flecha{flex:none;color:var(--tinta-2);transition:transform .2s}
-.fila[aria-expanded="true"] .flecha{transform:rotate(180deg)}
-.detalle[hidden]{display:none}
-.ficha:not(.abierta) .num{font-size:44px}
-.ficha:not(.abierta) .num.sin{font-size:32px}
-.num{font-family:var(--cond);font-weight:700;font-size:64px;line-height:.9;color:var(--tiza);
-  font-variant-numeric:tabular-nums}
-.nombre{font-size:21px;font-weight:600;line-height:1.2}
-.mueble{color:var(--tinta-2);font-size:16px}
+.acciones-sel .insignia{margin-left:2px}
+.f-tal{display:flex;flex-wrap:wrap;gap:0 10px;margin-top:2px;font:400 13px var(--sans);color:var(--tinta-2)}
+.f-tal b{color:var(--tinta);font-weight:600}
+.pm-trab[hidden]{display:none}
+/* esquema de cantos de la pieza */
+.esquema{display:block;width:100%;max-width:360px;margin:8px auto 0}
+.esquema rect{fill:var(--fondo);stroke:var(--linea);stroke-width:1}
+.esquema line{stroke:var(--tinta);stroke-width:5}
+.esquema text{font:600 12px var(--sans);fill:var(--tinta);text-anchor:middle}
+.esquema text.sin{font-weight:400;fill:var(--tinta-2)}
+.esquema path{stroke:var(--tinta-2);stroke-width:1.2;fill:none}
+.num{font-family:var(--cond);font-weight:700;font-size:30px;line-height:1;color:var(--tiza);
+  font-variant-numeric:tabular-nums;vertical-align:-3px}
+.ficha .nombre{font:700 28px var(--cond);line-height:1.1}
+.f-linea{display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;margin-top:4px;font-size:15px;color:var(--tinta-2)}
+.f-linea b{font:500 19px var(--cond);color:var(--tinta)}
 .datos{display:flex;flex-wrap:wrap;gap:6px 18px;margin-top:10px;font-size:16px}
 .datos b{font-family:var(--cond);font-weight:500;font-size:20px}
 .taladros{margin-top:8px;font-size:15px;color:var(--tinta-2);display:grid;grid-template-columns:1fr 1fr;gap:2px 12px}
@@ -379,6 +389,18 @@ body.modo-cliente .hoja{max-height:36vh}
 .volver[hidden]{display:none}
 .cerrar-pm{margin-left:auto;color:var(--tinta-2);background:none;border:0;padding:6px}
 .pm-titulo{font:700 24px var(--cond);margin:2px 0 0}
+.pm-cab .pm-titulo{flex:1;min-width:0;margin:0}
+.pm-medidas{margin-top:2px;font-size:15px;color:var(--tinta-2)}
+.pm-medidas b{font:500 20px var(--cond);color:var(--tinta)}
+.pm-trab{display:flex;align-items:center;width:100%;margin-top:10px;padding:10px 2px;border:0;border-top:1px solid var(--linea);
+  background:none;color:var(--tiza);font:600 16px var(--sans);text-align:left}
+.pm-trab::after,.av-resumen::after{content:'›';margin-left:auto;font-size:22px;line-height:1;color:var(--tinta-2)}
+.av-resumen{display:flex;align-items:baseline;gap:6px;width:100%;padding:0;border:0;background:none;color:inherit;font:inherit;text-align:left}
+.av-resumen[aria-expanded="true"]::after{transform:rotate(90deg)}
+.av-detalle[hidden]{display:none}
+.pm-piezas{margin-top:14px;font:600 13px var(--sans);letter-spacing:.04em;text-transform:uppercase;color:var(--tinta-2)}
+.lista.piezas button{grid-template-columns:1fr auto}
+.lista .t{display:inline-flex;align-items:center;gap:4px}
 .pm-sub{color:var(--tinta-2);font-size:15px;margin-bottom:8px}
 .lista{list-style:none;margin:6px 0 0;padding:0}
 .lista li{border-top:1px solid var(--linea)}
@@ -390,7 +412,7 @@ body.modo-cliente .hoja{max-height:36vh}
 .nota{margin-top:8px;font-size:15px;color:var(--tinta-2)}
 .ayuda{margin:0 0 12px;color:var(--tinta-2);font-size:16px}
 .ayuda[hidden]{display:none}
-.num.sin{color:var(--tinta);font-size:44px}
+.num.sin{color:var(--tinta)}
 .error{display:none;margin-bottom:12px;color:var(--alerta);font-weight:500}
 .error.visible{display:block}
 
@@ -495,33 +517,25 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
     <p class="ayuda solo-taller" id="ayuda">Escaneá el código de una pieza mecanizada, o tocá un mueble en el dibujo y después una de sus piezas. Tocá donde no hay nada para volver un paso.</p>
     <div class="error solo-taller" id="error"></div>
     <div class="ficha solo-taller" id="ficha">
-      <button class="fila" id="fCabecera" aria-expanded="false" aria-controls="fDetalle">
-        <span class="bloque-num">
-          <span class="etiqueta-num" id="fEtiqueta">Nº de mecanizado</span>
-          <span class="num" id="fNum"></span>
-        </span>
-        <span class="titulo">
-          <span class="nombre" id="fNombre"></span>
-          <span class="mueble" id="fMueble"></span>
-        </span>
-        <svg class="flecha" width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
-      </button>
-      <button class="aviso-trab" id="fTrab" hidden></button>
-      <div class="avance solo-taller" id="fAvance" hidden></div>
+      <div class="titulo">
+        <span class="nombre" id="fNombre"></span>
+        <span class="f-linea" id="fMedidas"></span>
+        <span class="f-linea"><span id="fEtiqueta">Nº de mecanizado</span> <span class="num" id="fNum"></span></span>
+      </div>
       <div class="acciones-sel">
-        <button class="btn-sec" id="fAnotar"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Anotar tarea</button>
+        <button class="btn-sec" id="fTareas"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Ver tareas<span class="insignia" id="fTareasN" hidden></span></button>
         <button class="btn-sec" id="fImprimir" hidden><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimir etiqueta</button>
       </div>
-      <div class="detalle" id="fDetalle" hidden>
-        <div class="datos" id="fDatos"></div>
-        <div class="mat" id="fMat"></div>
-        <div class="taladros" id="fTal"></div>
-        <div class="nota" id="fNota"></div>
-      </div>
+      <div id="fCantos"></div>
+      <button class="pm-trab" id="fPlano" hidden><span>Plano de mecanizado<span class="f-tal" id="fTal"></span></span></button>
+      <div class="avance solo-taller" id="fAvance" hidden></div>
+      <div class="datos" id="fDatos"></div>
+      <div class="nota" id="fNota"></div>
     </div>
     <div class="panel-trabajos solo-taller" id="panelTrabajos" hidden></div>
     <div class="panel-muebles solo-taller" id="panelMuebles" hidden>
       <div class="pm-cab">
+        <div class="pm-titulo" id="pmTitulo"></div>
         <button class="cerrar-pm" id="pmCerrar" aria-label="Cerrar lista de muebles">
           <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg>
         </button>
@@ -652,7 +666,7 @@ const COLOR_ESTADO = {vencido: [0xD32F2F, 0xEF9A9A], pendiente: [0xF57C00, 0xFFC
   hecho: [0x2E9D5B, 0x9ED6B3], instalado: [0x78909C, 0xCFD8DC]};
 const hex = n => '#' + n.toString(16).padStart(6, '0');
 const abierto = t => t.estado !== 'instalado';
-const TR = { lista: [], disponible: null, verHechos: false, vista: null, filtro: null, resaltar: null, marcando: null };
+const TR = { lista: [], disponible: null, verHechos: false, vista: null, filtro: null, origen: null, resaltar: null, marcando: null };
 // identificador de una pieza que sobrevive a una nueva conversión: el id del conversor (bloque del
 // modelo de Polyboard, distinto para cada puerta de un par) o, en datos viejos, nº de mecanizado
 const claveP = p => p.id || p.num || `${p.mueble}|${p.pieza || ''}|${p.nombre}`;
@@ -683,11 +697,12 @@ function muestra(mat, canto, info = infoMaterial(mat), color = colorMaterial(mat
 }
 const muestraCanto = (mat, tablero) => comoTablero(mat, tablero) ? muestra(tablero, true)
   : muestra(mat, true, infoCanto(mat), colorDeCanto(mat));
-function textoMaterial(p){
+function textoMaterial(p, conTablero = true){
   const esp = Math.round(p.med[2]*10)/10;
-  let t = `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>`;
+  let t = conTablero ? `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>` : '';
+  const br = t ? '<br>' : '';
   const con = (p.cantos || []).filter(c => c.mat);
-  if (!con.length) return t + '<br>Sin cantos';
+  if (!con.length) return t + br + 'Sin cantos';
   const porMat = {};
   con.forEach(c => (porMat[c.mat] = porMat[c.mat] || []).push(c));
   const lineas = Object.entries(porMat).map(([mat, cs]) => {
@@ -696,7 +711,7 @@ function textoMaterial(p){
     const esp = (infoCanto(mat) || {}).espesor;   // del .ocp o de la biblioteca de cantos
     return `${muestraCanto(mat, p.mat)}Canto <b>${mat}${esp ? ` ${String(esp).replace('.', ',')} mm` : ''}</b>: ${lista}`;
   });
-  return t + '<br>' + lineas.join('<br>');
+  return t + br + lineas.join('<br>');
 }
 const matTal = new THREE.MeshLambertMaterial({color:0x0E151B});
 const EJE_Y = new THREE.Vector3(0,1,0);
@@ -739,6 +754,44 @@ function dibujarTaladros(mallas){
     const borde = new THREE.LineSegments(new THREE.EdgesGeometry(disco), matBordeTal);   // solo el contorno
     borde.quaternion.copy(q); borde.position.copy(boca).addScaledVector(n, -SALIENTE); grupoTal.add(borde);
   }));
+}
+/* Esquema de cantos, como el de la etiqueta impresa: el rectángulo de la pieza (abajo y arriba los lados largos, a los
+   costados los cortos), en grueso los lados con canto y su nombre. Si la pieza no es un rectángulo, la lista. */
+function ladosCanto(cantos){
+  if (!cantos || cantos.length !== 4) return null;
+  const primero = {frente: 0, abajo: 1, izquierda: 2, 'atrás': 3, arriba: 4, derecha: 5};
+  const orden = (a, b) => (primero[a.pos] ?? 9) - (primero[b.pos] ?? 9);
+  const largos = cantos.filter(k => k.lado === 'largo').sort(orden), cortos = cantos.filter(k => k.lado === 'ancho').sort(orden);
+  if (largos.length !== 2 || cortos.length !== 2) return null;
+  return {abajo: largos[0], arriba: largos[1], izquierda: cortos[0], derecha: cortos[1]};
+}
+function esquemaCantos(p){
+  const L = ladosCanto(p.cantos);
+  if (!L) return `<div class="mat">${textoMaterial(p, false)}</div>`;
+  const largo = Math.max(p.med[0], p.med[1]), ancho = Math.min(p.med[0], p.med[1]);
+  const rw = 210, rh = Math.min(Math.max(rw * ancho / largo, 76), 120), rx = 45, ry = 22, W = rw + 2 * rx, H = rh + 2 * ry;
+  const corta = (t, n) => t.length > n ? t.slice(0, n - 1) + '…' : t;
+  const nombre = (k, n) => {
+    const esp = k.mat && (infoCanto(k.mat) || {}).espesor;
+    return corta(k.mat ? `${k.mat}${esp ? ' ' + String(esp).replace('.', ',') : ''} · ${Math.round(k.largo)}` : `sin canto · ${Math.round(k.largo)}`, n);
+  };
+  const seg = {abajo: [rx, ry + rh, rx + rw, ry + rh], arriba: [rx, ry, rx + rw, ry],
+               izquierda: [rx, ry, rx, ry + rh], derecha: [rx + rw, ry, rx + rw, ry + rh]};
+  const texto = {abajo: [rx + rw / 2, ry + rh + 16, 0], arriba: [rx + rw / 2, ry - 8, 0],
+                 izquierda: [rx - 9, ry + rh / 2, -90], derecha: [rx + rw + 9, ry + rh / 2, 90]};
+  let svg = `<rect x="${rx}" y="${ry}" width="${rw}" height="${rh}"/>`;
+  Object.entries(L).forEach(([donde, k]) => {
+    if (k.mat) svg += `<line x1="${seg[donde][0]}" y1="${seg[donde][1]}" x2="${seg[donde][2]}" y2="${seg[donde][3]}"/>`;
+    const [x, y, giro] = texto[donde], n = giro ? Math.floor((rh + 2 * ry) / 7) : 34;
+    svg += `<text${k.mat ? '' : ' class="sin"'} x="${x}" y="${y}"${giro ? ` transform="rotate(${giro} ${x} ${y})" dy="4"` : ''}>${esc(nombre(k, n))}</text>`;
+  });
+  // veta: flecha doble a lo largo del lado mayor (o del menor si es cruzada)
+  if ((infoMaterial(p.mat) || {}).textura){
+    const cx = rx + rw / 2, cy = ry + rh / 2, l = p.vt ? rh * .3 : rw * .25, a = 5;
+    svg += p.vt ? `<path d="M${cx} ${cy - l}V${cy + l}M${cx - a} ${cy - l + a}L${cx} ${cy - l}L${cx + a} ${cy - l + a}M${cx - a} ${cy + l - a}L${cx} ${cy + l}L${cx + a} ${cy + l - a}"/>`
+      : `<path d="M${cx - l} ${cy}H${cx + l}M${cx - l + a} ${cy - a}L${cx - l} ${cy}L${cx - l + a} ${cy + a}M${cx + l - a} ${cy - a}L${cx + l} ${cy}L${cx + l - a} ${cy + a}"/>`;
+  }
+  return `<svg class="esquema" viewBox="0 0 ${W} ${H}" role="img" aria-label="Cantos de la pieza">${svg}</svg>`;
 }
 function resumenTaladros(p){
   const g = {};
@@ -1128,6 +1181,16 @@ function trazo(m, vista, X, Y, color, linea, grosor){
    que se dibuja: 40 cm alrededor en el proyecto, 15 cm en un mueble. Las cotas son siempre las de los muebles. */
 const ALREDEDOR_MUROS = {proyecto: 400, mueble: 150};
 let recortesPlano = 0;
+// cota: línea con marcas a 45°, líneas de referencia y el número en mm reales
+function cotaPlano(x1, y1, x2, y2, valor, lado, clase){
+  const L = Math.hypot(x2 - x1, y2 - y1); if (L < .5) return '';
+  const ux = (x2 - x1) / L, uy = (y2 - y1) / L, t = 1.1;
+  const tic = (x, y) => `M${n2(x - (ux - uy) * t)} ${n2(y - (uy + ux) * t)}L${n2(x + (ux - uy) * t)} ${n2(y + (uy + ux) * t)}`;
+  const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, ang = Math.abs(uy) > Math.abs(ux) ? -90 : 0;
+  const dx = ang ? -1.2 : 0, dy = ang ? 0 : -1.2;
+  return `<path class="${clase}" d="M${n2(x1)} ${n2(y1)}L${n2(x2)} ${n2(y2)}${tic(x1, y1)}${tic(x2, y2)}${lado || ''}"/>`
+    + `<text class="${clase}" x="${n2(mx + dx)}" y="${n2(my + dy)}" transform="rotate(${ang} ${n2(mx + dx)} ${n2(my + dy)})">${Math.round(valor)}</text>`;
+}
 function vistaPlano(mallas, vista, conLuces){
   const caja = cajaDe(mallas, true), C = cajaEnVista(caja, vista), {u0, u1, w0, w1} = C;
   const m0 = conLuces ? ALREDEDOR_MUROS.mueble : ALREDEDOR_MUROS.proyecto;
@@ -1160,16 +1223,7 @@ function vistaPlano(mallas, vista, conLuces){
     if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
     return {m, prof: cajaEnVista(m.geometry.boundingBox, vista).p1};
   }).sort((a, b) => a.prof - b.prof).map(({m}) => trazo(m, vista, X, Y, '#fff', '#111', .22)).join('');
-  // cota: línea con marcas a 45°, líneas de referencia y el número en mm reales
-  const cota = (x1, y1, x2, y2, valor, lado, clase) => {
-    const L = Math.hypot(x2 - x1, y2 - y1); if (L < .5) return '';
-    const ux = (x2 - x1) / L, uy = (y2 - y1) / L, t = 1.1;
-    const tic = (x, y) => `M${n2(x - (ux - uy) * t)} ${n2(y - (uy + ux) * t)}L${n2(x + (ux - uy) * t)} ${n2(y + (uy + ux) * t)}`;
-    const mx = (x1 + x2) / 2, my = (y1 + y2) / 2, ang = Math.abs(uy) > Math.abs(ux) ? -90 : 0;
-    const dx = ang ? -1.2 : 0, dy = ang ? 0 : -1.2;
-    return `<path class="${clase}" d="M${n2(x1)} ${n2(y1)}L${n2(x2)} ${n2(y2)}${tic(x1, y1)}${tic(x2, y2)}${lado || ''}"/>`
-      + `<text class="${clase}" x="${n2(mx + dx)}" y="${n2(my + dy)}" transform="rotate(${ang} ${n2(mx + dx)} ${n2(my + dy)})">${Math.round(valor)}</text>`;
-  };
+  const cota = cotaPlano;
   // generales de los muebles: abajo y a la izquierda, por fuera de los muros si los hay
   const xi = X(u0), xf = X(u1), ya = Y(w1), yb = Y(w0);
   const yc = Math.max(yb, Y(E.w0)) + 8, xc = Math.min(xi, X(E.u0)) - 8;
@@ -1188,8 +1242,8 @@ function vistaPlano(mallas, vista, conLuces){
     : vista.frente === 'izquierda' ? `<text class="pl-nota" x="${n2(xc - 4)}" y="${n2(ya - 2)}">◀ frente</text>` : '';
   return {svg: dibujo + cotas + orientacion, escala: d};
 }
-function hojaPlano(mallas, vista, conLuces, n, total, titulo){
-  const {svg, escala} = vistaPlano(mallas, vista, conLuces);
+// una hoja A4 apaisada: el dibujo y el rótulo. titulo: {etiqueta, valor} (Mueble, Pieza o "Planos de")
+function hojaPlano({svg, escala}, nombreVista, n, total, titulo){
   const R = {x: HOJA.margen, y: HOJA.alto - HOJA.margen - HOJA.rotulo, ancho: HOJA.ancho - 2 * HOJA.margen, alto: HOJA.rotulo};
   const logo = MARCA.logo ? `<image href="${esc(new URL(MARCA.logo, location.href).href)}" x="${R.x + 3}" y="${R.y + 3}" width="24" height="${R.alto - 6}" preserveAspectRatio="xMinYMid meet"/>` : '';
   // cada columna con su ancho: los nombres largos se cortan para no pisar la siguiente (unos 1,8 mm por letra)
@@ -1205,8 +1259,8 @@ function hojaPlano(mallas, vista, conLuces, n, total, titulo){
     ${logo}
     ${col(x0, 'Taller', NOMBRE, ancho - 4, true)}
     ${col(x0 + ancho, 'Proyecto', datos.proyecto, ancho - 2)}
-    ${col(x0 + 2 * ancho, titulo.mueble ? 'Mueble' : 'Planos de', titulo.mueble || 'Proyecto completo', ancho - 2)}
-    ${col(xVista, 'Vista', vista.nombre, 44, true)}
+    ${col(x0 + 2 * ancho, titulo.etiqueta, titulo.valor, ancho - 2)}
+    ${col(xVista, 'Vista', nombreVista, 44, true)}
     ${col(R.x + R.ancho - 52, 'Escala', '1:' + escala, 20)}
     ${col(R.x + R.ancho - 30, 'Hoja', `${n} de ${total}`, 28)}
     <text class="pl-rot-et" x="${R.x + R.ancho - 3}" y="${R.y + R.alto - 2.5}" text-anchor="end">Medidas en mm · ${esc(fecha)}</text>
@@ -1215,10 +1269,13 @@ function hojaPlano(mallas, vista, conLuces, n, total, titulo){
 function abrirPlanos(){
   if (!datos || !paneles.length) return;
   const mueble = seleccion ? seleccion.mueble : null, mallas = mueble ? mallasDe(mueble) : paneles;
-  const titulo = {mueble: mueble && limpiarNombre(mueble)};
-  const hojas = VISTAS_PLANO.map((v, i) => hojaPlano(mallas, v, !!mueble, i + 1, VISTAS_PLANO.length, titulo)).join('\n');
-  $('planosHojas').innerHTML = hojas;
-  $('planosTitulo').textContent = `${mueble ? titulo.mueble : 'Proyecto completo'} · ${VISTAS_PLANO.length} hojas A4`;
+  const titulo = mueble ? {etiqueta: 'Mueble', valor: limpiarNombre(mueble)} : {etiqueta: 'Planos de', valor: 'Proyecto completo'};
+  mostrarHojas(VISTAS_PLANO.map((v, i) => hojaPlano(vistaPlano(mallas, v, !!mueble), v.nombre, i + 1, VISTAS_PLANO.length, titulo)),
+               titulo.valor);
+}
+function mostrarHojas(hojas, titulo){
+  $('planosHojas').innerHTML = hojas.join('\n');
+  $('planosTitulo').textContent = `${titulo} · ${pl(hojas.length, 'hoja A4', 'hojas A4')}`;
   // la hoja apaisada solo mientras se ven los planos (no cambia otras impresiones del visor)
   if (!$('planosPagina')) document.head.insertAdjacentHTML('beforeend', '<style id="planosPagina">@page{size:A4 landscape;margin:0}</style>');
   document.body.classList.add('con-planos');
@@ -1228,6 +1285,101 @@ function cerrarPlanos(){
   $('capaPlanos').hidden = true; $('planosHojas').innerHTML = '';
   document.body.classList.remove('con-planos');
   if ($('planosPagina')) $('planosPagina').remove();
+}
+/* ---------- plano de mecanizado de una pieza: una hoja por cada cara o canto con taladros ----------
+   Cada cara vista desde afuera, a escala, con los taladros y cotas desde la esquina de abajo a la izquierda (las
+   horizontales abajo, las verticales a la izquierda), más el largo y el ancho. El nombre de la cara es hacia dónde mira
+   con el mueble armado. La geometría y los taladros están en el mismo sistema (el de la pieza armada). */
+const LADO_CARA = {x: ['a la derecha', 'a la izquierda'], y: ['arriba', 'abajo'], z: ['al frente', 'atrás']};
+function carasConTaladros(m){
+  if (!m.geometry.boundingBox) m.geometry.computeBoundingBox();
+  const b = m.geometry.boundingBox, s = b.getSize(new THREE.Vector3());
+  const fino = EJES.reduce((a, c) => s[a] <= s[c] ? a : c);
+  const caras = new Map();
+  (m.userData.p.tal || []).forEach(t => {
+    const n = {x: t[3], y: t[4], z: t[5]};
+    const eje = EJES.reduce((a, c) => Math.abs(n[a]) >= Math.abs(n[c]) ? a : c);
+    if (Math.abs(n[eje]) < .9) return;              // inclinado: no va en ninguna cara
+    const signo = n[eje] < 0 ? 1 : -1;               // el taladro entra en sentido n: la cara está del otro lado
+    const k = eje + signo;
+    if (!caras.has(k)) caras.set(k, {eje, signo, canto: eje !== fino, tal: []});
+    caras.get(k).tal.push(t);
+  });
+  return {b, s, fino, caras: [...caras.values()].sort((a, c) => a.canto - c.canto || c.tal.length - a.tal.length)};
+}
+const nombreCara = c => (c.canto ? 'Canto ' : 'Cara ') + LADO_CARA[c.eje][c.signo > 0 ? 0 : 1];
+// etiquetas en fila sin encimarse: cada una a no menos de `paso` de la anterior (manteniendo el orden)
+function repartir(xs, paso){
+  const r = xs.map(x => x);
+  for (let i = 1; i < r.length; i++) r[i] = Math.max(r[i], r[i - 1] + paso);
+  const corrimiento = (r[r.length - 1] - xs[xs.length - 1]) / 2;   // centradas respecto de las reales
+  return r.map(x => x - Math.max(0, corrimiento));
+}
+function planoCara(m, info, c){
+  const {b, s, fino} = info, unidad = e => { const v = new THREE.Vector3(); v[e] = 1; return v; };
+  const otros = EJES.filter(e => e !== c.eje);
+  const derecha = c.canto ? otros.find(e => e !== fino) : otros.reduce((a, e) => s[a] >= s[e] ? a : e);
+  const R = unidad(derecha), O = unidad(c.eje).multiplyScalar(c.signo), U = new THREE.Vector3().crossVectors(O, R);
+  const vista = {u: v => v.x * R.x + v.y * R.y + v.z * R.z, w: v => v.x * U.x + v.y * U.y + v.z * U.z,
+                 prof: v => v.x * O.x + v.y * O.y + v.z * O.z};
+  const {u0, u1, w0, w1} = cajaEnVista(b, vista);
+  const A = {x: HOJA.margen, y: HOJA.margen, ancho: HOJA.ancho - 2 * HOJA.margen, alto: HOJA.alto - 2 * HOJA.margen - HOJA.rotulo - 4};
+  const disp = {ancho: A.ancho - 2 * HOJA.aire - 12, alto: A.alto - 2 * HOJA.aire - 16};   // lugar para las cotas
+  const d = ESCALAS.find(e => (u1 - u0) / e <= disp.ancho && (w1 - w0) / e <= disp.alto) || ESCALAS[ESCALAS.length - 1];
+  const ox = A.x + 6 + (A.ancho - (u1 - u0) / d) / 2, oy = A.y + 4 + (A.alto - 8 - (w1 - w0) / d) / 2;
+  const X = u => ox + (u - u0) / d, Y = w => oy + (w1 - w) / d;
+  let svg = trazo(m, vista, X, Y, '#fff', '#111', .25);
+  const xi = X(u0), xf = X(u1), ya = Y(w1), yb = Y(w0);
+  // taladros: a escala; los pasantes rellenos, las marcas (sin profundidad) un punto
+  const esp = s[fino], huecos = c.tal.map(t => {
+    const p = {x: t[0], y: t[1], z: t[2]};
+    return {u: vista.u(p) - u0, w: vista.w(p) - w0, d: t[6], prof: t[7]};
+  });
+  huecos.forEach(h => {
+    const x = X(h.u + u0), y = Y(h.w + w0), r = Math.max(h.d / 2 / d, .35);
+    const pasante = !c.canto && h.prof >= esp - .5, marca = h.prof <= 1;
+    svg += marca ? `<circle cx="${n2(x)}" cy="${n2(y)}" r=".45" fill="#111"/>`
+      : `<circle cx="${n2(x)}" cy="${n2(y)}" r="${n2(r)}" fill="${pasante ? '#9aa3aa' : '#fff'}" stroke="#111" stroke-width=".2"/>`
+        + `<path d="M${n2(x - r - .6)} ${n2(y)}H${n2(x + r + .6)}M${n2(x)} ${n2(y - r - .6)}V${n2(y + r + .6)}" stroke="#111" stroke-width=".1"/>`;
+  });
+  // cotas desde la esquina de abajo a la izquierda: una por posición distinta
+  const r5 = x => Math.round(x * 2) / 2, num = x => String(r5(x)).replace('.', ',');
+  const us = [...new Set(huecos.map(h => r5(h.u)))].sort((a, c) => a - c);
+  const ws = [...new Set(huecos.map(h => r5(h.w)))].sort((a, c) => a - c);
+  const yB = yb + 4, xB = xi - 4, paso = 3.2;
+  repartir(us.map(u => X(u + u0)), paso).forEach((lx, i) => {
+    const x = X(us[i] + u0);
+    svg += `<path class="pl-ord" d="M${n2(x)} ${n2(yb + .6)}V${n2(yB)}L${n2(lx)} ${n2(yB + 2)}"/>`
+      + `<text class="pl-ord" x="${n2(lx)}" y="${n2(yB + 2.8)}" transform="rotate(-90 ${n2(lx)} ${n2(yB + 2.8)})" dy="1" text-anchor="end">${num(us[i])}</text>`;
+  });
+  repartir(ws.map(w => -Y(w + w0)), paso).forEach((ly, i) => {
+    const y = Y(ws[i] + w0); ly = -ly;
+    svg += `<path class="pl-ord" d="M${n2(xi - .6)} ${n2(y)}H${n2(xB)}L${n2(xB - 2)} ${n2(ly)}"/>`
+      + `<text class="pl-ord" x="${n2(xB - 2.8)}" y="${n2(ly)}" dy="1" text-anchor="end">${num(ws[i])}</text>`;
+  });
+  svg += `<text class="pl-ord" x="${n2(xi - 1)}" y="${n2(yb + 3)}" text-anchor="end">0</text>`;
+  // largo arriba y ancho (o espesor, en un canto) a la derecha
+  const yc = ya - 7, xc = xf + 7;
+  svg += cotaPlano(xi, yc, xf, yc, u1 - u0, `M${n2(xi)} ${n2(ya - 1.5)}L${n2(xi)} ${n2(yc - 1.5)}M${n2(xf)} ${n2(ya - 1.5)}L${n2(xf)} ${n2(yc - 1.5)}`, 'pl-gral');
+  svg += cotaPlano(xc, yb, xc, ya, w1 - w0, `M${n2(xf + 1.5)} ${n2(yb)}L${n2(xc + 1.5)} ${n2(yb)}M${n2(xf + 1.5)} ${n2(ya)}L${n2(xc + 1.5)} ${n2(ya)}`, 'pl-gral');
+  // qué taladros son: cantidad, diámetro y profundidad
+  const tipos = {};
+  huecos.forEach(h => { const k = `${r5(h.d)}|${r5(h.prof)}`; tipos[k] = (tipos[k] || 0) + 1; });
+  const lista = Object.entries(tipos).sort((a, c) => c[1] - a[1]).map(([k, n]) => {
+    const [dd, pp] = k.split('|').map(Number);
+    return `${n}× Ø${num(dd)} ${pp <= 1 ? 'marca' : !c.canto && pp >= esp - .5 ? 'pasante' : 'prof. ' + num(pp)}`;
+  });
+  svg += `<text class="pl-leyenda" x="${A.x + 2}" y="${A.y + 4}">${esc(pl(huecos.length, 'taladro', 'taladros') + ': ' + lista.join(' · '))}</text>`
+    + `<text class="pl-ayuda" x="${A.x + 2}" y="${A.y + 8.5}">Vista desde afuera de la cara · cotas desde la esquina de abajo a la izquierda</text>`;
+  return {svg, escala: d};
+}
+function abrirPlanoMecanizado(m){
+  if (!m) return;
+  const p = m.userData.p, info = carasConTaladros(m);
+  if (!info.caras.length) return;
+  const titulo = {etiqueta: 'Pieza', valor: `${p.num ? p.num + ' · ' : ''}${limpiarNombre(p.nombre)} (${limpiarNombre(p.mueble)})`};
+  mostrarHojas(info.caras.map((c, i) => hojaPlano(planoCara(m, info, c), nombreCara(c), i + 1, info.caras.length, titulo)),
+               `Mecanizado ${p.num || limpiarNombre(p.nombre)}`);
 }
 $('planosImprimir').onclick = () => print();
 $('planosVolver').onclick = cerrarPlanos;
@@ -1764,8 +1916,8 @@ function abrirMuebles(){
   const lista = datosMuebles();
   const link = item && item.link !== undefined ? item.link || ''   // la app dice cuál es el link vigente
     : datos.cliente ? location.origin + location.pathname + '?c=' + encodeURIComponent(datos.cliente) : '';
-  $('pmContenido').innerHTML = `<div class="pm-titulo">Muebles</div>
-    <div class="pm-sub">${lista.length} muebles en ${esc(datos.proyecto)}</div>
+  $('pmTitulo').textContent = 'Muebles';
+  $('pmContenido').innerHTML = `<div class="pm-sub">${lista.length} muebles en ${esc(datos.proyecto)}</div>
     ${link ? `<div class="compartir">
       <span class="etiqueta-num">Link para el cliente (vista 3D con medidas, sin datos de taller)</span>
       <input id="linkCliente" readonly value="${esc(link)}" aria-label="Link para el cliente">
@@ -1797,42 +1949,45 @@ function verMueble(nombre, mover = true){
   panelMueble = nombre;
   $('panelMuebles').hidden = false; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
   $('panelTrabajos').hidden = true; TR.vista = null; TR.resaltar = null; TR.marcando = null;
-  const pendM = TR.lista.filter(t => abierto(t) && (t.muebles.includes(nombre) || t.piezas.some(k => mallasDeClave(k).some(x => x.userData.p.mueble === nombre))));
   // agrupar piezas iguales (mismo nº de pieza)
   const grupos = {};
   m.mallas.forEach(x => { const p = x.userData.p; const k = (p.pieza || '') + '|' + p.nombre; (grupos[k] = grupos[k] || []).push(x); });
   const filas = Object.values(grupos).sort((a,b) => (+a[0].userData.p.pieza || 999) - (+b[0].userData.p.pieza || 999));
-  const conMec = m.mallas.filter(x => x.userData.p.num).length;
-  const mats = [...new Map(m.mallas.map(x => { const p = x.userData.p;
-    return [`${p.mat}|${Math.round(p.med[2]*10)/10}`, `${muestra(p.mat)}${esc(p.mat)} ${Math.round(p.med[2]*10)/10} mm`]; })).values()];
-  const tal = m.mallas.reduce((a,x) => a + (x.userData.p.tal || []).length, 0);
-  $('pmContenido').innerHTML = `<div class="pm-titulo">${esc(m.nombre)}</div>
-    <div class="avance" id="pmAvance">${avanceMueble(m.nombre)}</div>
-    ${pendM.length ? `<button class="aviso-trab" id="pmTrab">⚠ ${pendM.length === 1 ? '1 tarea sin instalar' : pendM.length + ' tareas sin instalar'} en este mueble</button>` : ''}
+  $('pmTitulo').textContent = m.nombre;
+  $('pmContenido').innerHTML = `<div class="pm-medidas"><b>${m.ancho}</b> × <b>${m.alto}</b> × <b>${m.prof}</b> mm
+      <span class="d">(ancho × alto × prof.)</span></div>
     <div class="acciones-sel">
-      <button class="btn-sec" id="pmAnotar"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>Anotar tarea</button>
+      ${VISOR.trabajos === false ? '' : '<button class="btn-sec" id="pmTareas"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6l1 1 2-2M4 12l1 1 2-2M4 18l1 1 2-2"/></svg>Ver tareas<span class="insignia" id="pmTareasN" hidden></span></button>'}
       ${VISOR.etiquetas ? '<button class="btn-sec" id="pmImprimir"><svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9V2h12v7"/><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"/><path d="M6 14h12v8H6z"/></svg>Imprimir etiqueta</button>' : ''}
     </div>
-    <div class="datos"><span>ancho <b>${m.ancho}</b></span><span>alto <b>${m.alto}</b></span><span>prof. <b>${m.prof}</b> mm</span></div>
-    <div class="mat">${pl(m.mallas.length,'pieza','piezas')}, ${conMec} con mecanizado, ${pl(tal,'taladro','taladros')}<br>Tableros: ${mats.join(' ')}</div>
-    <ul class="lista">${filas.map((g,i) => { const p = g[0].userData.p; return `<li><button data-i="${i}">
-      <span class="n">${esc(p.pieza || '–')}</span>
+    <div class="avance" id="pmAvance">${avanceMueble(m.nombre)}</div>
+    <div class="pm-piezas">${pl(m.mallas.length, 'pieza', 'piezas')}</div>
+    <ul class="lista piezas">${filas.map((g,i) => { const p = g[0].userData.p; return `<li><button data-i="${i}">
       <span>${esc(limpiarNombre(p.nombre))}${g.length > 1 ? ` <span class="d">× ${g.length}</span>` : ''}<br>
-        <span class="d">${Math.round(p.med[0])} × ${Math.round(p.med[1])} × ${Math.round(p.med[2]*10)/10}</span></span>
+        <span class="d">${Math.round(p.med[0])} × ${Math.round(p.med[1])} × ${Math.round(p.med[2]*10)/10}</span>
+        <span class="d t">${muestra(p.mat)}${esc(p.mat)}</span></span>
       <span class="m">${p.num ? esc(p.num) : '<span class="d">sin mec.</span>'}</span></button></li>`; }).join('')}</ul>`;
+  tareasMueble();
   $('pmContenido').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => {
     const g = filas[+b.dataset.i], p = g[0].userData.p;
     $('panelMuebles').hidden = true;
     $('numManual').value = p.num || '';
     seleccionar(p.num ? paneles.filter(x => x.userData.p.num === p.num) : g);
   });
-  $('pmAnotar').onclick = () => abrirForm({muebles: [m.nombre]});
   if ($('pmImprimir')) $('pmImprimir').onclick = () => abrirImprimir({m: m.nombre});
-  if ($('pmTrab')) $('pmTrab').onclick = () => abrirTrabajos({mueble: m.nombre});
   seleccion = { mallas: [], mueble: m.nombre, soloMueble: true }; modoPieza = false;
   armarSiCambia(); grupoTal.clear(); pintar(); if (mover) encuadrar(cajaDe(m.mallas));
 }
 let panelMueble = null;   // el panel de muebles muestra un mueble (su nombre) o la lista (null)
+// el botón de tareas del mueble (las sin instalar se cuentan cuando llega la lista)
+function tareasMueble(){
+  const b = $('pmTareas'), nombre = panelMueble; if (!b || !nombre) return;
+  const n = TR.lista.filter(t => abierto(t) && (t.muebles.includes(nombre)
+    || t.piezas.some(k => mallasDeClave(k).some(x => x.userData.p.mueble === nombre)))).length;
+  $('pmTareasN').hidden = !n; $('pmTareasN').textContent = n;
+  b.title = n ? (n === 1 ? '1 tarea sin instalar' : n + ' tareas sin instalar') + ' en este mueble' : '';
+  b.onclick = () => abrirTrabajos({mueble: nombre});
+}
 $('btnMuebles').onclick = () => $('panelMuebles').hidden || panelMueble ? abrirMuebles() : cerrarMuebles();
 $('pmCerrar').onclick = () => cerrarMuebles();
 function cerrarMuebles(){
@@ -1862,12 +2017,12 @@ function seleccionar(mallas){
   $('ayuda').hidden = true; $('panelMuebles').hidden = true; $('error').classList.remove('visible');
   const num = $('fNum');
   if (p.num){ num.textContent = p.num; num.classList.remove('sin'); $('fEtiqueta').textContent = 'Nº de mecanizado'; }
-  else { num.textContent = 'Pieza ' + (p.pieza || '?'); num.classList.add('sin'); $('fEtiqueta').textContent = 'Sin mecanizado'; }
+  else { num.textContent = ''; num.classList.add('sin'); $('fEtiqueta').textContent = 'Sin mecanizado'; }
   $('fNombre').textContent = limpiarNombre(p.nombre);
-  $('fMueble').textContent = (p.num && p.pieza ? `Pieza ${p.pieza} del mueble ` : 'Mueble ') + p.mueble;
   const [a,b,e] = p.med.map(v => Math.round(v*10)/10);
-  $('fDatos').innerHTML = `<span><b>${a} × ${b}</b> mm</span><span>espesor <b>${e}</b> mm</span>`
-    + (p.cant > 1 ? `<span><b>${p.cant}</b> piezas iguales</span>` : '')
+  $('fMedidas').innerHTML = `<span><b>${a} × ${b} × ${e}</b> mm</span><span>${muestra(p.mat)}${esc(p.mat || '—')}</span>`
+    + (p.pieza ? `<span>pieza ${esc(p.pieza)}</span>` : '');
+  $('fDatos').innerHTML = (p.cant > 1 ? `<span><b>${p.cant}</b> piezas iguales</span>` : '')
     + ((infoMaterial(p.mat) || {}).textura && Math.abs(a - b) > 1.5 ? `<span>veta a lo largo de <b>${p.vt ? b : a}</b> mm</span>` : '');
   let nota = '';
   if (!p.num) nota = 'Sin mecanizado: no tiene código de barras de mecanizado (sí la etiqueta con QR, si se imprimió).';
@@ -1878,7 +2033,9 @@ function seleccionar(mallas){
   $('fImprimir').hidden = !VISOR.etiquetas || !mallas.some(x => x.userData.p.pieza);
   avanceFicha();
   $('fTal').innerHTML = resumenTaladros(p);
-  $('fMat').innerHTML = textoMaterial(p);
+  $('fPlano').hidden = !(p.tal || []).length;
+  $('fPlano').onclick = () => abrirPlanoMecanizado(mallas[0]);
+  $('fCantos').innerHTML = esquemaCantos(p);
   $('ficha').classList.add('visible');
   avisoFicha();
   pintar();
@@ -1925,18 +2082,6 @@ renderer.domElement.addEventListener('pointerup', e => {
   seleccionar(grupoIgual);
 });
 
-let fichaAbierta = false;
-try{ fichaAbierta = localStorage.getItem('armado.ficha') === '1'; }catch(e){}
-function aplicarFicha(){
-  $('fDetalle').hidden = !fichaAbierta;
-  $('fCabecera').setAttribute('aria-expanded', fichaAbierta);
-  $('ficha').classList.toggle('abierta', fichaAbierta);
-}
-$('fCabecera').onclick = () => {
-  fichaAbierta = !fichaAbierta; aplicarFicha();
-  try{ localStorage.setItem('armado.ficha', fichaAbierta ? '1' : '0'); }catch(e){}
-};
-aplicarFicha();
 function limpiarNombre(s){ return s.replace(/\s*\[\d+\]/g,'').replace(/_(\d+)$/,' $1'); }
 
 $('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ buscar(v); $('numManual').blur(); } });
@@ -2370,15 +2515,24 @@ function avanceMueble(nombre){
   if (!m) return '';
   const nuevas = d.nuevas.filter(id => paneles.some(x => x.userData.p.id === id && x.userData.p.mueble === nombre)).length;
   const puesto = `${VISOR.avance.puesto}?modo=fin&p=${encodeURIComponent(item.id)}&m=${encodeURIComponent(nombre)}`;
-  return `<div>Avance <b>${m.pct}%</b>${m.terminado ? ' · <span class="hecha">Embalado</span>' : ''}</div>
+  return `<button class="av-resumen" aria-expanded="${avanceAbierto}">Avance <b>${m.pct}%</b>${m.terminado ? ' · <span class="hecha">Embalado</span>' : ''}</button>
     <div class="barra-av"><i style="width:${m.pct}%"></i></div>
+    <div class="av-detalle"${avanceAbierto ? '' : ' hidden'}>
     <div>${d.etapas.map((e, i) => `${esc(e.nombre)} ${m.por_etapa[i]}/${m.piezas}`).join(' · ')}</div>
     ${nuevas ? `<div>${pl(nuevas, 'pieza nueva', 'piezas nuevas')} en esta versión</div>` : ''}
     ${d.lugares && (m.lugares.length || m.sin_lugar < m.piezas) ? `<div>Piezas en: ${m.lugares.map(([n, c]) => `${esc(n)} ${c}`)
       .concat(m.sin_lugar ? [`sin ubicar ${m.sin_lugar}`] : []).join(' · ')}</div>` : ''}
     ${pasoMueble(nombre)}
-    <div><a href="${puesto}">${m.terminado ? 'Ver bultos' : 'Embalaje…'}</a></div>`;
+    <div><a href="${puesto}">${m.terminado ? 'Ver bultos' : 'Embalaje…'}</a></div></div>`;
 }
+let avanceAbierto = false;
+try{ avanceAbierto = localStorage.getItem('armado.avance') === '1'; }catch(e){}
+function verDetalleAvance(b){
+  avanceAbierto = !avanceAbierto;
+  b.setAttribute('aria-expanded', avanceAbierto); b.parentNode.querySelector('.av-detalle').hidden = !avanceAbierto;
+  try{ localStorage.setItem('armado.avance', avanceAbierto ? '1' : '0'); }catch(e){}
+}
+$('pmContenido').addEventListener('click', e => { const b = e.target.closest('.av-resumen'); if (b) verDetalleAvance(b); });
 function avanceFicha(){
   const d = AV.datos, p = seleccion.mallas[0].userData.p;
   const hechas = d && p.pieza ? d.paneles[p.id] : null;
@@ -2406,6 +2560,7 @@ async function cargarTrabajos(){
   const n = TR.lista.filter(abierto).length;
   $('tbInsignia').hidden = !n; $('tbInsignia').textContent = n;
   if (seleccion && seleccion.mallas.length) avisoFicha();
+  if (!$('panelMuebles').hidden) tareasMueble();
   if (trabajoPedido && lista){
     const id = trabajoPedido; trabajoPedido = 0;
     if (TR.lista.some(t => t.id === id)){ abrirTrabajos(); TR.vista = {detalle: id}; return mostrarTrabajos(); }
@@ -2416,9 +2571,9 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) carg
 const pendientesDe = p => TR.lista.filter(t => abierto(t) && (enClaves(new Set(t.piezas), p) || t.muebles.includes(p.mueble)));
 function avisoFicha(){
   const p = seleccion.mallas[0].userData.p, n = pendientesDe(p).length;
-  $('fTrab').hidden = !n;
-  $('fTrab').textContent = `⚠ ${n === 1 ? '1 tarea sin instalar' : n + ' tareas sin instalar'} en esta pieza o su mueble`;
-  $('fTrab').onclick = () => abrirTrabajos({pieza: claveP(p), num: p.num, mueble: p.mueble});
+  $('fTareasN').hidden = !n; $('fTareasN').textContent = n;
+  $('fTareas').title = n ? `${n === 1 ? '1 tarea sin instalar' : n + ' tareas sin instalar'} en esta pieza o su mueble` : '';
+  $('fTareas').onclick = () => abrirTrabajos({pieza: claveP(p), num: p.num, mueble: p.mueble});
 }
 const mallasDeClave = k => paneles.filter(m => claveP(m.userData.p) === k || m.userData.p.num === k);
 function etiquetaPieza(k){
@@ -2452,8 +2607,10 @@ function metaTrabajo(t){
     if (t.limite) partes.push(`<span class="${vencido(t) ? 'vencido' : ''}">vence ${fecha(t.limite)}</span>`);
   }
   const np = t.piezas.length, nm = t.muebles.length;
-  if (np) partes.push(pl(np, 'pieza', 'piezas'));
-  if (nm) partes.push(pl(nm, 'mueble', 'muebles'));
+  if (np === 1) partes.push('pieza ' + esc(etiquetaPieza(t.piezas[0])));
+  else if (np) partes.push(pl(np, 'pieza', 'piezas'));
+  if (nm === 1) partes.push((np ? '' : 'mueble entero: ') + esc(limpiarNombre(t.muebles[0])));
+  else if (nm) partes.push(pl(nm, 'mueble', 'muebles'));
   if (t.fotos.length) partes.push(`${t.fotos.length} foto${t.fotos.length > 1 ? 's' : ''}`);
   return partes.join(' · ');
 }
@@ -2461,7 +2618,7 @@ const cabecera = (titulo, extra = '') => `<div class="pt-cab">${extra}<div class
   <button class="cerrar-pm" data-cerrar aria-label="Cerrar tareas"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>`;
 
 function abrirTrabajos(filtro){
-  TR.filtro = filtro || null; TR.vista = 'lista'; TR.resaltar = null; TR.marcando = null;
+  TR.filtro = TR.origen = filtro || null; TR.vista = 'lista'; TR.resaltar = null; TR.marcando = null;
   $('panelTrabajos').hidden = false; $('panelMuebles').hidden = true; $('ficha').classList.remove('visible'); $('ayuda').hidden = true;
   pintar(); mostrarTrabajos(); cargarTrabajos();
 }
@@ -2471,7 +2628,6 @@ function cerrarTrabajos(){
   if (seleccion && seleccion.mallas.length) $('ficha').classList.add('visible'); else $('ayuda').hidden = false;
 }
 $('btnTrabajos').onclick = () => $('panelTrabajos').hidden ? abrirTrabajos() : cerrarTrabajos();
-$('fAnotar').onclick = () => seleccion && abrirForm({piezas: [...new Set(seleccion.mallas.map(m => claveP(m.userData.p)))]});
 
 function mostrarTrabajos(){
   const el = $('panelTrabajos'), v = TR.vista;
@@ -2496,10 +2652,11 @@ function mostrarTrabajos(){
     <button class="check" data-avanzar="${t.id}" ${sig[t.estado] ? `aria-label="${NOMBRE_ESTADO[t.estado]}: pasar a ${NOMBRE_ESTADO[sig[t.estado]].toLowerCase()}"` : 'aria-label="Instalada" disabled'}>✓</button>
     <button class="cuerpo" data-ver="${t.id}"><div class="t-texto">${esc(t.texto)}</div><div class="t-meta">${metaTrabajo(t)}</div></button></div>`;
   el.innerHTML = cabecera('Tareas', '') + `
-    <div class="pm-sub">${f ? `${f.pieza ? 'De esta pieza o su mueble' : 'Del mueble ' + esc(f.mueble)} · <button class="link" data-todos>ver todos</button>` : `${pend.length} sin instalar en ${esc(datos.proyecto)}`}</div>
+    ${TR.origen ? `<div class="filtro-trab">
+        <button class="chip" data-filtro="1" aria-pressed="${!!f}">${esc(TR.origen.pieza ? 'Esta pieza o su mueble' : limpiarNombre(TR.origen.mueble))}</button>
+        <button class="chip" data-filtro="0" aria-pressed="${!f}">Todo el proyecto</button></div>`
+      : `<div class="pm-sub">${pend.length} sin instalar en ${esc(datos.proyecto)}</div>`}
     <button class="btn-prim" data-nuevo>+ Nueva tarea</button>
-    ${pend.length ? `<div class="leyenda">${['pendiente', 'en proceso', 'hecho'].concat(pend.some(vencido) ? ['vencido'] : [])
-        .map(e => `<span><i style="background:${hex(COLOR_ESTADO[e][0])}"></i>${e === 'vencido' ? 'vencida' : NOMBRE_ESTADO[e].toLowerCase()}</span>`).join('')}<span>(claro: mueble entero)</span></div>` : ''}
     ${pendientes.length ? `<div class="t-seccion">Pendientes (${pendientes.length})</div>${pendientes.map(item).join('')}` : ''}
     ${proceso.length ? `<div class="t-seccion">En proceso (${proceso.length})</div>${proceso.map(item).join('')}` : ''}
     ${hechos.length ? `<div class="t-seccion">Hechas, a instalar (${hechos.length})</div>${hechos.map(item).join('')}` : ''}
@@ -2508,7 +2665,7 @@ function mostrarTrabajos(){
       ${TR.verHechos ? instalados.map(item).join('') : ''}` : ''}`;
   el.querySelector('[data-cerrar]').onclick = cerrarTrabajos;
   el.querySelector('[data-nuevo]').onclick = () => abrirForm(!f ? {} : f.pieza ? {piezas: [f.pieza]} : {muebles: [f.mueble]});
-  if (el.querySelector('[data-todos]')) el.querySelector('[data-todos]').onclick = () => { TR.filtro = null; mostrarTrabajos(); };
+  el.querySelectorAll('[data-filtro]').forEach(b => b.onclick = () => { TR.filtro = +b.dataset.filtro ? TR.origen : null; mostrarTrabajos(); });
   if (el.querySelector('[data-hechos]')) el.querySelector('[data-hechos]').onclick = () => { TR.verHechos = !TR.verHechos; mostrarTrabajos(); };
   el.querySelectorAll('[data-ver]').forEach(b => b.onclick = () => { TR.vista = {detalle: +b.dataset.ver}; mostrarTrabajos(); });
   el.querySelectorAll('[data-avanzar]').forEach(b => b.onclick = () => {
