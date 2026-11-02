@@ -163,6 +163,12 @@ MEDIA_URL = '/archivos/'
 MEDIA_ROOT = DATOS / 'archivos'
 
 if ALMACENAMIENTO == 'r2':
+    # Subidas a R2 con poca memoria: boto3, por defecto, tiene hasta 10 partes de 8 MB del archivo en memoria a la
+    # vez (80 MB por subida) y con un DXF grande el proceso de la página pasaba el límite del contenedor y el sistema
+    # lo mataba (Cloudflare mostraba su página de error). Con 2 partes, 16 MB.
+    from boto3.s3.transfer import TransferConfig
+    _transferencia = TransferConfig(max_concurrency=2)
+    _transferencia.max_in_memory_upload_chunks = 2
     _archivos = {
         'BACKEND': 'storages.backends.s3.S3Storage',
         'OPTIONS': {
@@ -176,6 +182,7 @@ if ALMACENAMIENTO == 'r2':
             'querystring_auth': True,
             'querystring_expire': 3600,
             'file_overwrite': False,
+            'transfer_config': _transferencia,
         },
     }
 elif ALMACENAMIENTO == 'local':

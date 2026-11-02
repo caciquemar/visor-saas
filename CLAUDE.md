@@ -394,6 +394,12 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   canto del proyecto lleva `esp`. El visor usa ese (`espesorCanto`); los proyectos convertidos antes, el del material
   hasta que se vuelvan a convertir.
 
+- 2026-11-02: **error al subir versiones en el NAS (pedido de Martín).** A veces la subida terminaba en la página
+  de error de Cloudflare: el log de `visor-saas-web` decía `Worker … was sent SIGKILL! Perhaps out of memory?`. Cada
+  proceso de gunicorn ocupa ~150 MB al arrancar (dos: ~300 de 384 MB) y boto3 tenía hasta 80 MB del archivo en
+  memoria al subirlo a R2. Ahora sube con 2 partes de 8 MB a la vez (`transfer_config` en `settings.py`) y `web`
+  tiene `mem_limit: 768m` en el compose (hay que cambiarlo también en el YAML de TrueNAS).
+
 ## Pendientes
 
 - **Planos (ficha 16), imprimir de verdad** (Martín): Imprimir o guardar PDF desde la PC y desde el celular, que salgan

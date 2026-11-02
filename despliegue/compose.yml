@@ -31,6 +31,8 @@ services:
     mem_limit: 128m
 
   # La página: gunicorn con 2 procesos. Migra la base al arrancar.
+  # Memoria: cada proceso ocupa ~150 MB apenas arranca, más lo que use la subida en curso. Con 384m, dos procesos
+  # y una subida grande pasaban el límite y el sistema mataba al proceso ("SIGKILL! Perhaps out of memory?").
   web:
     image: ghcr.io/caciquemar/visor-saas:v0.7.2
     container_name: visor-saas-web
@@ -44,7 +46,7 @@ services:
       preparar: {condition: service_completed_successfully}
       redis: {condition: service_started}
     logging: {driver: json-file, options: {max-size: 10m, max-file: "3"}}
-    mem_limit: 384m
+    mem_limit: 768m
 
   # La cola: conversiones (una a la vez), latido para /salud/ y copia diaria de la base a R2.
   # El límite tiene que dejar lugar a la conversión más grande (CONVERSION_MEMORIA_MB en visor.env) + ~200 MB.

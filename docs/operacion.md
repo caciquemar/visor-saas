@@ -19,7 +19,7 @@ celular / PC ──HTTPS──> Cloudflare ──túnel (cloudflared, ya existe 
 
   | contenedor | qué hace | memoria máx. |
   |---|---|---|
-  | `visor-saas-web` | la página (gunicorn, 2 procesos); migra la base al arrancar | 384 MB |
+  | `visor-saas-web` | la página (gunicorn, 2 procesos); migra la base al arrancar | 768 MB |
   | `visor-saas-cola` | conversiones (una a la vez), latido de `/salud/`, copia diaria | 1800 MB |
   | `visor-saas-postgres` | base de datos (PostgreSQL 17) | 384 MB |
   | `visor-saas-redis` | cola y caché | 64 MB |
