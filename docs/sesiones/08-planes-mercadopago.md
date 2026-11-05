@@ -36,3 +36,20 @@ Lo que se averiguó de Mercado Pago (por si se usa para Argentina): suscripción
 `subscription_preapproval` y `subscription_authorized_payment` con firma `x-signature` (HMAC-SHA256, una clave para
 prueba y otra para producción, responder 200 en menos de 22 s), reintentos de cobro hasta 4 en 10 días y baja
 automática con 3 cobros seguidos rechazados, revisión con `/preapproval/search`.
+
+## Decisiones (2026-11-05): Payway Argentina, pago por período
+Payway Argentina no tiene API de suscripciones ni permite cobrar una tarjeta guardada sin el código de seguridad
+(guardar el código está prohibido por PCI DSS). Martín eligió **pago por período, sin cobro automático**:
+- Mensual, **semestral (6 meses al precio de 5½)** o **anual (12 al precio de 10)**, en **un solo pago** (sin cuotas).
+- Cobro con **Payway Link Checkout** (página de Payway; la app no ve la tarjeta). El aviso de Payway no se cree:
+  se consulta el pago en Payway. El cobro va detrás de una "pasarela" intercambiable (Payway y una simulada para
+  pruebas), para sumar después una del exterior.
+- Precio en ARS = USD × dólar oficial leído cada día (BCRA), fijo al generar el link; cotización a mano en la
+  administración si hace falta.
+- Estados: prueba (30 días, Pro) → activa (pagado hasta) → vencida (7 días de gracia) → solo lectura → suspendida
+  (90 días) → borrado avisado (aviso 30 y 7 días antes; el borrado lo confirma Martín en la administración).
+- Subir de plan: paga la diferencia proporcional y cambia al instante. Bajar: desde el próximo pago. Sin devoluciones.
+- **Los usuarios con PIN cuentan** como usuarios del plan. Los límites de cada plan (proyectos activos, usuarios,
+  funciones) y los precios se **cambian desde la administración**, no en el código.
+- Pilotos: "sin cobro hasta" por taller en la administración. El 50 % de por vida queda fuera de esta ficha.
+- Esta ficha se hace en modo prueba (sandbox de Payway) antes de la 07b; cobrar de verdad, después del VPS.
