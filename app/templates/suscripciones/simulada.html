@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="es-AR">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pago simulado</title>
+<style>
+  :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --borde:#dddbd5; }
+  @media (prefers-color-scheme: dark) { :root { --fondo:#171716; --panel:#222220; --texto:#ecebe7; --borde:#3a3936; } }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.45 system-ui, sans-serif; }
+  main { max-width:28rem; margin:3rem auto; padding:0 1rem; }
+  .caja { background:var(--panel); border:1px solid var(--borde); border-radius:10px; padding:1.25rem; }
+  .monto { font-size:2rem; font-weight:700; margin:.5rem 0 1rem; }
+  button { font:inherit; font-weight:600; padding:.7rem 1.1rem; border:0; border-radius:8px; cursor:pointer; }
+  .si { background:#2f6f5e; color:#fff; } .no { background:#a8322d; color:#fff; }
+</style></head>
+<body><main>
+  <p><b>Pasarela simulada</b>: solo existe en la PC y en las pruebas. En el servidor esto es la página de Payway.</p>
+  <div class="caja">
+    <div>{{ taller.nombre }} · Plan {{ pago.plan }}, {{ pago.get_periodo_display|lower }}</div>
+    <div class="monto">$ {{ pago.monto_ars_entero }}</div>
+    <form method="post">{% csrf_token %}
+      <button class="si" name="resultado" value="aprobado">Aprobar el pago</button>
+      <button class="no" name="resultado" value="rechazado">Rechazarlo</button>
+    </form>
+  </div>
+</main></body></html>

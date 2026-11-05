@@ -3,3 +3,4 @@
 import modulos.zicar.tareas  # noqa: F401
 import proyectos.tareas  # noqa: F401
 import servicio.tareas  # noqa: F401
+import suscripciones.tareas  # noqa: F401

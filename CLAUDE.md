@@ -26,7 +26,7 @@ y los trabajos pendientes quedan registrados con fotos.
 - Django 5.2 LTS. Cola de tareas para las conversiones: **Huey** (Redis en el servidor, SQLite o modo inmediato en la PC).
 - Archivos (proyectos convertidos, texturas, GLB, fotos, ZIP) en **Cloudflare R2** vía API S3; en local, carpeta del disco.
 - Visor: `visor/index.html`, JavaScript sin framework. Se adapta lo mínimo: hoy pide `data/…` y `api/…` con rutas relativas.
-- Cobro: Mercado Pago Suscripciones (preapproval) + webhooks. Factura electrónica ARCA.
+- Cobro: **Payway Argentina** (Link Checkout), pago por período sin cobro automático (ficha 08). Factura electrónica ARCA.
 - Producción: VPS en la nube detrás de Cloudflare (ficha 07b, antes de cobrar). Mientras los pilotos son gratis,
   el NAS de la casa (ficha 07a). Imagen de Docker armada por GitHub Actions, mismo compose en los dos: ver
   `docs/operacion.md`.
@@ -49,7 +49,9 @@ app/              proyecto Django: config/ (settings y urls), usuarios/ (Usuario
                   registro.py: ganchos y con_modulo; zicar/: ResultadoZicar, subida, tarea y descarga), etiquetas/
                   (Etiqueta, FormatoEtiquetas; claves.py: qué es una pieza entre versiones; pdf.py: el PDF), avance/
                   (Etapa, Marca, FinDeMueble, Bulto, Carga, Movimiento; calculo.py: % y lecturas; acciones.py: lo que
-                  hace el puesto; api.py: API del puesto y del visor; estado.py: estado del pedido, sin mostrar), servicio/
+                  hace el puesto; api.py: API del puesto y del visor; estado.py: estado del pedido, sin mostrar),
+                  suscripciones/ (Plan, Cotizacion, Suscripcion, Pago; estados.py: las reglas; servicio.py: cobrar y
+                  confirmar; pasarelas.py: Payway y simulada; middleware.py: solo lectura y suspendida), servicio/
                   (sin modelos: /salud/, latido de la cola, copias de la base y sus comandos), templates/
                   talleres/rls.py: segunda barrera entre talleres en PostgreSQL (row-level security)
 Dockerfile        imagen del servidor; docker/: arranque (web, cola, preparar) y preparar_base.py
@@ -99,13 +101,14 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 3. **Módulos por taller.** Las funciones extra se prenden por taller (`taller_modulo`). El módulo **Zicar** está
    habilitado solo para Nord Good: para los demás no se muestra nada y el servidor rechaza el pedido.
    El código de Zicar vive fuera de este repo (`C:\Users\Asus\GitHub\polyboard\Polyboard_to_zicar`).
-4. **Secretos** (claves de Mercado Pago, R2, base de datos) solo en `.env`, nunca en el repo.
+4. **Secretos** (claves de Payway, R2, base de datos) solo en `.env`, nunca en el repo.
 5. **Muestras:** por decisión de Martín (2026-10-04) van al repo con sus nombres reales porque el repo es
    **privado**. Si el repo se comparte con alguien de afuera o se hace público, antes hay que anonimizarlas
    (re-exportar desde Polyboard con otro nombre de proyecto y regenerar `esperado/`).
 6. **No tocar el visor en producción de Nord Good** (`C:\Users\Asus\GitHub\polyboard\armado\armado`, NAS,
    visor.nordgood.com.ar) salvo que la ficha lo diga (solo la ficha 00).
-7. Los datos de un taller nunca se borran sin aviso: suscripción vencida -> solo lectura -> 90 días -> borrado avisado.
+7. Los datos de un taller nunca se borran sin aviso: suscripción vencida -> solo lectura -> 90 días -> suspendida ->
+   borrado avisado (`suscripciones/estados.py`). El borrado nunca es automático: lo confirma Martín.
 
 ## Relación con el visor actual
 
@@ -399,8 +402,40 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   proceso de gunicorn ocupa ~150 MB al arrancar (dos: ~300 de 384 MB) y boto3 tenía hasta 80 MB del archivo en
   memoria al subirlo a R2. Ahora sube con 2 partes de 8 MB a la vez (`transfer_config` en `settings.py`) y `web`
   tiene `mem_limit: 768m` en el compose (hay que cambiarlo también en el YAML de TrueNAS).
+- 2026-11-05: **ficha 08, código hecho en modo prueba** (decisiones de Martín en la ficha y en `docs/decisiones.md`).
+  Cobro con **Payway Argentina, Link Checkout**, pago por período sin cobro automático: mensual, semestral (5½ meses)
+  o anual (10), en un solo pago, en pesos al dólar oficial (BCRA, variable 4, tarea diaria; a mano en la
+  administración). App `suscripciones/`: `Plan` (precio, topes y funciones, editables en la administración),
+  `Cotizacion`, `Suscripcion` (una por taller, se crea en prueba con el taller) y `Pago`. Reglas sin base en
+  `estados.py`: prueba 30 días con el Pro → activa → vencida (7 días de gracia; la prueba vencida no tiene) → solo
+  lectura → suspendida a los 90 días → para borrar a los 180 (lo confirma Martín). Subir de plan paga la diferencia
+  y cambia ya; bajar vale desde el próximo período; pagar en prueba empieza al terminar la prueba. El aviso de la
+  pasarela no aprueba: se consulta el pago y tiene que coincidir el monto y traer el código del link; un pago de
+  Payway aprueba uno solo de los nuestros (restricción en la base). `SuscripcionMiddleware`: solo lectura frena todo
+  cambio salvo Mi suscripción y Mi cuenta; suspendida lleva a pagar y apaga el link del cliente; Producción necesita
+  la función `avance`. `talleres/limites.py`: funciones (tareas, fotos, avance, AR, probador, logo y color en el
+  link) y topes (proyectos activos; personas = miembros activos, también con PIN, más invitaciones vigentes). Mails
+  de aviso (7 y 1 día antes, al vencer, solo lectura, suspendida, 30 y 7 días antes del borrado) a quien tiene el
+  permiso nuevo `suscripcion` (Administrador; Oficina no). Pantalla `/<taller>/suscripcion/` en Configuración.
+  **Interruptor `SUSCRIPCIONES_ACTIVAS` (0 por defecto)**: con 0 nada se limita ni se frena y la pantalla no está en
+  el menú; la migración deja a los talleres que ya existían "sin cobro" hasta 2099 con el plan Fábrica. Pasarela
+  `simulada` para la PC y las pruebas (`/pagos/simulada/...`, 404 con Payway). Pruebas en
+  `tests/app/test_suscripciones.py` (cada cambio de estado, pago aprobado y rechazado, reactivación, topes, link del
+  cliente, separación, Payway con respuestas falsas, BCRA). Probado en el navegador integrado con la pasarela
+  simulada (config `visor-cobro` de `C:/Users/Asus/.claude/launch.json`, puerto 8017, con el cobro prendido).
 
 ## Pendientes
+
+- **Ficha 08, Payway de verdad** (Martín): cargar en el `.env` de la PC las claves de **Sandbox** (`PASARELA=payway`,
+  `PAYWAY_*`, ver `.env.example`; las de producción solo en el servidor) y la respuesta de soporte (mail redactado
+  el 2026-11-05). Falta confirmar en Sandbox: la dirección de Link Checkout de prueba (`pasarelas.Payway.URLS`), qué
+  manda el aviso y con qué id se consulta el pago (`Payway.id_en`), que `amount` venga en centavos y que el pago
+  consultado muestre nuestro código (va en `payment_description`). Para recibir el aviso en la PC hace falta una
+  dirección pública (el NAS o un túnel). Si algo no coincide, el pago queda pendiente y se aprueba a mano en la
+  administración (Pagos → "Aprobar a mano").
+- Ficha 08, a decidir con Martín: si el sitio de Payway es el de la tienda (las claves que usaba con PrestaShop) o
+  uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender `SUSCRIPCIONES_ACTIVAS` (con la
+  07b) y qué fecha de "sin cobro" darle a cada piloto.
 
 - **Planos (ficha 16), imprimir de verdad** (Martín): Imprimir o guardar PDF desde la PC y desde el celular, que salgan
   tres hojas A4 apaisadas sin la barra, y medir con escalímetro una cota sobre el papel.
@@ -442,8 +477,6 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
 - Definir nombre comercial y dominio (Proyecto de claude.ai, ver `negocio/claude-ai`).
 - Ficha 11: al migrar Nord Good, "Convertir proyecto" de la PC sigue haciendo la Zicar; cuando Martín use la app,
   se puede dejar de usar (no se tocó la PC).
-- Ficha 08: completar `talleres/limites.py` (`trabajos`, `fotos_de_trabajos`); el plan Taller de `docs/plan.md` no
-  dice si tiene trabajos sin fotos o ningún trabajo. Con `trabajos` apagado se ven pero no se cambian.
 - Ficha 11: al pasar `trabajos.db` de Nord Good, `autor`/`asignado`/`*_por` son texto libre: hay que emparejarlos con
   los usuarios del taller (o dejarlos vacíos) y el proyecto va por nombre (puede haber dos iguales).
 - Ficha 12, prueba en papel y con celular (Martín, cuando haya impresora y celular; en el NAS ya se ve bien desde

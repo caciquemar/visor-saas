@@ -19,6 +19,7 @@ from avance import pantalla as pantalla_de_avance
 from conversor.polyboard_a_app import clave
 from modulos import registro
 from talleres.archivos import abrir_de_taller
+from talleres.limites import mensaje_de_tope, puede_sumar
 from talleres.roles import con_permiso, miembro, puede
 
 from . import probador
@@ -121,6 +122,9 @@ def lista(request, taller):
 
 @con_permiso('proyectos_gestion')
 def nuevo(request, taller):
+    if not puede_sumar(request.taller, 'proyectos'):
+        messages.error(request, mensaje_de_tope(request.taller, 'proyectos'))
+        return redirect('taller:proyectos:lista', taller=request.taller.slug)
     form = formulario(FormProyectoNuevo, request)
     datos = FormDatos(request.POST or None, alta=True)
     if request.method == 'POST' and form.is_valid() and datos.is_valid():
@@ -278,6 +282,9 @@ def archivar(request, taller, id):
 @con_permiso('proyectos_gestion')
 def desarchivar(request, taller, id):
     proyecto = get_object_or_404(Proyecto, pk=id, archivado_en__isnull=False)
+    if not puede_sumar(request.taller, 'proyectos'):
+        messages.error(request, mensaje_de_tope(request.taller, 'proyectos'))
+        return a_proyecto(request, proyecto)
     proyecto.archivado_en = proyecto.archivado_por = None
     proyecto.save(update_fields=['archivado_en', 'archivado_por', 'actualizado'])
     messages.success(request, f'Desarchivaste {proyecto}. Está {proyecto.get_estado_display().lower()}.')

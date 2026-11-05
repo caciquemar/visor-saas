@@ -327,6 +327,24 @@ para cada taller (instalación y versiones distintas). Puede sumarse después co
 Django + PostgreSQL + cola de tareas + Cloudflare R2, en un VPS detrás de Cloudflare. Descartado: el NAS de la casa
 para clientes pagos (cortes de luz e internet, sin respaldo de uptime).
 
+## 2026-11-05 · Cobro: Payway Argentina, pago por período (ficha 08)
+Payway Argentina no tiene API de suscripciones ni deja cobrar una tarjeta guardada sin el código de seguridad (que
+no se puede guardar: PCI DSS). Martín eligió **pago por período sin cobro automático**: mensual, semestral (6 meses
+al precio de 5½) o anual (12 al precio de 10), un solo pago, con **Link Checkout** (la tarjeta la ve solo Payway).
+Precio en pesos al dólar oficial del día (BCRA). Los usuarios con PIN cuentan como personas del plan; topes,
+funciones y precios se cambian en la administración. Descartado por ahora: débito automático de Payway (se presenta
+a mano cada mes desde su portal). Cobrar en el exterior queda pendiente: otra pasarela se suma como otra clase en
+`suscripciones/pasarelas.py`.
+
+## 2026-11-05 · Interruptor del cobro
+`SUSCRIPCIONES_ACTIVAS=0` por defecto: el NAS de los pilotos (y Nord Good) sigue sin límites. Los talleres que ya
+existían quedan "sin cobro" hasta 2099 con el plan Fábrica; los nuevos arrancan en prueba. Se prende al pasar al VPS.
+
+## 2026-11-05 · El aviso de la pasarela no aprueba nada
+El aviso de Payway (y los parámetros de la vuelta) los puede mandar cualquiera: solo disparan una consulta a Payway
+con la clave privada. Se aprueba si el pago consultado está aprobado, el monto coincide y trae el código de nuestro
+link; cada pago de Payway aprueba uno solo de los nuestros. Si algo no coincide, queda para aprobar a mano.
+
 ## 2026-10-09 · Cobro: se posterga Mercado Pago, se evalúa una pasarela internacional
 Martín postergó la ficha 08 porque se van a recibir pagos del exterior: evaluar Payway u otra pasarela con cuenta en
 EE. UU. antes de elegir. Ya decidido: dólar oficial automático para lo que se cobre en pesos, prueba vencida = solo

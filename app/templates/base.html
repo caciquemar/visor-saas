@@ -55,6 +55,9 @@
   .estado.listo { border-color:var(--ok); color:var(--ok); }
   .estado.error { border-color:var(--error); color:var(--error); }
   .estado.en_cola, .estado.convirtiendo { color:var(--suave); }
+  .aviso-suscripcion { margin:0 0 1rem; padding:.6rem .8rem; border-radius:8px; border:1px solid var(--borde);
+                       background:var(--panel); }
+  .aviso-suscripcion.grave { border-color:var(--error); }
 </style>
 {% block cabeza %}{% endblock %}
 </head>
@@ -68,6 +71,8 @@
   {% endif %}
 </header>
 <main>
+  {% if aviso_suscripcion %}<p class="aviso-suscripcion{% if aviso_suscripcion.grave %} grave{% endif %}">{{ aviso_suscripcion.texto }}
+    {% if aviso_suscripcion.url %}<a href="{{ aviso_suscripcion.url }}">Ver mi suscripción</a>{% endif %}</p>{% endif %}
   {% if messages %}<ul class="mensajes">{% for m in messages %}<li class="{{ m.tags }}">{{ m }}</li>{% endfor %}</ul>{% endif %}
   {% block contenido %}{% endblock %}
 </main>

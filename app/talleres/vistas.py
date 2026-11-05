@@ -16,6 +16,7 @@ from django.utils.http import url_has_allowed_host_and_scheme, urlencode
 from django.views.decorators.http import require_POST
 
 from . import pin as pines
+from .limites import mensaje_de_tope, puede_sumar
 from .archivos import abrir_de_taller
 from .formularios import FormDatosPin, FormMarca, FormMiembro, FormPersona, FormPin, FormRol, roles_que_puede_dar
 from .mails import NO_SALIO
@@ -84,6 +85,9 @@ def equipo(request, taller, form_persona=None):
 @con_permiso('equipo')
 def agregar_persona(request, taller):
     """Sin mail (rol que entra con PIN): se le arma la cuenta con usuario y PIN. Con mail: le llega la invitación."""
+    if not puede_sumar(request.taller, 'usuarios'):
+        messages.error(request, mensaje_de_tope(request.taller, 'usuarios'))
+        return a_equipo(request)
     form = FormPersona(request.POST, membresia=request.membresia)
     if not form.is_valid():
         return equipo(request, taller=taller, form_persona=form)
@@ -169,6 +173,8 @@ def editar_miembro(request, taller, id):
                 messages.error(request, 'No te podés desactivar a vos mismo.')
             elif quedaria_sin_admin(otro, otro.rol, activa):
                 messages.error(request, 'El taller tiene que tener al menos un administrador activo.')
+            elif activa and not otro.activa and not puede_sumar(request.taller, 'usuarios'):
+                messages.error(request, mensaje_de_tope(request.taller, 'usuarios'))
             else:
                 otro.activa = activa
                 otro.save(update_fields=['activa'])

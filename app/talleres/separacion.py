@@ -24,6 +24,7 @@ ARCHIVOS_CON_SIN_FILTRO = {
     'talleres/cuentas.py',         # elegir taller después de entrar y aceptar invitaciones
     'talleres/admin.py',           # administración del servicio (Martín), ve todos los talleres
     'talleres/rls.py',             # segunda barrera en PostgreSQL: políticas y variable del taller (no lee datos)
+    'suscripciones/admin.py',      # administración del servicio (Martín): suscripciones y pagos de todos los talleres
 }
 
 

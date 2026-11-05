@@ -11,6 +11,9 @@ os.environ.update(
     REDIS_URL='',
     DOMINIO_APP='testserver',
     EMAIL_URL='',
+    SUSCRIPCIONES_ACTIVAS='0',      # las pruebas de la ficha 08 lo prenden con `settings`
+    PASARELA='simulada',
+    PAYWAY_CLAVE_PUBLICA='', PAYWAY_CLAVE_PRIVADA='', PAYWAY_SITIO='',
 )
 
 from .settings import *  # noqa: E402,F401,F403

@@ -1,0 +1,90 @@
+{% extends 'base.html' %}
+{% block titulo %}Mi suscripción{% endblock %}
+{% block cabeza %}
+<style>
+  .resumen { display:grid; gap:.25rem 1rem; grid-template-columns:max-content 1fr; margin:0; }
+  .resumen dt { color:var(--suave); }
+  .resumen dd { margin:0; font-weight:600; }
+  .planes { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(15rem, 1fr)); margin-top:1rem; }
+  .plan { display:flex; flex-direction:column; gap:.5rem; }
+  .plan h3 { margin:0; font-size:1.1rem; }
+  .plan .actual { font-size:.8rem; font-weight:600; color:var(--ok); }
+  .plan ul { margin:0; padding-left:1.1rem; color:var(--suave); font-size:.9rem; }
+  .periodo { display:flex; align-items:center; justify-content:space-between; gap:.5rem; padding:.45rem 0;
+             border-top:1px solid var(--borde); }
+  .periodo .precio { font-weight:700; }
+  .periodo .detalle { display:block; color:var(--suave); font-size:.8rem; }
+  .periodo button { padding:.45rem .8rem; }
+  .estado.activa, .estado.prueba { border-color:var(--ok); color:var(--ok); }
+  .estado.vencida, .estado.solo_lectura, .estado.suspendida, .estado.para_borrar { border-color:var(--error); color:var(--error); }
+</style>
+{% endblock %}
+{% block contenido %}
+<h1>Mi suscripción</h1>
+{% if not activas %}
+  <p class="suave">El cobro todavía no está activo en este servidor: el taller usa todo sin límites.</p>
+{% endif %}
+
+<div class="caja">
+  <dl class="resumen">
+    <dt>Estado</dt><dd><span class="estado {{ estado }}">{{ nombre_estado }}</span></dd>
+    <dt>Plan</dt><dd>{{ plan }}{% if en_prueba %} (prueba){% endif %}</dd>
+    {% if sin_cobro %}
+      <dt>Sin cobro hasta</dt><dd>{{ s.sin_cobro_hasta|date:'d/m/Y' }}</dd>
+    {% elif en_prueba %}
+      <dt>Prueba hasta</dt><dd>{{ s.prueba_hasta|date:'d/m/Y' }}</dd>
+      {% if s.pagado_hasta %}<dt>Pagado hasta</dt><dd>{{ s.pagado_hasta|date:'d/m/Y' }}</dd>{% endif %}
+    {% else %}
+      <dt>{% if estado == 'activa' %}Pagado hasta{% else %}Venció el{% endif %}</dt><dd>{{ hasta|date:'d/m/Y' }}</dd>
+    {% endif %}
+    {% if s.plan_proximo %}<dt>Desde el {{ s.cambio_de_plan|date:'d/m/Y' }}</dt><dd>Plan {{ s.plan_proximo }}</dd>{% endif %}
+    {% if proyectos.0 is not None %}<dt>Proyectos activos</dt><dd>{{ proyectos.1 }} de {{ proyectos.0 }}</dd>{% endif %}
+    {% if usuarios.0 is not None %}<dt>Personas</dt><dd>{{ usuarios.1 }} de {{ usuarios.0 }}</dd>{% endif %}
+  </dl>
+  {% if estado == 'vencida' %}<p class="error">Tu plan venció. En {{ gracia }} días desde el vencimiento la cuenta queda en solo lectura.</p>{% endif %}
+  {% if estado == 'solo_lectura' %}<p class="error">La cuenta está en solo lectura: se ve todo, pero no se puede cambiar nada. Al pagar vuelve a andar al instante.</p>{% endif %}
+  {% if estado == 'suspendida' or estado == 'para_borrar' %}<p class="error">La cuenta está suspendida: nadie del taller puede entrar y los links de los clientes no andan. Al pagar vuelve todo, con tus datos.</p>{% endif %}
+  <p class="ayuda">No hay cobros automáticos: pagás cada período cuando quieras, y si no pagás, no se cobra nada.
+    El semestral sale 5½ meses y el anual 10. Precios en pesos al dólar oficial del día{% if cotizacion %} ($ {{ cotizacion.ars_por_usd }} del {{ cotizacion.fecha|date:'d/m/Y' }}){% endif %}.</p>
+</div>
+
+<h2>Pagar</h2>
+{% if not cotizacion %}
+  <p class="error">Todavía no hay cotización del dólar: no se puede armar el precio en pesos. Probá más tarde.</p>
+{% endif %}
+<div class="planes">
+  {% for o in opciones %}
+    <div class="caja plan">
+      <h3>{{ o.plan }} · US$ {{ o.plan.precio_usd|floatformat:0 }}/mes {% if o.plan.pk == s.plan_id and not en_prueba %}<span class="actual">tu plan</span>{% endif %}</h3>
+      <ul>
+        <li>{% if o.plan.max_proyectos %}{{ o.plan.max_proyectos }} proyectos activos{% else %}Proyectos sin límite{% endif %}</li>
+        <li>{% if o.plan.max_usuarios %}{{ o.plan.max_usuarios }} personas{% else %}Personas sin límite{% endif %}</li>
+        {% for f in o.funciones %}<li>{{ f }}</li>{% endfor %}
+      </ul>
+      {% for p in o.periodos %}
+        <form method="post" action="{% url 'taller:suscripcion:pagar' taller=request.taller.slug %}" class="periodo">{% csrf_token %}
+          <input type="hidden" name="plan" value="{{ o.plan.pk }}">
+          <input type="hidden" name="periodo" value="{{ p.periodo }}">
+          <span>
+            {{ p.periodo|capfirst }}{% if p.ars %}: <span class="precio">$ {{ p.ars|floatformat:'0g' }}</span>
+            <span class="detalle">del {{ p.desde|date:'d/m/Y' }} al {{ p.hasta|date:'d/m/Y' }}{% if p.diferencia_usd %}, incluye el cambio de plan ya{% endif %}{% if not p.inmediato %}, empieza cuando termina lo pagado{% endif %}</span>{% endif %}
+          </span>
+          <button type="submit"{% if not p.ars %} disabled{% endif %}>Pagar</button>
+        </form>
+      {% endfor %}
+    </div>
+  {% endfor %}
+</div>
+
+{% if pagos %}
+<h2>Pagos</h2>
+<div class="tabla"><table>
+  <tr><th>Fecha</th><th>Plan</th><th>Período</th><th>Monto</th><th>Estado</th></tr>
+  {% for p in pagos %}
+    <tr><td>{{ p.creado|date:'d/m/Y' }}</td><td>{{ p.plan }}</td>
+      <td>{{ p.get_periodo_display }}{% if p.estado == 'aprobado' and p.desde %}<span class="ayuda">{{ p.desde|date:'d/m/Y' }} al {{ p.hasta|date:'d/m/Y' }}</span>{% endif %}</td>
+      <td>$ {{ p.monto_ars|floatformat:'0g' }}</td><td>{{ p.get_estado_display }}</td></tr>
+  {% endfor %}
+</table></div>
+{% endif %}
+{% endblock %}

@@ -35,5 +35,6 @@ urlpatterns = [
     path('cuenta/llave/entrar/opciones/', llaves.entrar_opciones, name='llave_entrar_opciones'),
     path('cuenta/llave/entrar/', llaves.entrar, name='llave_entrar'),
     path('c/', include('proyectos.urls_cliente')),          # link del cliente, sin login
+    path('pagos/', include('suscripciones.urls_publicas')),  # lo que llama la pasarela (ficha 08)
     path('<slug:taller>/', include('talleres.urls')),
 ]

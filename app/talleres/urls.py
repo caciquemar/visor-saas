@@ -19,6 +19,7 @@ urlpatterns = [
     path('pin/', vistas.entrar_con_pin, name='pin'),
     path('marca/', vistas.marca, name='marca'),
     path('marca/logo/', vistas.logo, name='logo'),
+    path('suscripcion/', include('suscripciones.urls')),
     path('', include('proyectos.urls')),
     path('', include('etiquetas.urls')),
     path('', include('avance.urls')),

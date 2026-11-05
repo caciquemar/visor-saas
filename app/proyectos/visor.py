@@ -134,7 +134,8 @@ def visor(request, taller):
         'avance': {'puesto': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}),
                    'api': reverse('taller:avance:puesto', kwargs={'taller': request.taller.slug}) + 'api/',
                    # para la lista "Avance" del visor: elegir un proceso pinta lo que lo cumplió
-                   'procesos': [{'id': e.pk, 'nombre': e.nombre} for e in procesos_del_taller() if e.activa]},
+                   'procesos': [{'id': e.pk, 'nombre': e.nombre} for e in procesos_del_taller() if e.activa]}
+                  if permite(request.taller, 'avance') else None,       # Producción depende del plan (ficha 08)
         'salir': reverse('salir'),
         'cuenta': reverse('taller:cuenta', kwargs={'taller': request.taller.slug}),
         'cambiar': reverse('entrar') + '?cambiar=1',         # celular compartido: entra otro
@@ -198,6 +199,14 @@ def link_o_404(request):
     return link
 
 
+def marca_en_link(taller):
+    """Marca del taller en el link, según el plan (ficha 08): el nombre va siempre; el logo con 'logo_en_link' y el
+    color con 'colores_en_link' (si no, los colores del servicio)."""
+    con_logo, con_color = permite(taller, 'logo_en_link'), permite(taller, 'colores_en_link')
+    return {'nombre': taller.nombre, 'color': (taller.color or None) if con_color else None,
+            'logo': 'logo' if taller.logo and con_logo else None}
+
+
 def no_disponible(request):
     return render(request, 'proyectos/link_no_disponible.html', status=404)
 
@@ -221,11 +230,13 @@ def cliente(request, codigo):
     taller = request.taller
     config = {
         'cliente': True, 'trabajos': False, 'sinCanto': taller.color_sin_canto,
-        'marca': {'nombre': taller.nombre, 'color': taller.color or None, 'logo': 'logo' if taller.logo else None},
+        'marca': marca_en_link(taller),
         'pie': {'nombre': settings.MARCA_SERVICIO, 'url': settings.MARCA_URL or None},
+        'ar': permite(taller, 'realidad_aumentada'),
     }
     p, v = version_lista(link.proyecto_id)
-    grupos = probador.para_el_visor(probador.grupos_vigentes(p, probador.leer_cliente(v)))
+    grupos = (probador.para_el_visor(probador.grupos_vigentes(p, probador.leer_cliente(v)))
+              if permite(taller, 'probador') else None)
     if grupos:          # probador de colores (ficha 14): solo en el link del cliente
         config.update(probador=grupos, csrf=get_token(request))
     return pagina(config)
@@ -239,8 +250,11 @@ def dato_cliente(request, codigo, ruta):
         return sin_colores(request)
     if ruta == 'cliente.json':
         archivo = f'clientes/{p.codigo_cliente}.json'
-    elif (re.fullmatch(rf'clientes/{re.escape(p.codigo_cliente)}/[\w.-]+\.glb', ruta)
-          or re.fullmatch(r'texturas/[\w.-]+', ruta)):
+    elif re.fullmatch(rf'clientes/{re.escape(p.codigo_cliente)}/[\w.-]+\.glb', ruta):
+        if not permite(request.taller, 'realidad_aumentada'):
+            raise Http404('No existe el archivo')
+        archivo = ruta
+    elif re.fullmatch(r'texturas/[\w.-]+', ruta):
         archivo = ruta
     elif m := re.fullmatch(rf'{probador.CARPETA_OPCIONES}/(\d+)\.\w+', ruta):
         return textura_de_opcion(request, p, int(m.group(1)), ruta)
@@ -298,7 +312,7 @@ def del_probador(request):
     link = link_o_404(request)
     p, v = version_lista(link.proyecto_id)
     vigentes = probador.grupos_vigentes(p, probador.leer_cliente(v))
-    if not vigentes:
+    if not vigentes or not permite(request.taller, 'probador'):
         raise Http404('Este proyecto no tiene colores para probar')
     return p, v, vigentes
 
@@ -355,7 +369,7 @@ def probador_elegir(request, codigo):
 @require_GET
 def logo_cliente(request, codigo):
     link_o_404(request)
-    if not request.taller.logo:
+    if not request.taller.logo or not permite(request.taller, 'logo_en_link'):
         raise Http404('El taller no tiene logo')
     r = abrir_de_taller(request, request.taller.logo.name)
     r['Cache-Control'] = 'no-cache'

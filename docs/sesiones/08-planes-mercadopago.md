@@ -53,3 +53,7 @@ Payway Argentina no tiene API de suscripciones ni permite cobrar una tarjeta gua
   funciones) y los precios se **cambian desde la administración**, no en el código.
 - Pilotos: "sin cobro hasta" por taller en la administración. El 50 % de por vida queda fuera de esta ficha.
 - Esta ficha se hace en modo prueba (sandbox de Payway) antes de la 07b; cobrar de verdad, después del VPS.
+
+## Hecho (2026-11-05, modo prueba)
+Ver *Estado* en `CLAUDE.md`. Falta lo de *Pendientes* de `CLAUDE.md`: probar Payway Sandbox con las claves de prueba
+y la respuesta de soporte, y decidir el sitio de Payway y cuándo prender `SUSCRIPCIONES_ACTIVAS`.

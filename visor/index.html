@@ -1469,7 +1469,8 @@ function verCliente(mueble, mover){
   const lista = datosMuebles(), m = mueble && lista.find(x => x.nombre === mueble);
   const tot = cajaDe(paneles, true).getSize(new THREE.Vector3());
   const medidas = (an, al, pr) => `<div class="datos"><span>ancho <b>${an}</b></span><span>alto <b>${al}</b></span><span>prof. <b>${pr}</b> mm</span></div>`;
-  const botonAR = `<button class="btn-prim btn-ar" id="cAR">
+  // sin realidad aumentada en el plan del taller (VISOR.ar === false, ficha 08) no hay botón; el probador queda igual
+  const botonAR = VISOR.ar === false ? '<div id="lugarProbador"></div>' : `<button class="btn-prim btn-ar" id="cAR">
       <svg width="22" height="22" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"><path d="M12 3l8 4.5v9L12 21l-8-4.5v-9z M12 12l8-4.5 M12 12v9 M12 12L4 7.5"/></svg>
       ${m ? 'Ver este mueble en tu espacio (AR)' : 'Ver en tu espacio (AR)'}</button><div id="lugarProbador"></div>`;
   $('cliente').after($('probador'));      // el probador va debajo del botón de AR: se saca antes de rehacer el bloque
@@ -1483,7 +1484,7 @@ function verCliente(mueble, mover){
         <span class="d">${x.ancho} × ${x.alto} × ${x.prof}</span></button></li>`).join('')}</ul>` : '');
   $('cliente').querySelectorAll('button[data-i]').forEach(b => b.onclick = () => verCliente(lista[+b.dataset.i].nombre, true));
   if ($('cTodo')) $('cTodo').onclick = () => verCliente(null, true);
-  $('cAR').onclick = () => abrirAR(mueble);
+  if ($('cAR')) $('cAR').onclick = () => abrirAR(mueble);
   $('lugarProbador').appendChild($('probador'));
 }
 

@@ -32,8 +32,26 @@ SECCIONES = [
          'materiales'),
         ('Equipo', 'taller:equipo', 'Las personas del taller y sus roles.', ('equipo', 'roles'), 'equipo'),
         ('Marca', 'taller:marca', 'Tu logo y tu color en el link del cliente.', ('marca',), 'marca'),
+        ('Suscripción', 'taller:suscripcion:pantalla', 'Tu plan, hasta cuándo está pago y pagar.', ('suscripcion',),
+         'suscripcion'),
     ]),
 ]
+
+# Pantallas que dependen del plan (ficha 08): función de talleres/limites.py que necesitan. Suscripción aparece solo
+# con el cobro activo (SUSCRIPCIONES_ACTIVAS).
+FUNCION_DE_PANTALLA = {'taller:avance:puesto': 'avance', 'taller:avance:tablero': 'avance',
+                       'taller:avance:procesos': 'avance'}
+SOLO_CON_COBRO = {'taller:suscripcion:pantalla'}
+
+
+def segun_plan(taller, ruta):
+    from django.conf import settings
+
+    from .limites import permite
+    if ruta in SOLO_CON_COBRO:
+        return settings.SUSCRIPCIONES_ACTIVAS
+    funcion = FUNCION_DE_PANTALLA.get(ruta)
+    return funcion is None or permite(taller, funcion)
 
 
 def secciones(request):
@@ -46,7 +64,7 @@ def secciones(request):
     lista = []
     for clave, nombre, descripcion, todas in SECCIONES:
         pantallas = [{'nombre': n, 'url': url(ruta), 'descripcion': d, 'icono': i} for n, ruta, d, roles, i in todas
-                     if any(membresia.puede(p) for p in roles)]
+                     if any(membresia.puede(p) for p in roles) and segun_plan(taller, ruta)]
         if not pantallas:
             continue
         directa = len(todas) == 1

@@ -23,10 +23,11 @@ PERMISOS = [
     ('equipo', 'Equipo (personas)', 'Configuración'),
     ('roles', 'Roles', 'Configuración'),
     ('marca', 'Marca', 'Configuración'),
+    ('suscripcion', 'Suscripción y pagos', 'Configuración'),
 ]
 CLAVES = [p[0] for p in PERMISOS]
 NOMBRES = {p[0]: p[1] for p in PERMISOS}
-SENSIBLES = {'equipo', 'roles', 'marca', 'proyectos_borrar'}
+SENSIBLES = {'equipo', 'roles', 'marca', 'proyectos_borrar', 'suscripcion'}
 
 ADMIN, OFICINA, ARMADOR, INSTALADOR = 'admin', 'oficina', 'armador', 'instalador'
 DE_TODOS = ['visor', 'tareas', 'proyectos', 'puesto', 'tablero']
@@ -34,7 +35,7 @@ DE_TODOS = ['visor', 'tareas', 'proyectos', 'puesto', 'tablero']
 # los cuatro roles fijos antes de la ficha 23.
 BASES = [
     (ADMIN, 'Administrador', False, CLAVES),
-    (OFICINA, 'Oficina', False, [c for c in CLAVES if c not in ('roles', 'marca', 'proyectos_borrar', 'procesos')]),
+    (OFICINA, 'Oficina', False, [c for c in CLAVES if c not in ('roles', 'marca', 'proyectos_borrar', 'procesos', 'suscripcion')]),
     (ARMADOR, 'Armador', True, DE_TODOS),
     (INSTALADOR, 'Instalador', True, DE_TODOS),
 ]

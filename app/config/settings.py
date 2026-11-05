@@ -47,6 +47,7 @@ INSTALLED_APPS = [
     'modulos',
     'modulos.zicar',
     'servicio',
+    'suscripciones',
 ]
 
 AUTH_USER_MODEL = 'usuarios.Usuario'
@@ -64,6 +65,7 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'talleres.middleware.TallerMiddleware',          # separación entre talleres: ver talleres/separacion.py
     'django.contrib.messages.middleware.MessageMiddleware',
+    'suscripciones.middleware.SuscripcionMiddleware',  # solo lectura, suspendida y funciones del plan (ficha 08)
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
@@ -80,6 +82,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'talleres.menu.menu',
+                'suscripciones.contexto.aviso',
             ],
         },
     },
@@ -151,6 +154,23 @@ DATA_UPLOAD_MAX_NUMBER_FILES = 30
 # Pie del link del cliente ("hecho con …") hasta tener nombre comercial; MARCA_URL: la página de venta.
 MARCA_SERVICIO = env('MARCA_SERVICIO', default='Visor')
 MARCA_URL = env('MARCA_URL', default='')
+
+# ---------------------------------------------------------------- suscripciones y cobro (ficha 08)
+# Con 0 (el NAS de los pilotos) no se limita ni se bloquea nada: todo taller tiene todo.
+SUSCRIPCIONES_ACTIVAS = env.bool('SUSCRIPCIONES_ACTIVAS', default=False)
+# simulada: la página de pago es de la app (PC y pruebas). payway: Payway Argentina, Link Checkout.
+PASARELA = env('PASARELA', default='simulada' if DEBUG else 'payway')
+PAYWAY_AMBIENTE = env('PAYWAY_AMBIENTE', default='sandbox')
+if PAYWAY_AMBIENTE not in ('sandbox', 'produccion'):
+    raise environ.ImproperlyConfigured('PAYWAY_AMBIENTE tiene que ser sandbox o produccion')
+PAYWAY_CLAVE_PUBLICA = env('PAYWAY_CLAVE_PUBLICA', default='')
+PAYWAY_CLAVE_PRIVADA = env('PAYWAY_CLAVE_PRIVADA', default='')
+PAYWAY_SITIO = env('PAYWAY_SITIO', default='')
+PAYWAY_ESTABLECIMIENTO = env('PAYWAY_ESTABLECIMIENTO', default='')
+PAYWAY_CUIT = env('PAYWAY_CUIT', default='')
+# Solo si Payway indica otra dirección que la de pasarelas.Payway.URLS
+PAYWAY_URL_API = env('PAYWAY_URL_API', default='')
+PAYWAY_URL_CHECKOUT = env('PAYWAY_URL_CHECKOUT', default='')
 
 # ---------------------------------------------------------------- archivos
 # ALMACENAMIENTO=local: carpeta datos/archivos/ (desarrollo). r2: Cloudflare R2 por la API de S3.

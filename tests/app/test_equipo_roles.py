@@ -25,7 +25,9 @@ def test_cada_taller_arranca_con_los_cuatro_roles(db):
 
 def test_la_migracion_da_los_mismos_accesos_de_antes():
     m = importlib.import_module('talleres.migrations.0006_pasar_a_roles')
-    assert [(b, n, p, list(ps)) for b, n, p, ps in m.BASES] == [(b, n, p, list(ps)) for b, n, p, ps in BASES]
+    despues = {'suscripcion'}           # permisos que se sumaron después de la migración (ficha 08)
+    assert [(b, n, p, list(ps)) for b, n, p, ps in m.BASES] == [
+        (b, n, p, [x for x in ps if x not in despues]) for b, n, p, ps in BASES]
 
 
 def test_los_accesos_iniciales_son_los_de_antes(cliente_de, t):

@@ -15,6 +15,7 @@ dependencies = [
     "whitenoise>=6.8",
     "reportlab>=4.2",
     "webauthn>=2.2",                # llaves de acceso (huella o desbloqueo del celular)
+    "requests>=2.32",               # Payway y la cotización del BCRA (ficha 08)
 ]
 
 [project.optional-dependencies]
