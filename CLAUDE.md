@@ -101,7 +101,8 @@ datos/            (no va a git) base SQLite, cola y archivos en desarrollo
 3. **Módulos por taller.** Las funciones extra se prenden por taller (`taller_modulo`). El módulo **Zicar** está
    habilitado solo para Nord Good: para los demás no se muestra nada y el servidor rechaza el pedido.
    El código de Zicar vive fuera de este repo (`C:\Users\Asus\GitHub\polyboard\Polyboard_to_zicar`).
-4. **Secretos** (claves de Payway, R2, base de datos) solo en `.env`, nunca en el repo.
+4. **Secretos** (clave privada de Payway, R2, base de datos) solo en `.env`, nunca en el repo ni en la base. Lo
+   que no es secreto (sitio, clave pública de Payway) puede ir en la administración.
 5. **Muestras:** por decisión de Martín (2026-10-04) van al repo con sus nombres reales porque el repo es
    **privado**. Si el repo se comparte con alguien de afuera o se hace público, antes hay que anonimizarlas
    (re-exportar desde Polyboard con otro nombre de proyecto y regenerar `esperado/`).
@@ -423,19 +424,27 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   `tests/app/test_suscripciones.py` (cada cambio de estado, pago aprobado y rechazado, reactivación, topes, link del
   cliente, separación, Payway con respuestas falsas, BCRA). Probado en el navegador integrado con la pasarela
   simulada (config `visor-cobro` de `C:/Users/Asus/.claude/launch.json`, puerto 8017, con el cobro prendido).
+- 2026-11-07: **ficha 08, Payway Sandbox y configuración en la administración (pedido de Martín).** Con las claves de
+  Sandbox de Martín (sitio de la tienda, las que usaba con PrestaShop) Payway ya arma el link de pago. La
+  documentación pública estaba vieja: en Sandbox la dirección es `developers.decidir.com/api/v1/checkout-payment-button/`,
+  y Payway no acepta `success_url` con `redirect_url` ni `products` con `payment_description` (quedan `success_url`,
+  `cancel_url` y la descripción, que lleva nuestro código). **Configuración del cobro** en la administración
+  (`suscripciones.Cobro`, una sola fila, `suscripciones/config.py`, en la caché un minuto): cobro activo, pasarela,
+  ambiente, sitio, establecimiento, CUIT y clave pública; los valores del `.env` son solo los iniciales. La **clave
+  privada sigue solo en el `.env`** (decisión de Martín: con ella se consultan y anulan pagos). La pasarela simulada
+  solo existe con `PASARELA_SIMULADA_PERMITIDA` (= `DEBUG`): en el servidor no se puede elegir ni se usa.
 
 ## Pendientes
 
-- **Ficha 08, Payway de verdad** (Martín): cargar en el `.env` de la PC las claves de **Sandbox** (`PASARELA=payway`,
-  `PAYWAY_*`, ver `.env.example`; las de producción solo en el servidor) y la respuesta de soporte (mail redactado
-  el 2026-11-05). Falta confirmar en Sandbox: la dirección de Link Checkout de prueba (`pasarelas.Payway.URLS`), qué
-  manda el aviso y con qué id se consulta el pago (`Payway.id_en`), que `amount` venga en centavos y que el pago
-  consultado muestre nuestro código (va en `payment_description`). Para recibir el aviso en la PC hace falta una
+- **Ficha 08, Payway de verdad**: las claves de Sandbox ya están en la PC y el link se arma. Falta pagar un link de
+  prueba con una tarjeta de prueba de Payway y confirmar: qué manda el aviso y con qué id se consulta el pago
+  (`Payway.id_en`), qué parámetros vuelven a `success_url`, que `amount` venga en centavos y que el pago consultado
+  muestre nuestro código (va en `payment_description`). Para recibir el aviso en la PC hace falta una
   dirección pública (el NAS o un túnel). Si algo no coincide, el pago queda pendiente y se aprueba a mano en la
   administración (Pagos → "Aprobar a mano").
 - Ficha 08, a decidir con Martín: si el sitio de Payway es el de la tienda (las claves que usaba con PrestaShop) o
-  uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender `SUSCRIPCIONES_ACTIVAS` (con la
-  07b) y qué fecha de "sin cobro" darle a cada piloto.
+  uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender el cobro (administración →
+  Configuración del cobro, con la 07b) y qué fecha de "sin cobro" darle a cada piloto.
 
 - **Planos (ficha 16), imprimir de verdad** (Martín): Imprimir o guardar PDF desde la PC y desde el celular, que salgan
   tres hojas A4 apaisadas sin la barra, y medir con escalímetro una cota sobre el papel.

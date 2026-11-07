@@ -3,7 +3,6 @@ simulada (solo con PASARELA=simulada)."""
 import json
 import logging
 
-from django.conf import settings
 from django.contrib import messages
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -18,6 +17,7 @@ from talleres.roles import con_permiso
 from talleres.separacion import con_taller
 
 from . import estados
+from .config import cobro_activo, nombre_de_pasarela
 from .models import Pago, Plan
 from .pasarelas import ErrorPayway
 from .servicio import (confirmar, cotizacion_vigente, estado_de, hoy, nuevo_pago, opciones, plan_vigente,
@@ -46,7 +46,7 @@ def pantalla(request, taller):
         'sin_cobro': s.sin_cobro_hasta and s.sin_cobro_hasta >= dia,
         'opciones': planes, 'cotizacion': cotizacion_vigente(),
         'proyectos': tope(request.taller, 'proyectos'), 'usuarios': tope(request.taller, 'usuarios'),
-        'pagos': s.pagos.select_related('plan')[:24], 'activas': settings.SUSCRIPCIONES_ACTIVAS,
+        'pagos': s.pagos.select_related('plan')[:24], 'activas': cobro_activo(),
         'gracia': estados.GRACIA,
     })
 
@@ -113,7 +113,7 @@ def aviso(request, slug, codigo):
 
 def simulada(request, slug, codigo):
     """La "página de la pasarela" en la PC y en las pruebas: Aprobar o Rechazar y vuelve como lo haría Payway."""
-    if settings.PASARELA != 'simulada':
+    if nombre_de_pasarela() != 'simulada':
         raise Http404()
     taller = get_object_or_404(Taller, slug=slug)
     with con_taller(taller):

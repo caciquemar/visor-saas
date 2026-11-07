@@ -2,13 +2,15 @@
 Ve todos los talleres, por eso lee con `sin_filtro`; para guardar, entra al taller del dato (con_taller)."""
 from django import forms
 from django.contrib import admin, messages
+from django.shortcuts import redirect
 from django.utils import timezone
 
 from talleres.limites import FUNCIONES, NOMBRES
 from talleres.separacion import con_taller
 
 from . import estados
-from .models import Cotizacion, Pago, Plan, Suscripcion
+from .config import cobro
+from .models import Cobro, Cotizacion, Pago, Plan, Suscripcion
 from .servicio import aprobar
 
 
@@ -86,3 +88,23 @@ class PagoAdmin(DelTaller):
                 aprobar(pago, nota=f'Aprobado a mano por {request.user}')
             hechos += 1
         messages.info(request, f'Pagos aprobados: {hechos}.')
+
+
+@admin.register(Cobro)
+class CobroAdmin(admin.ModelAdmin):
+    """Una sola fila: la lista lleva directo a la ficha. La clave privada de Payway no está acá (va en el .env)."""
+    fieldsets = (
+        (None, {'fields': ('activo', 'pasarela')}),
+        ('Payway', {'fields': ('ambiente', 'sitio', 'establecimiento', 'cuit', 'clave_publica'),
+                    'description': 'La clave privada no se carga acá: va en el .env del servidor '
+                                   '(PAYWAY_CLAVE_PRIVADA), de Sandbox o de producción según el ambiente.'}),
+    )
+
+    def changelist_view(self, request, extra_context=None):
+        return redirect('admin:suscripciones_cobro_change', cobro().pk)
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False

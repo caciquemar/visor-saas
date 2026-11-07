@@ -1,7 +1,7 @@
 """Qué puede usar cada taller según su plan (ficha 08). Las funciones y los topes de cada plan se cambian en la
 administración (suscripciones.Plan); acá están solo las claves y las preguntas que hacen las vistas.
 
-Con SUSCRIPCIONES_ACTIVAS=0 (el NAS de los pilotos, hasta cobrar) todo taller tiene todo.
+Con el cobro apagado (administración → Configuración del cobro) todo taller tiene todo.
 
 Funciones:
 - 'trabajos'             anotar y cambiar tareas (sin esto, se ven pero no se cambian)
@@ -12,8 +12,6 @@ Funciones:
 - 'logo_en_link'         logo y nombre del taller en el link del cliente
 - 'colores_en_link'      color del taller en el link del cliente
 """
-from django.conf import settings
-
 FUNCIONES = ('trabajos', 'fotos_de_trabajos', 'avance', 'realidad_aumentada', 'probador', 'logo_en_link',
              'colores_en_link')
 
@@ -41,7 +39,8 @@ MENSAJES = {
 
 
 def activas():
-    return settings.SUSCRIPCIONES_ACTIVAS
+    from suscripciones.config import cobro_activo
+    return cobro_activo()
 
 
 def plan_de(taller):

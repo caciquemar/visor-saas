@@ -4,13 +4,13 @@ import json
 import logging
 from datetime import timedelta
 
-from django.conf import settings
 from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from talleres.separacion import con_taller
 
 from . import estados
+from .config import cobro_activo
 from .models import Cotizacion, Pago, Plan, Suscripcion
 
 log = logging.getLogger('visor.suscripciones')
@@ -191,5 +191,5 @@ def revisar_taller(taller, dia=None):
         revisar_pendientes(s, dia)
         s.refresh_from_db()
         actualizar(s, dia)
-        if settings.SUSCRIPCIONES_ACTIVAS:
+        if cobro_activo():
             mandar_avisos(s, dia or hoy())

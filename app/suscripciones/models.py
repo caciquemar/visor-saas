@@ -139,3 +139,52 @@ class Pago(DatoDeTaller):
     @property
     def monto_ars_entero(self):
         return int(self.monto_ars.quantize(Decimal('1')))
+
+
+class Cobro(models.Model):
+    """Configuración del cobro, una sola fila (la cambia Martín en la administración). La clave privada de Payway
+    NO está acá: queda en el .env (PAYWAY_CLAVE_PRIVADA), porque con ella se consultan y anulan pagos. Los valores
+    iniciales salen del .env (SUSCRIPCIONES_ACTIVAS, PASARELA, PAYWAY_*); después mandan los de acá."""
+    class Pasarela(models.TextChoices):
+        PAYWAY = 'payway', 'Payway'
+        SIMULADA = 'simulada', 'Simulada (solo en la PC)'
+
+    class Ambiente(models.TextChoices):
+        SANDBOX = 'sandbox', 'Prueba (Sandbox): no cobra de verdad'
+        PRODUCCION = 'produccion', 'Producción: cobra de verdad'
+
+    activo = models.BooleanField('cobro activo', default=False,
+                                 help_text='Apagado: todo taller tiene todo, sin topes ni bloqueos, y no se muestra '
+                                           'Mi suscripción. Prendido: se aplican los planes y los estados.')
+    pasarela = models.CharField('pasarela', max_length=12, choices=Pasarela.choices, default=Pasarela.PAYWAY)
+    ambiente = models.CharField('ambiente de Payway', max_length=12, choices=Ambiente.choices,
+                                default=Ambiente.SANDBOX,
+                                help_text='Tiene que coincidir con la clave privada del .env del servidor.')
+    sitio = models.CharField('número de sitio', max_length=20, blank=True)
+    establecimiento = models.CharField('número de establecimiento', max_length=20, blank=True)
+    cuit = models.CharField('CUIT del comercio', max_length=11, blank=True, help_text='Sin guiones.')
+    clave_publica = models.CharField('clave pública de Payway', max_length=100, blank=True)
+    modificado = models.DateTimeField('modificado', auto_now=True)
+
+    class Meta:
+        verbose_name = 'configuración del cobro'
+        verbose_name_plural = 'configuración del cobro'
+
+    def __str__(self):
+        return 'Configuración del cobro'
+
+    def clean(self):
+        from django.conf import settings
+        if self.pasarela == self.Pasarela.SIMULADA and not settings.PASARELA_SIMULADA_PERMITIDA:
+            raise ValidationError({'pasarela': 'La simulada solo existe en la PC (DEBUG=1): en el servidor '
+                                               'cualquiera podría aprobar un pago.'})
+        if self.cuit and not (self.cuit.isdigit() and len(self.cuit) == 11):
+            raise ValidationError({'cuit': 'Tienen que ser 11 números, sin guiones.'})
+        if self.establecimiento and not self.establecimiento.isdigit():
+            raise ValidationError({'establecimiento': 'Solo números.'})
+
+    def save(self, *args, **kwargs):
+        self.pk = 1
+        super().save(*args, **kwargs)
+        from .config import olvidar
+        olvidar()

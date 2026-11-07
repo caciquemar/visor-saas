@@ -16,7 +16,7 @@ APP = Path(__file__).resolve().parents[2] / 'app'
 MODELOS_SIN_TALLER = {'talleres.Taller', 'usuarios.Usuario',
                       'modulos.Modulo',        # catálogo de módulos del servicio: es el mismo para todos
                       'usuarios.LlaveDeAcceso',  # huella de un usuario: no da acceso a ningún taller por sí sola
-                      'suscripciones.Plan', 'suscripciones.Cotizacion'}  # planes y dólar del servicio: iguales para todos
+                      'suscripciones.Plan', 'suscripciones.Cotizacion', 'suscripciones.Cobro'}  # planes y dólar del servicio: iguales para todos
 
 # Direcciones que se pueden ver sin sesión (regla 2). Las del link del cliente (/c/<código>/...) solo responden con un
 # link vigente: tests/app/test_visor.py.

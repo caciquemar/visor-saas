@@ -9,7 +9,8 @@ from django.core import mail
 from django.utils import timezone
 
 from suscripciones import cotizacion, estados
-from suscripciones.models import Cotizacion, Pago, Plan, Suscripcion
+from suscripciones.config import cobro as config_cobro
+from suscripciones.models import Cobro, Cotizacion, Pago, Plan, Suscripcion
 from suscripciones.pasarelas import Payway
 from suscripciones.servicio import confirmar, nuevo_pago, revisar_taller, suscripcion_de
 from talleres import limites
@@ -96,11 +97,17 @@ def test_bajar_de_plan_vale_desde_el_proximo_periodo():
 # ---------------------------------------------------------------- con la base
 
 @pytest.fixture
-def cobro(settings, t):
-    settings.SUSCRIPCIONES_ACTIVAS = True
-    settings.PASARELA = 'simulada'
+def cobro(t):
+    configurar(activo=True, pasarela='simulada')
     Cotizacion.objects.create(fecha=timezone.localdate(), ars_por_usd=Decimal('1500'))
     return t
+
+
+def configurar(**campos):
+    c = config_cobro()
+    for k, v in campos.items():
+        setattr(c, k, v)
+    c.save()
 
 
 def s_de(taller):
@@ -194,8 +201,8 @@ def test_suspendida_lleva_a_pagar_y_los_demas_no_entran(cobro, cliente_de):
     assert cliente_de(cobro.oficina_a).get('/taller-a/notas/').status_code == 403
 
 
-def test_con_el_cobro_apagado_no_se_frena_nada(cobro, cliente_de, settings):
-    settings.SUSCRIPCIONES_ACTIVAS = False
+def test_con_el_cobro_apagado_no_se_frena_nada(cobro, cliente_de):
+    configurar(activo=False)
     guardar(cobro.A, prueba_hasta=timezone.localdate() - timedelta(days=200))
     assert c_post_nota(cliente_de(cobro.dueno_a)).status_code == 200
     with con_taller(cobro.A):
@@ -276,8 +283,27 @@ def test_otro_taller_no_toca_el_pago(cobro, cliente_de, client):
 
 def test_la_pagina_simulada_solo_existe_con_la_pasarela_simulada(cobro, client, settings):
     pago = pago_pendiente(cobro.A, cobro.dueno_a)
-    settings.PASARELA = 'payway'
+    configurar(pasarela='payway')
     assert client.get(f'/pagos/simulada/taller-a/{pago.codigo}/').status_code == 404
+    configurar(pasarela='simulada')
+    settings.PASARELA_SIMULADA_PERMITIDA = False      # el servidor (DEBUG=0): no existe aunque esté elegida
+    assert client.get(f'/pagos/simulada/taller-a/{pago.codigo}/').status_code == 404
+
+
+def test_la_simulada_no_se_puede_elegir_en_el_servidor(db, settings):
+    from django.core.exceptions import ValidationError
+    settings.PASARELA_SIMULADA_PERMITIDA = False
+    c = config_cobro()
+    c.pasarela = 'simulada'
+    with pytest.raises(ValidationError):
+        c.full_clean()
+
+
+def test_la_configuracion_sale_de_la_base_y_es_una_sola(db):
+    configurar(sitio='123', activo=True)
+    assert Cobro.objects.count() == 1 and config_cobro().sitio == '123' and limites.activas()
+    Cobro(sitio='999').save()                    # guardar otra pisa la misma fila
+    assert Cobro.objects.count() == 1 and config_cobro().sitio == '999'
 
 
 def test_revision_diaria_vence_links_viejos_y_avisa_una_vez(cobro):
@@ -318,10 +344,9 @@ class Respuesta:
 
 @pytest.fixture
 def payway(settings, cobro, monkeypatch):
-    settings.PASARELA = 'payway'
-    settings.PAYWAY_AMBIENTE = 'sandbox'
-    settings.PAYWAY_CLAVE_PUBLICA, settings.PAYWAY_CLAVE_PRIVADA = 'publica', 'privada'
-    settings.PAYWAY_SITIO, settings.PAYWAY_ESTABLECIMIENTO, settings.PAYWAY_CUIT = '0001', '123', '20111111112'
+    settings.PAYWAY_CLAVE_PRIVADA = 'privada'          # la única que queda en el .env
+    configurar(pasarela='payway', ambiente='sandbox', clave_publica='publica', sitio='0001', establecimiento='123',
+               cuit='20111111112')
     falso = SimpleNamespace(pedidos=[], pagos={})
 
     def post(url, json=None, headers=None, timeout=None):
@@ -342,7 +367,8 @@ def test_payway_arma_el_link(payway):
     pago = pago_pendiente(t_A(), None)
     assert pago.link == 'https://pago.payway.test/abc' and pago.pasarela == 'payway'
     _, url, cuerpo, enc = payway.pedidos[0]
-    assert url == 'https://developers.decidir.com/api/checkout/link' and enc['apikey'] == 'privada'
+    assert url == 'https://developers.decidir.com/api/v1/checkout-payment-button/link' and enc['apikey'] == 'privada'
+    assert 'products' not in cuerpo and 'redirect_url' not in cuerpo        # Payway no los acepta juntos
     assert cuerpo['total_price'] == 28500.0 and cuerpo['currency'] == 'ARS' and cuerpo['installments'] == [1]
     assert cuerpo['site'] == '0001' and cuerpo['establishment_number'] == 123
     assert pago.codigo in cuerpo['payment_description']
@@ -378,11 +404,11 @@ def test_payway_monto_distinto_no_aprueba(payway):
 
 
 def test_payway_sin_claves_avisa(cobro, settings, cliente_de):
-    settings.PASARELA = 'payway'
+    configurar(pasarela='payway', sitio='1', clave_publica='x')
     settings.PAYWAY_CLAVE_PRIVADA = ''
     r = cliente_de(cobro.dueno_a).post('/taller-a/suscripcion/pagar/', {'plan': plan_db('pro').pk,
                                                                         'periodo': 'mensual'}, follow=True)
-    assert 'Faltan las claves de Payway' in r.content.decode()
+    assert 'Falta la clave privada de Payway' in r.content.decode()
 
 
 def test_cotizacion_del_bcra(db, monkeypatch):
@@ -441,3 +467,22 @@ def test_visor_sin_produccion_en_el_plan(cobro, cliente_de):
     assert r.status_code == 403 and 'Producción' in r.json()['error']
     menu = c.get('/taller-a/').content.decode()
     assert 'Mi puesto' not in menu and 'Suscripción' in menu
+
+
+def test_administracion_de_la_configuracion_del_cobro(db, client, django_user_model):
+    admin = django_user_model.objects.create_superuser('martin@servicio.com', 'clave-larga-de-prueba')
+    client.force_login(admin)
+    r = client.get('/admin/suscripciones/cobro/')
+    assert r.status_code == 302 and r.url.endswith('/admin/suscripciones/cobro/1/change/')
+    r = client.get(r.url)
+    html = r.content.decode()
+    assert r.status_code == 200 and 'clave pública' in html.lower() and 'PAYWAY_CLAVE_PRIVADA' in html
+    assert 'name="clave_privada"' not in html
+    r = client.post('/admin/suscripciones/cobro/1/change/', {'activo': 'on', 'pasarela': 'payway', 'ambiente': 'sandbox',
+                                                             'sitio': '92003323', 'establecimiento': '',
+                                                             'cuit': '20-1', 'clave_publica': 'x'})
+    assert r.status_code == 200 and 'sin guiones' in r.content.decode()          # CUIT mal: no guarda
+    r = client.post('/admin/suscripciones/cobro/1/change/', {'activo': 'on', 'pasarela': 'payway', 'ambiente': 'sandbox',
+                                                             'sitio': '92003323', 'establecimiento': '',
+                                                             'cuit': '20111111112', 'clave_publica': 'x'})
+    assert r.status_code == 302 and config_cobro().activo and config_cobro().sitio == '92003323'

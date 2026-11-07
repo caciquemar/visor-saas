@@ -52,7 +52,8 @@ class Payway:
     busca un id de pago en él; sin id, el pago queda pendiente y se aprueba a mano en la administración."""
     nombre = 'payway'
     URLS = {
-        'sandbox': ('https://developers.decidir.com/api/v2/', 'https://developers.decidir.com/api/checkout/'),
+        'sandbox': ('https://developers.decidir.com/api/v2/',
+                    'https://developers.decidir.com/api/v1/checkout-payment-button/'),   # probado en Sandbox
         'produccion': ('https://ventasonline.payway.com.ar/api/v2/',
                        'https://ventasonline.payway.com.ar/api/v1/checkout-payment-button/'),
     }
@@ -62,12 +63,16 @@ class Payway:
     SEGUNDOS = 20
 
     def __init__(self):
-        api, checkout = self.URLS[settings.PAYWAY_AMBIENTE]
+        from .config import cobro
+        self.cfg = cobro()
+        api, checkout = self.URLS[self.cfg.ambiente]
         self.api = settings.PAYWAY_URL_API or api
         self.checkout = settings.PAYWAY_URL_CHECKOUT or checkout
-        if not (settings.PAYWAY_CLAVE_PRIVADA and settings.PAYWAY_CLAVE_PUBLICA and settings.PAYWAY_SITIO):
-            raise ErrorPayway('Faltan las claves de Payway en el .env (PAYWAY_CLAVE_PRIVADA, PAYWAY_CLAVE_PUBLICA, '
-                              'PAYWAY_SITIO).')
+        if not settings.PAYWAY_CLAVE_PRIVADA:
+            raise ErrorPayway('Falta la clave privada de Payway en el .env del servidor (PAYWAY_CLAVE_PRIVADA).')
+        if not (self.cfg.clave_publica and self.cfg.sitio):
+            raise ErrorPayway('Faltan la clave pública o el número de sitio de Payway en la administración '
+                              '(Configuración del cobro).')
 
     def _encabezados(self):
         return {'apikey': settings.PAYWAY_CLAVE_PRIVADA, 'Content-Type': 'application/json',
@@ -77,24 +82,22 @@ class Payway:
         cuerpo = {
             'origin_platform': 'visor',
             'payment_description': f'{pago.plan} {pago.get_periodo_display().lower()} ({pago.codigo})',
-            'products': [{'id': pago.pk, 'value': float(pago.monto_ars), 'quantity': 1,
-                          'description': f'Plan {pago.plan}, {pago.get_periodo_display().lower()}'}],
+            # sin 'products': Payway no acepta productos y descripción juntos (la descripción lleva el código)
             'total_price': float(pago.monto_ars),
-            'site': settings.PAYWAY_SITIO,
-            'success_url': urls['volver'],
-            'redirect_url': urls['volver'],
+            'site': self.cfg.sitio,
+            'success_url': urls['volver'],          # Payway no acepta success_url y redirect_url juntas
             'cancel_url': urls['volver'],
             'notifications_url': urls['aviso'],
             'template_id': 1,
             'installments': [1],
             'plan_gobierno': False,
-            'public_apikey': settings.PAYWAY_CLAVE_PUBLICA,
+            'public_apikey': self.cfg.clave_publica,
             'currency': 'ARS',
         }
-        if settings.PAYWAY_ESTABLECIMIENTO:
-            cuerpo['establishment_number'] = int(settings.PAYWAY_ESTABLECIMIENTO)
-        if settings.PAYWAY_CUIT:
-            cuerpo['cuit'] = settings.PAYWAY_CUIT
+        if self.cfg.establecimiento:
+            cuerpo['establishment_number'] = int(self.cfg.establecimiento)
+        if self.cfg.cuit:
+            cuerpo['cuit'] = self.cfg.cuit
         r = requests.post(self.checkout + 'link', json=cuerpo, headers=self._encabezados(), timeout=self.SEGUNDOS)
         if r.status_code >= 400:
             log.error('Payway no armó el link (%s): %s', r.status_code, r.text[:500])
@@ -140,4 +143,5 @@ def pasarela_de(nombre):
 
 
 def pasarela():
-    return pasarela_de(settings.PASARELA)
+    from .config import nombre_de_pasarela
+    return pasarela_de(nombre_de_pasarela())

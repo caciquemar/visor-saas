@@ -38,18 +38,16 @@ SECCIONES = [
 ]
 
 # Pantallas que dependen del plan (ficha 08): función de talleres/limites.py que necesitan. Suscripción aparece solo
-# con el cobro activo (SUSCRIPCIONES_ACTIVAS).
+# con el cobro activo (administración → Configuración del cobro).
 FUNCION_DE_PANTALLA = {'taller:avance:puesto': 'avance', 'taller:avance:tablero': 'avance',
                        'taller:avance:procesos': 'avance'}
 SOLO_CON_COBRO = {'taller:suscripcion:pantalla'}
 
 
 def segun_plan(taller, ruta):
-    from django.conf import settings
-
-    from .limites import permite
+    from .limites import activas, permite
     if ruta in SOLO_CON_COBRO:
-        return settings.SUSCRIPCIONES_ACTIVAS
+        return activas()
     funcion = FUNCION_DE_PANTALLA.get(ruta)
     return funcion is None or permite(taller, funcion)
 

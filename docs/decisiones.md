@@ -336,6 +336,12 @@ funciones y precios se cambian en la administración. Descartado por ahora: déb
 a mano cada mes desde su portal). Cobrar en el exterior queda pendiente: otra pasarela se suma como otra clase en
 `suscripciones/pasarelas.py`.
 
+## 2026-11-07 · Configuración del cobro en la administración, clave privada en el .env
+Martín pidió cargar los parámetros de Payway desde la administración. Van ahí el interruptor del cobro, la
+pasarela, el ambiente, el sitio, el establecimiento, el CUIT y la clave pública (`suscripciones.Cobro`). La clave
+privada queda solo en el `.env`: con ella se consultan y anulan pagos, y así no está en la base, en sus copias ni a
+la vista de quien entre a la administración. La pasarela simulada no se puede usar con `DEBUG=0`.
+
 ## 2026-11-05 · Interruptor del cobro
 `SUSCRIPCIONES_ACTIVAS=0` por defecto: el NAS de los pilotos (y Nord Good) sigue sin límites. Los talleres que ya
 existían quedan "sin cobro" hasta 2099 con el plan Fábrica; los nuevos arrancan en prueba. Se prende al pasar al VPS.

@@ -4,14 +4,14 @@
 - suspendida o para borrar: solo "Mi suscripción" para quien la maneja; el link del cliente no anda.
 - funciones del plan por sección: Producción (`avance`) necesita la función 'avance'.
 
-Con SUSCRIPCIONES_ACTIVAS=0 no hace nada."""
-from django.conf import settings
+Con el cobro apagado (configuración del cobro) no hace nada."""
 from django.http import JsonResponse
 from django.shortcuts import redirect, render
 
 from talleres.limites import MENSAJES, permite
 
 from . import estados
+from .config import cobro_activo
 from .servicio import estado_de, suscripcion_de
 
 SEGUROS = ('GET', 'HEAD', 'OPTIONS')
@@ -39,7 +39,7 @@ class SuscripcionMiddleware:
     def __call__(self, request):
         request.suscripcion = request.estado_suscripcion = None
         taller = getattr(request, 'taller', None)
-        if not settings.SUSCRIPCIONES_ACTIVAS or taller is None:
+        if taller is None or not cobro_activo():
             return self.get_response(request)
         s = suscripcion_de(taller)
         e = estado_de(s)
@@ -65,7 +65,7 @@ class SuscripcionMiddleware:
 
     def process_view(self, request, vista, args, kwargs):
         taller = getattr(request, 'taller', None)
-        if not settings.SUSCRIPCIONES_ACTIVAS or taller is None or request.resolver_match is None:
+        if taller is None or request.resolver_match is None or not cobro_activo():
             return None
         for seccion, funcion in FUNCION_DE_SECCION.items():
             if seccion in request.resolver_match.namespaces and not permite(taller, funcion):

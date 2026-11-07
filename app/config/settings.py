@@ -159,7 +159,9 @@ MARCA_URL = env('MARCA_URL', default='')
 # Con 0 (el NAS de los pilotos) no se limita ni se bloquea nada: todo taller tiene todo.
 SUSCRIPCIONES_ACTIVAS = env.bool('SUSCRIPCIONES_ACTIVAS', default=False)
 # simulada: la página de pago es de la app (PC y pruebas). payway: Payway Argentina, Link Checkout.
-PASARELA = env('PASARELA', default='simulada' if DEBUG else 'payway')
+PASARELA = env('PASARELA', default='simulada' if DEBUG else 'payway')        # valor inicial (después, la administración)
+# La pasarela simulada (la página "Aprobar el pago" de la app) solo en la PC: en el servidor sería pagar sin pagar.
+PASARELA_SIMULADA_PERMITIDA = DEBUG
 PAYWAY_AMBIENTE = env('PAYWAY_AMBIENTE', default='sandbox')
 if PAYWAY_AMBIENTE not in ('sandbox', 'produccion'):
     raise environ.ImproperlyConfigured('PAYWAY_AMBIENTE tiene que ser sandbox o produccion')
