@@ -443,11 +443,15 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   restricción de siempre). Probado en Sandbox con tres pagos de la Visa de prueba 4507990000004905: los dos de
   $ 29.900 casi juntos quedaron pendientes ("coinciden"), y el de $ 29.864 se aprobó solo y corrió lo pagado. Si
   Payway falla al armar el link no queda un pago suelto. `tzdata` en las dependencias (hora argentina en Linux).
+  Probado además: Payway **acepta pero ignora** un `site_transaction_id` propio en el link (el pago queda con el suyo,
+  `CH…`, y buscar por `siteOperationId` no lo encuentra), y `GET /payments` lista **del más viejo al más nuevo** de a
+  50: `Payway.buscar` recorre las páginas y recuerda en la caché desde cuál hay pagos recientes. No hay
+  documentación pública de Link Checkout más allá del ejemplo de los SDK (el sitio de documentación da 404).
 
 ## Pendientes
 
 - **Ficha 08, Payway**: falta (1) la respuesta de soporte (cómo se vincula el pago con el link, qué manda el aviso,
-  en qué unidad va `amount`) y (2) ver el aviso de verdad: necesita una dirección https pública, o sea instalar en el
+  en qué unidad va `amount`; mandar nuestro `site_transaction_id` no sirve) y (2) ver el aviso de verdad: necesita una dirección https pública, o sea instalar en el
   NAS y pagar un link de prueba desde ahí (el registro de `visor-saas-web` muestra el aviso). Si Payway da un
   vínculo directo, se puede dejar de depender del monto único. Desde la PC no se puede pagar con el botón (Payway
   rechaza 127.0.0.1); para probar, armar el link desde la consola con direcciones https de ejemplo.

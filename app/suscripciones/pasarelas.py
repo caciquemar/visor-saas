@@ -12,7 +12,9 @@ from zoneinfo import ZoneInfo
 
 import requests
 from django.conf import settings
+from django.core.cache import cache
 from django.urls import reverse
+from django.utils import timezone
 from django.utils.dateparse import parse_datetime
 
 from .models import Pago
@@ -155,13 +157,34 @@ class Payway:
         verificado = self.coincide(pago, datos)
         return Resultado(estado, pago.monto_ars if verificado else None, str(datos.get('id', '')), datos, verificado)
 
+    POR_PAGINA = 50
+    MAX_PAGINAS = 40
+    VIEJOS = timedelta(days=5)      # páginas con todo más viejo que esto no se vuelven a leer
+
     def buscar(self, pago):
-        """Los pagos aprobados del sitio que coinciden con el link (los más nuevos primero; Payway pagina)."""
-        r = requests.get(f'{self.api}payments', params={'pageSize': 50, 'siteId': self.cfg.sitio},
-                         headers=self._encabezados(), timeout=self.SEGUNDOS)
-        r.raise_for_status()
-        return [d for d in r.json().get('results', [])
-                if str(d.get('status', '')).lower() in ('approved', 'accredited') and self.coincide(pago, d)]
+        """Los pagos aprobados del sitio que coinciden con el link. Payway los lista del más viejo al más nuevo (visto
+        en Sandbox), de a POR_PAGINA: se recorren desde la primera página con pagos recientes, que queda anotada en
+        la caché para no releer todo el historial del sitio cada vez."""
+        clave = f'payway-desde-{self.cfg.ambiente}-{self.cfg.sitio}'
+        offset = cache.get(clave, 0)
+        limite_viejos = timezone.now() - self.VIEJOS
+        encontrados = []
+        for _ in range(self.MAX_PAGINAS):
+            r = requests.get(f'{self.api}payments', params={'pageSize': self.POR_PAGINA, 'offset': offset,
+                                                            'siteId': self.cfg.sitio},
+                             headers=self._encabezados(), timeout=self.SEGUNDOS)
+            r.raise_for_status()
+            datos = r.json()
+            pagina = datos.get('results', [])
+            encontrados += [d for d in pagina if str(d.get('status', '')).lower() in ('approved', 'accredited')
+                            and self.coincide(pago, d)]
+            ultima = self.fecha_de(pagina[-1]) if pagina else None
+            if len(pagina) == self.POR_PAGINA and ultima is not None and ultima < limite_viejos:
+                cache.set(clave, offset + len(pagina), timeout=None)        # toda la página es vieja
+            if not datos.get('hasMore') or not pagina:
+                break
+            offset += len(pagina)
+        return encontrados
 
     def consultar(self, pago, aviso=None):
         id_pago = pago.id_externo or self.id_en(aviso)

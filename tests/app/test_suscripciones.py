@@ -355,8 +355,10 @@ def payway(settings, cobro, monkeypatch):
 
     def get(url, headers=None, timeout=None, params=None):
         falso.pedidos.append(('get', url, params, headers))
-        if url.endswith('/payments'):                                      # la lista, los más nuevos primero
-            return Respuesta(200, {'results': [dict(x) for x in reversed(falso.pagos.values())], 'hasMore': False})
+        if url.endswith('/payments'):                     # la lista: del más viejo al más nuevo, de a pageSize
+            todos = [dict(x) for x in falso.pagos.values()]
+            desde, cuantos = params.get('offset', 0), params['pageSize']
+            return Respuesta(200, {'results': todos[desde:desde + cuantos], 'hasMore': desde + cuantos < len(todos)})
         return Respuesta(200, dict(falso.pagos.get(url.rsplit('/', 1)[1], {})))
 
     import suscripciones.pasarelas as p
@@ -420,7 +422,7 @@ def test_payway_con_dos_pagos_iguales_no_elige(payway):
     payway.pagos['2'] = pago_payway(2, pago.monto_ars, ahora)
     with con_taller(t_A()):
         assert confirmar(pago) == 'pendiente'
-        assert Pago.objects.get(pk=pago.pk).datos['coinciden'] == ['2', '1']
+        assert Pago.objects.get(pk=pago.pk).datos['coinciden'] == ['1', '2']
 
 
 def test_payway_un_pago_aprueba_un_solo_link(payway):
@@ -533,3 +535,23 @@ def test_si_payway_no_arma_el_link_no_queda_un_pago_suelto(payway, monkeypatch):
         pago_pendiente(t_A(), None)
     with con_taller(t_A()):
         assert not Pago.objects.exists()
+
+
+def test_payway_recorre_las_paginas_y_saltea_las_viejas(payway, monkeypatch):
+    import suscripciones.pasarelas as p
+    monkeypatch.setattr(p.Payway, 'POR_PAGINA', 2)
+    hace_mucho = timezone.now() - timedelta(days=30)
+    for i in range(1, 6):                                                          # 5 pagos viejos: 2 páginas llenas
+        payway.pagos[str(i)] = pago_payway(i, 1000 + i, hace_mucho)
+    pago = pago_pendiente(t_A(), None)
+    payway.pagos['9'] = pago_payway(9, pago.monto_ars, timezone.now())            # en la 3ª página
+    with con_taller(t_A()):
+        assert confirmar(pago) == 'aprobado'
+    from django.core.cache import cache
+    assert cache.get('payway-desde-sandbox-0001') == 4                              # la próxima arranca en la 3ª
+    otro = pago_pendiente(t_A(), None)
+    payway.pagos['10'] = pago_payway(10, otro.monto_ars, timezone.now())
+    payway.pedidos.clear()
+    with con_taller(t_A()):
+        assert confirmar(otro) == 'aprobado'
+    assert [x[2]['offset'] for x in payway.pedidos if x[0] == 'get'] == [4, 6]       # no releyó las viejas
