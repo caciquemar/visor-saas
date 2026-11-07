@@ -451,10 +451,11 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
 ## Pendientes
 
 - **Ficha 08, Payway**: falta (1) la respuesta de soporte (cómo se vincula el pago con el link, qué manda el aviso,
-  en qué unidad va `amount`; mandar nuestro `site_transaction_id` no sirve) y (2) ver el aviso de verdad: necesita una dirección https pública, o sea instalar en el
-  NAS y pagar un link de prueba desde ahí (el registro de `visor-saas-web` muestra el aviso). Si Payway da un
-  vínculo directo, se puede dejar de depender del monto único. Desde la PC no se puede pagar con el botón (Payway
-  rechaza 127.0.0.1); para probar, armar el link desde la consola con direcciones https de ejemplo.
+  en qué unidad va `amount`; mandar nuestro `site_transaction_id` no sirve) y (2) el aviso: probado en el NAS con
+  0.7.32 el 2026-11-07, el pago de Sandbox se aprobó solo al volver (monto único + fecha), pero Payway no hizo
+  ningún POST a `/pagos/aviso/` (Sandbox quizá no avisa). Si Payway da un vínculo directo, se puede dejar de
+  depender del monto único. En el NAS, Establecimiento y CUIT van vacíos en Sandbox ("comercio inválido" si no).
+  Desde la PC no se puede pagar con el botón (Payway rechaza 127.0.0.1).
 - Ficha 08, a decidir con Martín: si el sitio de Payway es el de la tienda (las claves que usaba con PrestaShop) o
   uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender el cobro (administración →
   Configuración del cobro, con la 07b) y qué fecha de "sin cobro" darle a cada piloto.
