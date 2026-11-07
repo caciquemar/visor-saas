@@ -555,3 +555,15 @@ def test_payway_recorre_las_paginas_y_saltea_las_viejas(payway, monkeypatch):
     with con_taller(t_A()):
         assert confirmar(otro) == 'aprobado'
     assert [x[2]['offset'] for x in payway.pedidos if x[0] == 'get'] == [4, 6]       # no releyó las viejas
+
+
+def test_el_aviso_queda_guardado_sin_datos_de_tarjeta(cobro, client, caplog):
+    pago = pago_pendiente(cobro.A, cobro.dueno_a)
+    cuerpo = '{"id": 16190254, "status": "approved", "card_data": {"card_number": "450799XXXXXX4905"}, "bin": "450799"}'
+    with caplog.at_level('INFO', logger='visor.suscripciones'):
+        assert client.post(f'/pagos/aviso/taller-a/{pago.codigo}/', data=cuerpo,
+                           content_type='application/json').status_code == 200
+    assert '16190254' in caplog.text and '4905' not in caplog.text
+    with con_taller(cobro.A):
+        avisos = Pago.objects.get(pk=pago.pk).datos['avisos']
+    assert avisos == [{'id': 16190254, 'status': 'approved', 'bin': '450799'}]

@@ -87,6 +87,16 @@ def volver(request, taller, codigo):
     return redirect('taller:suscripcion:pantalla', taller=taller)
 
 
+def sin_tarjeta(datos):
+    """El aviso sin nada que parezca de la tarjeta (número, vencimiento, titular, código)."""
+    if isinstance(datos, dict):
+        return {k: sin_tarjeta(v) for k, v in datos.items()
+                if not any(x in str(k).lower() for x in ('card', 'tarjeta', 'cvv', 'security', 'expiration', 'pan'))}
+    if isinstance(datos, list):
+        return [sin_tarjeta(x) for x in datos]
+    return datos
+
+
 @csrf_exempt
 def aviso(request, slug, codigo):
     """La pasarela avisa que un pago cambió. No se le cree: se consulta. Siempre responde 200 (si no, reintenta)."""
@@ -104,6 +114,13 @@ def aviso(request, slug, codigo):
         if not isinstance(datos, dict):
             datos = {}
         datos = {**request.GET.dict(), **request.POST.dict(), **datos}
+        # Qué manda Payway no está documentado: queda en el registro (sin datos de la tarjeta) para verlo.
+        log.info('Aviso de la pasarela para el pago %s (%s %s): %s', codigo, request.method,
+                 request.content_type, json.dumps(sin_tarjeta(datos), ensure_ascii=False)[:4000])
+        pagos = Pago.objects.filter(codigo=codigo, estado=Pago.Estado.PENDIENTE)
+        avisos = [*(pago.datos or {}).get('avisos', []), sin_tarjeta(datos)][-5:]
+        pagos.update(datos={**(pago.datos or {}), 'avisos': avisos})
+        pago.refresh_from_db()
         try:
             confirmar(pago, aviso=datos)
         except Exception:

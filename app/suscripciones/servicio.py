@@ -117,7 +117,8 @@ def confirmar(pago, aviso=None):
         return pago.estado
     r = pasarela_de(pago.pasarela).consultar(pago, aviso)
     if r.datos:
-        pago.datos = {**r.datos, **({'simulada': pago.datos['simulada']} if 'simulada' in (pago.datos or {}) else {})}
+        guardar = {k: v for k, v in (pago.datos or {}).items() if k in ('simulada', 'avisos')}
+        pago.datos = {**r.datos, **guardar}
     if r.estado == Pago.Estado.APROBADO:
         problema = problema_con(pago, r)
         if problema:
