@@ -336,6 +336,12 @@ funciones y precios se cambian en la administración. Descartado por ahora: déb
 a mano cada mes desde su portal). Cobrar en el exterior queda pendiente: otra pasarela se suma como otra clase en
 `suscripciones/pasarelas.py`.
 
+## 2026-11-07 · Reconocer el pago de Payway por monto único y fecha
+El pago de Payway no trae nada nuestro (ni descripción ni código) y la vuelta llega sin parámetros. Hasta que Payway
+diga cómo vincularlos, cada link sale entre $ 1 y $ 99 más barato que el precio publicado (nadie paga más de lo que
+vio) y el pago se reconoce por ese monto exacto y la fecha. Si dos pagos coinciden, no se elige: queda a mano.
+Descartado: aprobar con el aviso solo (no sabemos qué trae y lo puede mandar cualquiera).
+
 ## 2026-11-07 · Configuración del cobro en la administración, clave privada en el .env
 Martín pidió cargar los parámetros de Payway desde la administración. Van ahí el interruptor del cobro, la
 pasarela, el ambiente, el sitio, el establecimiento, el CUIT y la clave pública (`suscripciones.Cobro`). La clave

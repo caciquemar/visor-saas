@@ -354,7 +354,9 @@ def payway(settings, cobro, monkeypatch):
         return Respuesta(200, {'payment_link': 'https://pago.payway.test/abc'})
 
     def get(url, headers=None, timeout=None, params=None):
-        falso.pedidos.append(('get', url, None, headers))
+        falso.pedidos.append(('get', url, params, headers))
+        if url.endswith('/payments'):                                      # la lista, los más nuevos primero
+            return Respuesta(200, {'results': [dict(x) for x in reversed(falso.pagos.values())], 'hasMore': False})
         return Respuesta(200, dict(falso.pagos.get(url.rsplit('/', 1)[1], {})))
 
     import suscripciones.pasarelas as p
@@ -369,7 +371,9 @@ def test_payway_arma_el_link(payway):
     _, url, cuerpo, enc = payway.pedidos[0]
     assert url == 'https://developers.decidir.com/api/v1/checkout-payment-button/link' and enc['apikey'] == 'privada'
     assert 'products' not in cuerpo and 'redirect_url' not in cuerpo        # Payway no los acepta juntos
-    assert cuerpo['total_price'] == 28500.0 and cuerpo['currency'] == 'ARS' and cuerpo['installments'] == [1]
+    assert 28500 - 99 <= cuerpo['total_price'] <= 28500 - 1                # monto único: unos pesos menos
+    assert cuerpo['total_price'] == float(pago.monto_ars)
+    assert cuerpo['currency'] == 'ARS' and cuerpo['installments'] == [1]
     assert cuerpo['site'] == '0001' and cuerpo['establishment_number'] == 123
     assert pago.codigo in cuerpo['payment_description']
     assert cuerpo['notifications_url'].endswith(f'/pagos/aviso/taller-a/{pago.codigo}/')
@@ -380,27 +384,61 @@ def t_A():
     return Taller.objects.get(slug='taller-a')
 
 
-def test_payway_aprueba_solo_si_monto_y_codigo_coinciden(payway):
+def pago_payway(id_, monto, cuando, estado='approved', escala=10):
+    """Un pago como los que devuelve Payway: `amount` ×10 (Sandbox) y la hora argentina con una Z de más."""
+    from zoneinfo import ZoneInfo
+    hora = cuando.astimezone(ZoneInfo('America/Argentina/Buenos_Aires')).strftime('%Y-%m-%dT%H:%MZ')
+    return {'id': id_, 'site_transaction_id': f'CH{id_}', 'status': estado, 'amount': int(monto * escala),
+            'date': hora, 'card_data': {'card_number': '450799'}}
+
+
+def test_payway_reconoce_el_pago_por_monto_y_fecha(payway):
     pago = pago_pendiente(t_A(), None)
-    payway.pagos['777'] = {'id': 777, 'status': 'approved', 'amount': 2850000,
-                           'description': f'Taller mensual ({pago.codigo})', 'card_data': {'card_number': '4507'}}
-    payway.pagos['888'] = {'id': 888, 'status': 'approved', 'amount': 2850000, 'description': 'otro pago'}
+    ahora = timezone.now()
+    payway.pagos['1'] = pago_payway(1, pago.monto_ars + 3, ahora)                  # otro monto
+    payway.pagos['2'] = pago_payway(2, pago.monto_ars, ahora - timedelta(hours=1))  # antes del link
     with con_taller(t_A()):
-        assert confirmar(pago, aviso={'payment_id': '888'}) == 'pendiente'          # no es este pago
-        assert 'revisar a mano' in Pago.objects.get(pk=pago.pk).nota
-        assert confirmar(Pago.objects.get(pk=pago.pk), aviso={'payment_id': '777'}) == 'aprobado'
+        assert confirmar(pago) == 'pendiente'
+        payway.pagos['3'] = pago_payway(3, pago.monto_ars, ahora)                  # este
+        assert confirmar(Pago.objects.get(pk=pago.pk), aviso={}) == 'aprobado'
         p = Pago.objects.get(pk=pago.pk)
-        assert p.id_externo == '777' and 'card_data' not in p.datos
-        # el mismo pago de Payway no aprueba otro de los nuestros
-        otro = pago_pendiente(t_A(), None)
-        assert confirmar(otro, aviso={'payment_id': '777'}) == 'pendiente'
+        assert p.id_externo == '3' and p.datos['site_transaction_id'] == 'CH3' and 'card_data' not in p.datos
+        assert suscripcion_de(t_A()).pagado_hasta == p.hasta
 
 
-def test_payway_monto_distinto_no_aprueba(payway):
+def test_payway_acepta_amount_en_centavos(payway):
     pago = pago_pendiente(t_A(), None)
-    payway.pagos['5'] = {'status': 'approved', 'amount': 100, 'description': pago.codigo}
+    payway.pagos['9'] = pago_payway(9, pago.monto_ars, timezone.now(), escala=100)
+    with con_taller(t_A()):
+        assert confirmar(pago) == 'aprobado'
+
+
+def test_payway_con_dos_pagos_iguales_no_elige(payway):
+    pago = pago_pendiente(t_A(), None)
+    ahora = timezone.now()
+    payway.pagos['1'] = pago_payway(1, pago.monto_ars, ahora)
+    payway.pagos['2'] = pago_payway(2, pago.monto_ars, ahora)
+    with con_taller(t_A()):
+        assert confirmar(pago) == 'pendiente'
+        assert Pago.objects.get(pk=pago.pk).datos['coinciden'] == ['2', '1']
+
+
+def test_payway_un_pago_aprueba_un_solo_link(payway):
+    primero = pago_pendiente(t_A(), None)
+    payway.pagos['7'] = pago_payway(7, primero.monto_ars, timezone.now())
+    with con_taller(t_A()):
+        assert confirmar(primero) == 'aprobado'
+        otro = pago_pendiente(t_A(), None)
+        Pago.objects.filter(pk=otro.pk).update(monto_ars=primero.monto_ars)        # mismo monto a propósito
+        assert confirmar(Pago.objects.get(pk=otro.pk), aviso={'payment_id': '7'}) == 'pendiente'
+
+
+def test_payway_aviso_con_un_pago_ajeno_no_aprueba(payway):
+    pago = pago_pendiente(t_A(), None)
+    payway.pagos['5'] = pago_payway(5, pago.monto_ars + 500, timezone.now())       # existe, pero es de otro monto
     with con_taller(t_A()):
         assert confirmar(pago, aviso={'id': '5'}) == 'pendiente'
+        assert 'revisar a mano' in Pago.objects.get(pk=pago.pk).nota
 
 
 def test_payway_sin_claves_avisa(cobro, settings, cliente_de):

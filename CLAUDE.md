@@ -433,19 +433,24 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   ambiente, sitio, establecimiento, CUIT y clave pública; los valores del `.env` son solo los iniciales. La **clave
   privada sigue solo en el `.env`** (decisión de Martín: con ella se consultan y anulan pagos). La pasarela simulada
   solo existe con `PASARELA_SIMULADA_PERMITIDA` (= `DEBUG`): en el servidor no se puede elegir ni se usa.
+- 2026-11-07: **ficha 08, el pago de Payway se reconoce solo (plan B, pedido de Martín).** En Sandbox, Payway
+  rechaza direcciones de vuelta y de aviso que no sean https públicas, vuelve a `success_url` sin parámetros, y su
+  pago (`GET /payments`) no trae nuestra descripción ni código; `amount` vino ×10 (299000 por $ 29.900) y `date`
+  dice Z pero es hora argentina. Por eso: cada link de Payway tiene un **monto único** (entre $ 1 y $ 99 menos que el
+  precio publicado, `servicio.nuevo_pago`) y el pago se reconoce buscando en Payway uno aprobado del sitio con ese
+  monto (×10 o ×100), hecho desde 5 minutos antes de crear el link hasta 2 días después (`Payway.coincide`,
+  `Payway.buscar`); con más de uno no elige (queda para aprobar a mano); un pago de Payway aprueba un solo link (la
+  restricción de siempre). Probado en Sandbox con tres pagos de la Visa de prueba 4507990000004905: los dos de
+  $ 29.900 casi juntos quedaron pendientes ("coinciden"), y el de $ 29.864 se aprobó solo y corrió lo pagado. Si
+  Payway falla al armar el link no queda un pago suelto. `tzdata` en las dependencias (hora argentina en Linux).
 
 ## Pendientes
 
-- **Ficha 08, Payway de verdad**: lo probado en Sandbox el 2026-11-07 (dos pagos con la Visa de prueba
-  4507990000004905, aprobados): (1) Payway **rechaza `success_url`/`notifications_url` que no sean https públicas**
-  (127.0.0.1 da 403): desde la PC no se puede pagar desde la pantalla, solo en el servidor. (2) La vuelta a
-  `success_url` llega **sin ningún parámetro**. (3) El pago en `GET /payments` **no trae nuestra descripción ni
-  código**: solo `id`, `site_transaction_id` propio de Payway (`CH…`, el "Nro operación" del comprobante) y
-  `token`. (4) `amount` vino **299000 para $ 29.900** (×10, no en centavos), mandando el total como 29900.0 o
-  29900.00. Con esto hoy un pago real queda pendiente (no coincide monto ni código) y se aprueba a mano. Falta saber
-  qué manda el aviso a `notifications_url` (necesita https pública: el NAS) y preguntarle a Payway cómo se vincula
-  el pago con el link y en qué unidad va `amount`. En la pantalla de pago el comercio figura como "NAZAR ANCHORENA
-  MARIA" (el sitio de la tienda): otro motivo para pedir un sitio aparte.
+- **Ficha 08, Payway**: falta (1) la respuesta de soporte (cómo se vincula el pago con el link, qué manda el aviso,
+  en qué unidad va `amount`) y (2) ver el aviso de verdad: necesita una dirección https pública, o sea instalar en el
+  NAS y pagar un link de prueba desde ahí (el registro de `visor-saas-web` muestra el aviso). Si Payway da un
+  vínculo directo, se puede dejar de depender del monto único. Desde la PC no se puede pagar con el botón (Payway
+  rechaza 127.0.0.1); para probar, armar el link desde la consola con direcciones https de ejemplo.
 - Ficha 08, a decidir con Martín: si el sitio de Payway es el de la tienda (las claves que usaba con PrestaShop) o
   uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender el cobro (administración →
   Configuración del cobro, con la 07b) y qué fecha de "sin cobro" darle a cada piloto.

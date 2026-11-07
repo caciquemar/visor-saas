@@ -16,6 +16,7 @@ dependencies = [
     "reportlab>=4.2",
     "webauthn>=2.2",                # llaves de acceso (huella o desbloqueo del celular)
     "requests>=2.32",               # Payway y la cotización del BCRA (ficha 08)
+    "tzdata",                       # hora argentina de los pagos de Payway (en Linux puede no venir)
 ]
 
 [project.optional-dependencies]

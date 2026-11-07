@@ -6,15 +6,19 @@
 """
 import logging
 from dataclasses import dataclass, field
+from datetime import timedelta
 from decimal import Decimal
+from zoneinfo import ZoneInfo
 
 import requests
 from django.conf import settings
 from django.urls import reverse
+from django.utils.dateparse import parse_datetime
 
 from .models import Pago
 
 log = logging.getLogger('visor.suscripciones')
+HORA_ARGENTINA = ZoneInfo('America/Argentina/Buenos_Aires')
 
 
 @dataclass
@@ -23,10 +27,12 @@ class Resultado:
     monto: Decimal | None = None
     id_externo: str = ''
     datos: dict = field(default_factory=dict)
+    verificado: bool = False        # la pasarela comprobó que este pago es el del link (no solo que existe)
 
 
 class Simulada:
     nombre = 'simulada'
+    monto_unico = False
 
     def crear_link(self, pago, urls):
         ruta = reverse('pagos:simulada', args=[pago.taller.slug, pago.codigo])
@@ -35,7 +41,7 @@ class Simulada:
     def consultar(self, pago, aviso=None):
         elegido = (pago.datos or {}).get('simulada')
         if elegido in (Pago.Estado.APROBADO, Pago.Estado.RECHAZADO):
-            return Resultado(elegido, pago.monto_ars, f'sim-{pago.pk}', pago.datos)
+            return Resultado(elegido, pago.monto_ars, f'sim-{pago.pk}', pago.datos, verificado=True)
         return Resultado()
 
 
@@ -45,11 +51,13 @@ class ErrorPayway(RuntimeError):
 
 class Payway:
     """API de Payway Venta Online. Link Checkout: POST <checkout>/link (encabezado `apikey` con la clave privada)
-    devuelve `payment_link`. El estado se consulta con GET <api>/payments/<id>.
+    devuelve `payment_link`. Los pagos se leen con GET <api>/payments.
 
-    Lo que la documentación pública no dice, y se confirma en el ambiente de prueba (pedido a soporte de Payway):
-    qué manda el aviso a `notifications_url` y con qué id buscar el pago. Por eso el aviso se guarda entero y se
-    busca un id de pago en él; sin id, el pago queda pendiente y se aprueba a mano en la administración."""
+    Probado en Sandbox (2026-11-07): la vuelta a `success_url` no trae parámetros y el pago no trae nuestra
+    descripción ni el código del link. Por eso cada link tiene un **monto único** (unos pesos menos que el precio,
+    `servicio.nuevo_pago`) y el pago se reconoce buscando en Payway uno aprobado de ese monto, del sitio, hecho
+    después de crear el link y antes de que venza. Si hay más de uno, no se elige: queda para aprobar a mano.
+    `amount` vino ×10 (299000 por $ 29.900), no en centavos como dicen los SDK: se aceptan las dos escalas."""
     nombre = 'payway'
     URLS = {
         'sandbox': ('https://developers.decidir.com/api/v2/',
@@ -61,6 +69,10 @@ class Payway:
                'rejected': Pago.Estado.RECHAZADO, 'annulled': Pago.Estado.RECHAZADO,
                'group_rejected': Pago.Estado.RECHAZADO}
     SEGUNDOS = 20
+    monto_unico = True
+    ESCALAS = (10, 100)             # amount = pesos × 10 (visto en Sandbox) o × 100 (centavos, según los SDK)
+    VENTANA = timedelta(days=2)     # un pago cuenta para un link si se hizo hasta 2 días después de crearlo
+    TOLERANCIA = timedelta(minutes=5)   # relojes y la hora sin segundos de Payway
 
     def __init__(self):
         from .config import cobro
@@ -117,22 +129,56 @@ class Payway:
         datos = (aviso or {}).get('data')
         return Payway.id_en(datos) if isinstance(datos, dict) else ''
 
+    @classmethod
+    def coincide(cls, pago, datos):
+        """El pago de Payway es por el monto de este link (en alguna de las escalas) y se hizo en su ventana."""
+        amount = datos.get('amount')
+        if amount is None or not any(Decimal(str(amount)) == pago.monto_ars * e for e in cls.ESCALAS):
+            return False
+        fecha = cls.fecha_de(datos)
+        if fecha is None:
+            return False
+        return pago.creado - cls.TOLERANCIA <= fecha <= pago.creado + cls.VENTANA
+
+    @staticmethod
+    def fecha_de(datos):
+        """`date` de Payway ("2026-11-07T10:29Z"): dice Z pero es hora argentina (visto en Sandbox: el comprobante
+        decía 10:29 y el link se creó 10:27 de la Argentina, 13:27 UTC)."""
+        fecha = parse_datetime(str(datos.get('date') or '').rstrip('Z'))
+        if fecha is None:
+            return None
+        return fecha.replace(tzinfo=HORA_ARGENTINA)
+
+    def resultado(self, pago, datos):
+        datos = {k: v for k, v in datos.items() if k != 'card_data'}       # nada de la tarjeta
+        estado = self.ESTADOS.get(str(datos.get('status', '')).lower(), Pago.Estado.PENDIENTE)
+        verificado = self.coincide(pago, datos)
+        return Resultado(estado, pago.monto_ars if verificado else None, str(datos.get('id', '')), datos, verificado)
+
+    def buscar(self, pago):
+        """Los pagos aprobados del sitio que coinciden con el link (los más nuevos primero; Payway pagina)."""
+        r = requests.get(f'{self.api}payments', params={'pageSize': 50, 'siteId': self.cfg.sitio},
+                         headers=self._encabezados(), timeout=self.SEGUNDOS)
+        r.raise_for_status()
+        return [d for d in r.json().get('results', [])
+                if str(d.get('status', '')).lower() in ('approved', 'accredited') and self.coincide(pago, d)]
+
     def consultar(self, pago, aviso=None):
         id_pago = pago.id_externo or self.id_en(aviso)
-        if not id_pago:
-            return Resultado()
-        r = requests.get(f'{self.api}payments/{id_pago}', headers=self._encabezados(), timeout=self.SEGUNDOS)
-        if r.status_code == 404:
-            return Resultado()
-        r.raise_for_status()
-        datos = r.json()
-        datos.pop('card_data', None)            # no se guarda nada de la tarjeta
-        estado = self.ESTADOS.get(str(datos.get('status', '')).lower(), Pago.Estado.PENDIENTE)
-        # En la API de pagos `amount` va en centavos (README de los SDK de Payway). Si no fuera así, el monto no
-        # coincide y el pago no se aprueba solo (servicio.confirmar): nunca se aprueba de más.
-        monto = datos.get('amount')
-        monto = Decimal(str(monto)) / 100 if monto is not None else None
-        return Resultado(estado, monto, str(id_pago), datos)
+        if id_pago:
+            r = requests.get(f'{self.api}payments/{id_pago}', headers=self._encabezados(), timeout=self.SEGUNDOS)
+            if r.status_code == 404:
+                return Resultado()
+            r.raise_for_status()
+            return self.resultado(pago, r.json())
+        encontrados = self.buscar(pago)
+        if len(encontrados) == 1:
+            return self.resultado(pago, encontrados[0])
+        if len(encontrados) > 1:
+            log.warning('Pago %s: %s pagos de Payway coinciden; queda para aprobar a mano', pago.codigo,
+                        len(encontrados))
+            return Resultado(datos={'coinciden': [str(d.get('id')) for d in encontrados]})
+        return Resultado()
 
 
 PASARELAS = {'simulada': Simulada, 'payway': Payway}

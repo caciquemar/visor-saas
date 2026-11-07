@@ -1,7 +1,7 @@
 """Lo que la suscripción hace con la base: crearla, actualizar su estado, cobrar y confirmar pagos. Las reglas están
 en `estados.py`; acá todo corre dentro del taller del contexto (pedido, tarea o administración con con_taller)."""
-import json
 import logging
+import secrets
 from datetime import timedelta
 
 from django.db import IntegrityError, transaction
@@ -94,8 +94,11 @@ def nuevo_pago(s, plan, periodo, usuario, urls):
     if c is None:
         raise ValueError('Todavía no hay cotización del dólar.')
     p = pasarela()
+    monto = c['ars']
+    if p.monto_unico:       # unos pesos menos que el precio: así el pago de Payway se reconoce por el monto
+        monto -= secrets.randbelow(99) + 1
     pago = Pago.objects.create(suscripcion=s, plan=plan, periodo=periodo, meses=c['meses'], monto_usd=c['usd'],
-                               cotizacion=c['cotizacion'], monto_ars=c['ars'], pasarela=p.nombre, creado_por=usuario,
+                               cotizacion=c['cotizacion'], monto_ars=monto, pasarela=p.nombre, creado_por=usuario,
                                desde=c['desde'], hasta=c['hasta'])
     try:
         pago.link, pago.id_externo = p.crear_link(pago, urls(pago))
@@ -143,16 +146,17 @@ def confirmar(pago, aviso=None):
 def problema_con(pago, r):
     """Por qué un pago que la pasarela da por aprobado no se aprueba solo (el id llegó en un aviso o en la vuelta,
     que cualquiera puede mandar): monto distinto o que no sea el pago de este link. Queda para revisar a mano."""
+    if not es_este(pago, r):
+        return 'No se pudo comprobar que el pago sea el de este link (monto o fecha): revisar a mano en Payway'
     if r.monto is None or abs(r.monto - pago.monto_ars) > 1:
         return f'Monto distinto en la pasarela: {r.monto} (se pidió {pago.monto_ars})'
-    if not es_este(pago, r):
-        return 'La pasarela no muestra el código de este pago: revisar a mano en Payway'
     return ''
 
 
 def es_este(pago, r):
-    """El pago que mostró la pasarela trae el código de este link (va en la descripción del pago)."""
-    return pago.pasarela == 'simulada' or pago.codigo in json.dumps(r.datos, ensure_ascii=False)
+    """La pasarela comprobó que el pago es el de este link: la simulada, por el código; Payway, por el monto único y la
+    fecha (pasarelas.Payway.coincide), porque su pago no trae nada nuestro."""
+    return r.verificado
 
 
 def aprobar(pago, nota=''):
