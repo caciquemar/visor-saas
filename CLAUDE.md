@@ -436,12 +436,16 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
 
 ## Pendientes
 
-- **Ficha 08, Payway de verdad**: las claves de Sandbox ya están en la PC y el link se arma. Falta pagar un link de
-  prueba con una tarjeta de prueba de Payway y confirmar: qué manda el aviso y con qué id se consulta el pago
-  (`Payway.id_en`), qué parámetros vuelven a `success_url`, que `amount` venga en centavos y que el pago consultado
-  muestre nuestro código (va en `payment_description`). Para recibir el aviso en la PC hace falta una
-  dirección pública (el NAS o un túnel). Si algo no coincide, el pago queda pendiente y se aprueba a mano en la
-  administración (Pagos → "Aprobar a mano").
+- **Ficha 08, Payway de verdad**: lo probado en Sandbox el 2026-11-07 (dos pagos con la Visa de prueba
+  4507990000004905, aprobados): (1) Payway **rechaza `success_url`/`notifications_url` que no sean https públicas**
+  (127.0.0.1 da 403): desde la PC no se puede pagar desde la pantalla, solo en el servidor. (2) La vuelta a
+  `success_url` llega **sin ningún parámetro**. (3) El pago en `GET /payments` **no trae nuestra descripción ni
+  código**: solo `id`, `site_transaction_id` propio de Payway (`CH…`, el "Nro operación" del comprobante) y
+  `token`. (4) `amount` vino **299000 para $ 29.900** (×10, no en centavos), mandando el total como 29900.0 o
+  29900.00. Con esto hoy un pago real queda pendiente (no coincide monto ni código) y se aprueba a mano. Falta saber
+  qué manda el aviso a `notifications_url` (necesita https pública: el NAS) y preguntarle a Payway cómo se vincula
+  el pago con el link y en qué unidad va `amount`. En la pantalla de pago el comercio figura como "NAZAR ANCHORENA
+  MARIA" (el sitio de la tienda): otro motivo para pedir un sitio aparte.
 - Ficha 08, a decidir con Martín: si el sitio de Payway es el de la tienda (las claves que usaba con PrestaShop) o
   uno aparte para el servicio (mejor para la factura de la ficha 09); cuándo prender el cobro (administración →
   Configuración del cobro, con la 07b) y qué fecha de "sin cobro" darle a cada piloto.

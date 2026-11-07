@@ -486,3 +486,12 @@ def test_administracion_de_la_configuracion_del_cobro(db, client, django_user_mo
                                                              'sitio': '92003323', 'establecimiento': '',
                                                              'cuit': '20111111112', 'clave_publica': 'x'})
     assert r.status_code == 302 and config_cobro().activo and config_cobro().sitio == '92003323'
+
+
+def test_si_payway_no_arma_el_link_no_queda_un_pago_suelto(payway, monkeypatch):
+    import suscripciones.pasarelas as p
+    monkeypatch.setattr(p.requests, 'post', lambda *a, **k: Respuesta(403, {'message': 'Forbidden'}))
+    with pytest.raises(p.ErrorPayway):
+        pago_pendiente(t_A(), None)
+    with con_taller(t_A()):
+        assert not Pago.objects.exists()

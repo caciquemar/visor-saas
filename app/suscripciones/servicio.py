@@ -97,7 +97,11 @@ def nuevo_pago(s, plan, periodo, usuario, urls):
     pago = Pago.objects.create(suscripcion=s, plan=plan, periodo=periodo, meses=c['meses'], monto_usd=c['usd'],
                                cotizacion=c['cotizacion'], monto_ars=c['ars'], pasarela=p.nombre, creado_por=usuario,
                                desde=c['desde'], hasta=c['hasta'])
-    pago.link, pago.id_externo = p.crear_link(pago, urls(pago))
+    try:
+        pago.link, pago.id_externo = p.crear_link(pago, urls(pago))
+    except Exception:
+        pago.delete()               # sin link no hay pago: no queda un "pendiente" suelto
+        raise
     pago.save(update_fields=['link', 'id_externo'])
     return pago
 
