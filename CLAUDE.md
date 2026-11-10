@@ -447,8 +447,18 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   `CH…`, y buscar por `siteOperationId` no lo encuentra), y `GET /payments` lista **del más viejo al más nuevo** de a
   50: `Payway.buscar` recorre las páginas y recuerda en la caché desde cuál hay pagos recientes. No hay
   documentación pública de Link Checkout más allá del ejemplo de los SDK (el sitio de documentación da 404).
+- 2026-11-10: **arreglo de la AR en Android (aviso de Martín).** En el NAS, "Ver en tu espacio" abría la cámara y se
+  cerraba. Con R2 todo archivo del link redirige a una URL firmada, y Scene Viewer (que baja el GLB por su cuenta)
+  no la seguía: el GLB era válido (se bajó con curl y estaba bien). Ahora los `.glb` los entrega la app directo
+  (`abrir_de_taller(..., directo=True)` desde `proyectos/visor.py: servir`); JSON y texturas siguen yendo a R2.
 
 ## Pendientes
+
+- **AR en Android, confirmar el arreglo** en el celular de Martín (con y sin cambiar colores). Si sigue cerrándose,
+  mirar si Cloudflare le pone un desafío al pedido de Scene Viewer (Security → Events, user agent de Google).
+- Conversor, `glb_ar`: toda imagen se mete en el GLB con `mimeType='image/jpeg'`, pero la biblioteca acepta PNG y
+  WEBP. Un tablero con imagen PNG o WEBP rompería la AR (WEBP no vale en glTF sin extensión). Convertir a JPG al
+  subir la textura o al armar el GLB.
 
 - **Ficha 08, Payway**: falta (1) la respuesta de soporte (cómo se vincula el pago con el link, qué manda el aviso,
   en qué unidad va `amount`; mandar nuestro `site_transaction_id` no sirve) y (2) el aviso: probado en el NAS con

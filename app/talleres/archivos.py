@@ -42,13 +42,14 @@ def ruta_valida(taller, ruta):
     return ruta
 
 
-def abrir_de_taller(request, ruta, descarga=False, nombre=None):
+def abrir_de_taller(request, ruta, descarga=False, nombre=None, directo=False):
     """Única forma de entregar un archivo de taller: 404 si no es del taller del pedido. `nombre`: con el que
-    se descarga (si no, el de la ruta sin el prefijo al azar de `ruta_de_taller`)."""
+    se descarga (si no, el de la ruta sin el prefijo al azar de `ruta_de_taller`). Con R2 se redirige a una URL
+    firmada; `directo=True` lo entrega la app (para quien no sigue la redirección, como Scene Viewer de Android)."""
     ruta = ruta_valida(getattr(request, 'taller', None), ruta)
     if ruta is None or not default_storage.exists(ruta):
         raise Http404('No existe el archivo')
-    if settings.ALMACENAMIENTO == 'r2':
+    if settings.ALMACENAMIENTO == 'r2' and not directo:
         return redirect(default_storage.url(ruta))          # URL firmada, vence en una hora
     return FileResponse(default_storage.open(ruta, 'rb'), as_attachment=descarga,
                         filename=nombre or posixpath.basename(ruta).partition('_')[2] or posixpath.basename(ruta))

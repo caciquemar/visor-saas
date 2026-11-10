@@ -193,6 +193,19 @@ def test_link_sirve_solo_la_version_cliente(client, t, pa):
     assert client.get(base + 'materiales.json').json() == {}
 
 
+def test_con_r2_los_glb_salen_directo(client, t, pa, settings):
+    """Scene Viewer (Android) baja el GLB por su cuenta y con la redirección a R2 se cerraba: el GLB lo entrega la
+    app; lo demás sigue yendo a la URL firmada."""
+    settings.ALMACENAMIENTO = 'r2'
+    link = link_de(t.A, pa)
+    base = f'/c/{link.codigo}/data/'
+    assert client.get(base + 'cliente.json').status_code == 302
+    assert client.get(base + 'texturas/1-abc.jpg').status_code == 302
+    r = client.get(base + f'clientes/{pa.codigo_cliente}/todo.glb')
+    assert r.status_code == 200 and r['Content-Type'] == 'model/gltf-binary'
+    assert b''.join(r.streaming_content) == b'glTF-falso'
+
+
 @pytest.mark.parametrize('ruta', ['proyecto.json', '../proyecto.json', 'clientes/../proyecto.json', 'index.json',
                                   'clientes/OTRO/todo.glb', 'texturas/../proyecto.json', 'x/proyecto.json'])
 def test_link_no_da_el_proyecto_del_taller(client, t, pa, ruta):

@@ -71,8 +71,10 @@ def pagina(config):
 
 def servir(request, ruta):
     """Un archivo del taller del pedido (abrir_de_taller da 404 si no es suyo), con la caché del nginx actual:
-    JSON y GLB se revalidan; las texturas de una versión no cambian."""
-    r = abrir_de_taller(request, ruta)
+    JSON y GLB se revalidan; las texturas de una versión no cambian. Los GLB (realidad aumentada) los entrega la
+    app sin redirigir a R2: el visor le pasa la dirección a Scene Viewer (Android), que la baja por su cuenta y con
+    la redirección abría la cámara y se cerraba."""
+    r = abrir_de_taller(request, ruta, directo=ruta.endswith('.glb'))
     if ruta.endswith(('.json', '.glb')):
         r['Cache-Control'] = 'no-cache'
     elif '/texturas/' in ruta:
