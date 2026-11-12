@@ -432,7 +432,7 @@ body.modo-cliente .hoja{max-height:36vh}
 .error{display:none;margin-bottom:12px;color:var(--alerta);font-weight:500}
 .error.visible{display:block}
 
-.acciones{display:grid;grid-template-columns:1fr auto;gap:10px}
+.acciones{display:grid;grid-template-columns:1fr;gap:10px}
 .btn-escanear{font:600 20px var(--sans);color:#fff;background:var(--tiza);border:0;border-radius:12px;
   min-height:60px;display:flex;align-items:center;justify-content:center;gap:10px}
 .manual{display:flex;gap:6px}
@@ -451,6 +451,12 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
   box-shadow:0 0 0 1px rgba(255,255,255,.5),0 0 18px var(--tiza)}
 .marco{position:absolute;left:8%;right:8%;top:calc(50% - 70px);height:140px;border:2px solid rgba(255,255,255,.85);border-radius:10px}
 .scanner p{position:absolute;left:0;right:0;top:calc(50% + 90px);text-align:center;color:#fff;font-size:17px;margin:0;padding:0 24px}
+/* el número a mano va acá (antes eran dos botones más al lado de Escanear) */
+.scanner .manual{position:absolute;left:0;right:0;bottom:calc(100px + env(safe-area-inset-bottom,0px));
+  justify-content:center;align-items:center;gap:8px;padding:0 16px}
+.scanner .manual label{color:#fff;font-size:16px}
+.scanner .manual input{width:110px;height:52px;background:#fff}
+.scanner .manual button{height:52px;padding:0 18px;background:#fff}
 .scanner .cerrar{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(28px + env(safe-area-inset-bottom,0px));
   font:600 18px var(--sans);color:var(--tinta);background:#fff;border:0;border-radius:30px;padding:14px 30px}
 @media (prefers-reduced-motion:no-preference){
@@ -563,10 +569,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
         <svg width="26" height="26" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M7 9v6M10 9v6M13 9v6M16.5 9v6"/></svg>
         Escanear pieza
       </button>
-      <form class="manual" id="manual" onsubmit="return false">
-        <input id="numManual" inputmode="numeric" autocomplete="off" placeholder="Nº" aria-label="Número de mecanizado">
-        <button id="btnBuscar" type="submit">Ver</button>
-      </form>
     </div>
   </section>
 </div>
@@ -603,6 +605,11 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
   <video id="video" playsinline muted></video>
   <div class="marco"></div><div class="guia"></div>
   <p id="scanMsg">Apuntá al código de barras de la etiqueta</p>
+  <form class="manual" id="manual" onsubmit="return false">
+    <label for="numManual">o escribí el número</label>
+    <input id="numManual" inputmode="numeric" autocomplete="off" placeholder="Nº" aria-label="Número de mecanizado">
+    <button id="btnBuscar" type="submit">Ver</button>
+  </form>
   <button class="cerrar" id="btnCerrar">Cancelar</button>
 </div>
 
@@ -2109,7 +2116,12 @@ renderer.domElement.addEventListener('pointerup', e => {
 
 function limpiarNombre(s){ return s.replace(/\s*\[\d+\]/g,'').replace(/_(\d+)$/,' $1'); }
 
-$('manual').addEventListener('submit', () => { const v = $('numManual').value.trim(); if (v){ buscar(v); $('numManual').blur(); } });
+$('manual').addEventListener('submit', () => {            // el número escrito en la pantalla del escáner
+  const v = $('numManual').value.trim();
+  if (!v) return;
+  $('numManual').blur(); cerrarEscaner();
+  if (AVP.id) registrarEnAvance(v); else buscar(v);
+});
 $('verPieza').onclick = () => { if (!seleccion || !seleccion.mallas.length) return; modoPieza = true; pintar(); verPieza(); };
 function verPieza(){
   // mirar de frente la cara con más taladros
@@ -2300,11 +2312,13 @@ function lecturaFirme(txt, formato){
 async function abrirEscaner(){
   $('scanMsg').textContent = 'Apuntá al código de la etiqueta (barras o QR)';
   $('scanner').classList.add('visible');
+  $('numManual').value = '';
   detenido = false; lecturaPrevia = null;
   try{
     flujo = await navigator.mediaDevices.getUserMedia({video:{facingMode:'environment', width:{ideal:1280}, height:{ideal:720}}});
   }catch(err){
-    $('scanMsg').textContent = 'No se pudo abrir la cámara. Dale permiso al navegador o escribí el número a mano.';
+    $('scanMsg').textContent = 'No se pudo abrir la cámara. Dale permiso al navegador o escribí el número acá abajo.';
+    $('numManual').focus();
     return;
   }
   const v = $('video'); v.srcObject = flujo; await v.play();
