@@ -373,7 +373,10 @@ body.modo-cliente .hoja{max-height:36vh}
 .ficha{display:none;margin-bottom:14px}
 .ficha.visible{display:block}
 .etiqueta-num{font-size:14px;font-weight:500;color:var(--tinta-2);margin-bottom:2px}
-.titulo{display:flex;flex-direction:column;min-width:0;flex:1}
+.titulo{display:flex;flex-direction:column;min-width:0;flex:1;position:relative}
+/* la X de la pieza, en el mismo lugar que la del mueble: vuelve un paso (al mueble) */
+.titulo .cerrar-pm{position:absolute;right:-8px;top:-8px;width:44px;height:44px;display:grid;place-items:center}
+.titulo .nombre{padding-right:40px}
 .acciones-sel .insignia{margin-left:2px}
 .f-tal{display:flex;flex-wrap:wrap;gap:0 10px;margin-top:2px;font:400 14px var(--sans);color:var(--tinta-2)}
 .f-tal b{color:var(--tinta);font-weight:600}
@@ -540,6 +543,7 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
     <div class="error solo-taller" id="error"></div>
     <div class="ficha solo-taller" id="ficha">
       <div class="titulo">
+        <button class="cerrar-pm" id="fCerrar" aria-label="Cerrar la pieza y volver al mueble"><svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button>
         <span class="nombre" id="fNombre"></span>
         <span class="f-linea" id="fMedidas"></span>
         <span class="f-linea"><span id="fEtiqueta">Nº de mecanizado</span> <span class="num" id="fNum"></span></span>
@@ -728,12 +732,15 @@ function espesorCanto(c){
   if (conEspesorPorPieza === null) conEspesorPorPieza = paneles.some(m => (m.userData.p.cantos || []).some(k => k.esp));
   return conEspesorPorPieza ? null : (infoCanto(c.mat) || {}).espesor;
 }
+// cuántas piezas tiene el mueble (para "pieza 2 de 8"): la misma cuenta que la lista de piezas del mueble
+const piezasDelMueble = mueble => new Set(paneles.map(m => m.userData.p).filter(x => x.mueble === mueble)
+  .map(x => (x.pieza || '') + '|' + x.nombre)).size;
 function textoMaterial(p, conTablero = true){
   const esp = Math.round(p.med[2]*10)/10;
   let t = conTablero ? `${muestra(p.mat)}Tablero <b>${p.mat || '—'} ${esp} mm</b>` : '';
   const br = t ? '<br>' : '';
   const con = (p.cantos || []).filter(c => c.mat);
-  if (!con.length) return t + br + 'Sin cantos';
+  if (!con.length) return t + br + 'Cantos: ninguno';
   const porMat = {};
   con.forEach(c => { const k = c.mat + '|' + (espesorCanto(c) || ''); (porMat[k] = porMat[k] || []).push(c); });
   const lineas = Object.values(porMat).map(cs => {
@@ -2022,6 +2029,7 @@ function tareasMueble(){
 }
 $('btnMuebles').onclick = () => $('panelMuebles').hidden || panelMueble ? abrirMuebles() : cerrarMuebles();
 $('pmCerrar').onclick = () => cerrarMuebles();
+$('fCerrar').onclick = () => deseleccionar();
 function cerrarMuebles(){
   $('panelMuebles').hidden = true; panelMueble = null;
   if (seleccion && seleccion.soloMueble){ seleccion = null; pintar(); }
@@ -2053,7 +2061,7 @@ function seleccionar(mallas){
   $('fNombre').textContent = limpiarNombre(p.nombre);
   const [a,b,e] = p.med.map(v => Math.round(v*10)/10);
   $('fMedidas').innerHTML = `<span><b>${a} × ${b} × ${e}</b> mm</span><span>${muestra(p.mat)}${esc(p.mat || '—')}</span>`
-    + (p.pieza ? `<span>pieza ${esc(p.pieza)}</span>` : '');
+    + (p.pieza ? `<span>pieza ${esc(p.pieza)} de ${piezasDelMueble(p.mueble)}</span>` : '');
   $('fDatos').innerHTML = (p.cant > 1 ? `<span><b>${p.cant}</b> piezas iguales</span>` : '')
     + ((infoMaterial(p.mat) || {}).textura && Math.abs(a - b) > 1.5 ? `<span>veta a lo largo de <b>${p.vt ? b : a}</b> mm</span>` : '');
   let nota = '';
