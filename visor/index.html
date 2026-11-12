@@ -61,6 +61,10 @@ header select{font:inherit;font-size:16px;color:var(--tinta);background:var(--ho
   border:1px solid var(--linea);border-radius:10px;padding:6px 10px;min-width:0;flex:0 1 auto;text-overflow:ellipsis}
 header h1,.btn-muebles{flex:none}
 body.modo-avance #proyecto{margin-left:auto}
+/* Muebles y Tareas ya no son botones de la barra: Tareas está en la lista de la derecha (Armado, Tareas y los
+   procesos) y los muebles se eligen tocando el dibujo. Siguen en la página porque el resto del visor los usa. */
+#btnMuebles,#btnTrabajos{display:none!important}
+header #proyecto{margin-left:auto}
 .btn-muebles.btn-trabajos{margin-left:0}
 @media (max-width:430px){ header{gap:8px} .btn-muebles{padding:6px 8px;font-size:14px} .btn-muebles .txt{display:none} }
 .insignia{min-width:20px;height:20px;padding:0 6px;border-radius:10px;background:var(--alerta);color:#fff;
@@ -217,17 +221,13 @@ body:not(.modo-cliente) .solo-cliente, body.modo-cliente .solo-taller{display:no
 .h-proyecto{color:var(--tinta-2);font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .h-proyecto[hidden],.vista button[hidden]{display:none}
 /* celular (visor del taller): la barra va en dos filas para que todo se lea y se toque con el dedo. Arriba, el menú
-   y el proyecto con su nombre entero (ocupa el resto de la fila, así lo demás baja); abajo, Muebles, Tareas y
-   Armado/Avance. Lo que se toca mide 44 px o más. */
+   en una fila: el menú, el proyecto y la lista (Armado, Tareas y los procesos). Lo que se toca mide 44 px o más. */
 @media (max-width:899px){
   body:not(.modo-cliente) header{flex-wrap:wrap;gap:8px;padding:8px 12px}
   body:not(.modo-cliente) header h1{display:none}
   body:not(.modo-cliente) .btn-menu{width:44px;height:44px;margin-left:-4px}
-  body:not(.modo-cliente) #proyecto{order:1;flex:1 1 calc(100% - 60px);min-height:44px;margin-left:0;font-weight:600}
-  body:not(.modo-cliente) .btn-muebles,body:not(.modo-cliente) #selAvance{order:2;flex:1 1 0;min-height:44px;
-    margin-left:0;justify-content:center;font-size:16px;padding:6px 10px}
-  body:not(.modo-cliente) .btn-muebles .txt{display:inline}
-  body:not(.modo-cliente) #btnMuebles{margin-left:0}
+  body:not(.modo-cliente) #proyecto{flex:1.5 1 0;min-height:44px;margin-left:0;font-weight:600}
+  body:not(.modo-cliente) #selAvance{flex:1 1 0;min-height:44px;margin-left:0;font-size:16px;padding:6px 10px}
   .vista{top:6px;gap:8px}
   .vista button{min-height:44px;padding:8px 14px;font-size:16px}
   .vista .desplegable button{min-height:44px}
@@ -2446,21 +2446,47 @@ function leyendaAvance(){
     + ver.map(k => `<div><i style="background:${d.colores[k]}"></i>${esc(d.nombres[k])} <b>${d.totales[k]}</b></div>`).join('')
     + (d.por_pieza ? '<div>muebles; en color, las piezas hechas</div>' : '');
 }
-// la lista "Avance" de arriba: elegir un proceso abre este mismo proyecto en modo avance (en color lo que lo
-// cumplió); "Armado" vuelve al visor de siempre
-if (!CLIENTE && VISOR.avance && (VISOR.avance.procesos || []).length){
-  const s = $('selAvance');
+// la lista de arriba a la derecha: Armado (el visor de siempre), Tareas (abre la lista de tareas), una línea y los
+// procesos (cada uno abre este mismo proyecto en modo avance: en color lo que lo cumplió)
+if (!CLIENTE){
+  const s = $('selAvance'), procesos = (VISOR.avance && VISOR.avance.procesos) || [];
+  const conTareas = VISOR.trabajos !== false;
   s.innerHTML = '<option value="">Armado</option>'
-    + VISOR.avance.procesos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
-  s.value = AVP.id ? String(AVP.id) : '';
-  s.hidden = false;
-  s.onchange = () => {
+    + (conTareas ? '<option value="tareas">Tareas</option>' : '')
+    + (procesos.length ? '<option disabled>──────────</option>' : '')
+    + procesos.map(p => `<option value="${p.id}">${esc(p.nombre)}</option>`).join('');
+  // lo elegido sigue a lo que se ve: el proceso del modo avance, Tareas con su lista abierta, o Armado
+  const poner = () => { s.value = AVP.id ? String(AVP.id) : !$('panelTrabajos').hidden ? 'tareas' : ''; };
+  poner(); s.hidden = false;
+  new MutationObserver(poner).observe($('panelTrabajos'), {attributes: true, attributeFilter: ['hidden']});
+  if (conTareas){                         // cuántas faltan, al lado: "Tareas (3)"
+    const cuenta = () => { const n = $('tbInsignia').hidden ? '' : $('tbInsignia').textContent;
+      s.querySelector('option[value=tareas]').textContent = n ? `Tareas (${n})` : 'Tareas'; };
+    cuenta(); new MutationObserver(cuenta).observe($('tbInsignia'), {attributes: true, childList: true, characterData: true, subtree: true});
+  }
+  const ir = avance => {
     const q = new URLSearchParams(location.search);
     q.delete('avance'); q.delete('carga'); q.delete('pz'); q.delete('m');
     if (item && item.id != null) q.set('p', item.id);
-    if (s.value) q.set('avance', s.value);
+    if (avance) q.set('avance', avance);
     location.search = q.toString();
   };
+  s.onchange = () => {
+    if (s.value === 'tareas'){
+      if (!AVP.id) return abrirTrabajos();
+      try{ sessionStorage.setItem('visor.abrir', 'tareas'); }catch(e){}       // desde el modo avance: al volver al visor
+      return ir('');
+    }
+    if (s.value === '' && !AVP.id) return cerrarTrabajos();
+    ir(s.value);
+  };
+  // se pidió Tareas desde el modo avance: se abren cuando el proyecto terminó de cargar
+  let pedido = null;
+  try{ pedido = sessionStorage.getItem('visor.abrir'); sessionStorage.removeItem('visor.abrir'); }catch(e){}
+  if (pedido === 'tareas' && !AVP.id && conTareas){
+    const t = setInterval(() => { if (datos && item){ clearInterval(t); abrirTrabajos(); } }, 200);
+    setTimeout(() => clearInterval(t), 15000);
+  }
 }
 // escáner del modo avance (ficha 21): se registra en el proceso, igual que en Mi puesto, y el 3D se repinta
 AVP.carga = +new URLSearchParams(location.search).get('carga') || 'nueva';
