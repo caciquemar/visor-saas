@@ -97,8 +97,7 @@ def test_visor_es_el_index_html_con_la_configuracion(cliente_de, t):
     assert avance == {'puesto': '/taller-a/puesto/', 'api': '/taller-a/puesto/api/'}
     # armador: las pantallas de todos, sin las de dueño y oficina
     assert [(x['nombre'], x['url']) for x in menu] == [
-        ('Inicio', '/taller-a/'), ('Armado', '/taller-a/armado/'), ('Visor', '/taller-a/visor/'),
-        ('Tareas', '/taller-a/trabajos/'), ('Proyectos', '/taller-a/proyectos/'),
+        ('Inicio', '/taller-a/'), ('Visor', '/taller-a/visor/'), ('Proyectos', '/taller-a/proyectos/'),
         ('Producción', '/taller-a/produccion/'),
         ('Mi puesto', '/taller-a/puesto/'), ('Tablero de control', '/taller-a/tablero/')]
     assert [x['nombre'] for x in menu if x['actual']] == ['Visor']
@@ -415,9 +414,9 @@ def test_color_sin_canto_invalido_y_permisos(cliente_de, t):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción',
+    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Producción',
                  'Mi puesto', 'Tablero de control', 'Procesos', 'Configuración', 'Materiales', 'Equipo', 'Marca']),
-    ('oficina_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción',
+    ('oficina_a', ['Inicio', 'Visor', 'Proyectos', 'Producción',
                    'Mi puesto', 'Tablero de control', 'Procesos', 'Configuración', 'Materiales', 'Equipo']),
 ])
 def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
@@ -431,9 +430,9 @@ def test_menu_del_visor_segun_el_rol(cliente_de, t, pa, quien, pantallas):
 
 
 @pytest.mark.parametrize('quien,pantallas', [
-    ('dueno_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción', 'Mi puesto', 'Tablero de control',
+    ('dueno_a', ['Inicio', 'Visor', 'Proyectos', 'Producción', 'Mi puesto', 'Tablero de control',
                  'Procesos', 'Configuración', 'Materiales', 'Equipo', 'Marca']),
-    ('armador_a', ['Inicio', 'Armado', 'Visor', 'Tareas', 'Proyectos', 'Producción', 'Mi puesto',
+    ('armador_a', ['Inicio', 'Visor', 'Proyectos', 'Producción', 'Mi puesto',
                    'Tablero de control']),
 ])
 def test_menu_de_las_paginas_igual_al_del_visor(cliente_de, t, quien, pantallas):
@@ -448,13 +447,13 @@ def test_menu_de_las_paginas_igual_al_del_visor(cliente_de, t, quien, pantallas)
 
 
 @pytest.mark.parametrize('quien,botones', [
-    ('dueno_a', ['Armado', 'Proyectos', 'Producción', 'Configuración']),
-    ('oficina_a', ['Armado', 'Proyectos', 'Producción', 'Configuración']),
-    ('armador_a', ['Armado', 'Proyectos', 'Producción']),
+    ('dueno_a', ['Visor', 'Proyectos', 'Producción', 'Configuración']),
+    ('oficina_a', ['Visor', 'Proyectos', 'Producción', 'Configuración']),
+    ('armador_a', ['Visor', 'Proyectos', 'Producción']),
 ])
 def test_inicio_con_un_boton_por_seccion(cliente_de, t, quien, botones):
     """El Inicio tiene un botón grande por sección; Proyectos va directo a la lista y las demás a su pantalla, que
-    solo trae lo que el rol puede abrir. Tareas está en Armado; Procesos es de dueño y oficina."""
+    solo trae lo que el rol puede abrir. Visor va directo al visor; Procesos es de dueño y oficina."""
     c = cliente_de(getattr(t, quien))
     secciones = c.get('/taller-a/').context['secciones']
     assert [s['nombre'] for s in secciones] == botones
@@ -466,7 +465,7 @@ def test_inicio_con_un_boton_por_seccion(cliente_de, t, quien, botones):
         assert r.status_code == 200
         assert all(p['url'] in r.content.decode() for p in s['pantallas'])
     nombres = lambda clave: [p['nombre'] for p in next(s for s in secciones if s['clave'] == clave)['pantallas']]
-    assert nombres('armado') == ['Visor', 'Tareas']
+    assert secciones[0]['directa'] and secciones[0]['url'] == '/taller-a/visor/'
     assert nombres('produccion') == (['Mi puesto', 'Tablero de control'] + ([] if quien == 'armador_a' else ['Procesos']))
     if quien == 'oficina_a':
         assert nombres('configuracion') == ['Materiales', 'Equipo']

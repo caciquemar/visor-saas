@@ -7,7 +7,7 @@ app_name = 'taller'
 
 urlpatterns = [
     path('', vistas.inicio, name='inicio'),
-    re_path(r'^(?P<seccion>armado|produccion|configuracion)/$', vistas.seccion, name='seccion'),
+    re_path(r'^(?P<seccion>produccion|configuracion)/$', vistas.seccion, name='seccion'),
     path('cuenta/', cuenta.mi_cuenta, name='cuenta'),
     path('equipo/', vistas.equipo, name='equipo'),
     path('equipo/agregar/', vistas.agregar_persona, name='agregar_persona'),

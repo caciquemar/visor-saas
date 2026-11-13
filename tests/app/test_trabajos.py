@@ -470,11 +470,13 @@ def test_el_tilde_pide_post_y_respeta_el_plan(ana, varios, monkeypatch):
     assert 'class="avanzar"' not in ana.get(PANTALLA).content.decode()
 
 
-def test_pantalla_enlazada_desde_el_inicio(ana, t):
-    # en el menú (dentro de Armado) y en la pantalla de Armado, que se abre desde el botón del Inicio
-    assert ana.get('/taller-a/').content.decode().count('href="/taller-a/trabajos/"') == 1
-    assert 'href="/taller-a/armado/"' in ana.get('/taller-a/').content.decode()
-    assert ana.get('/taller-a/armado/').content.decode().count('href="/taller-a/trabajos/"') == 2
+def test_el_inicio_va_directo_al_visor(ana, t):
+    # Armado ya no es una sección (pedido de Martín, 2026-11-13): el botón del Inicio abre el visor y Tareas se abre
+    # desde la lista de arriba del visor; la pantalla de Tareas sigue andando por su dirección
+    inicio = ana.get('/taller-a/').content.decode()
+    assert 'href="/taller-a/visor/"' in inicio and 'href="/taller-a/trabajos/"' not in inicio
+    assert ana.get('/taller-a/armado/').status_code == 404
+    assert ana.get(PANTALLA).status_code == 200
 
 
 def test_pantalla_de_a_no_muestra_ni_avanza_lo_de_b(ana, con_trabajos):

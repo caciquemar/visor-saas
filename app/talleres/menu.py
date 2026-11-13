@@ -4,15 +4,15 @@ visor (proyectos/visor.py, menu_de). Todo sale de SECCIONES, así se encuentra t
 from django.urls import reverse
 
 
-# (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Proyectos) va directo a ella; las
-# demás tienen su pantalla en /<taller>/<clave>/. Tareas está en Armado; en Producción es un modo de Mi puesto.
+# (clave, nombre, para qué sirve, pantallas). Una sección con una sola pantalla (Visor, Proyectos) va directo a ella;
+# las demás tienen su pantalla en /<taller>/<clave>/. Tareas no está en el menú: se abre desde la lista de arriba del
+# visor y es un modo de Mi puesto.
 # Cada pantalla: (nombre, ruta, para qué sirve, permisos que la abren (alguno), ícono de talleres/iconos.py). La sección usa el
 # ícono de su clave.
 SECCIONES = [
-    ('armado', 'Armado', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
-        ('Visor', 'taller:proyectos:visor', 'Escaneá una pieza o tocala en el dibujo para ver dónde va.', ('visor',),
-         'visor'),
-        ('Tareas', 'taller:trabajos:lista', 'Lo que falta hacer o instalar en todos los proyectos.', ('tareas',), 'tareas'),
+    # el visor va directo (pedido de Martín, 2026-11-13): las tareas se abren desde su lista de arriba
+    ('visor', 'Visor', 'El mueble en 3D, pieza por pieza, y lo que falta hacer o instalar.', [
+        ('Visor', 'taller:proyectos:visor', '', ('visor',), 'visor'),
     ]),
     ('proyectos', 'Proyectos', 'Subí los proyectos de Polyboard, mandale el link al cliente e imprimí etiquetas.', [
         ('Proyectos', 'taller:proyectos:lista', '', ('proyectos',), 'proyectos'),
