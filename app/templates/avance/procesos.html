@@ -27,7 +27,7 @@
   renombran y se apagan, no se borran.</p>
 <form method="post" class="caja lista-ordenada">{% csrf_token %}
   <input type="hidden" name="orden">
-  <div class="tabla"><table>
+  <div class="tabla"><table class="apila sin-titulo">
     <thead><tr><th>Orden</th><th>Nombre</th><th>Se marca por</th><th>Prendido</th><th>Usos</th><th></th></tr></thead>
     <tbody>
     {% for e in del_taller %}

@@ -27,7 +27,7 @@
   <span class="suave" id="cuantosMuebles"></span>
 </div>
 <div class="caja tabla">
-  <table class="muebles">
+  <table class="muebles apila">
     <thead><tr>
       <th aria-sort="ascending"><button type="button" data-orden="nombre">Mueble</button></th>
       <th><button type="button" data-orden="pct">Avance</button></th>
@@ -145,7 +145,7 @@
 <h3 style="margin-top:1.5rem" id="cargas">Cargas</h3>
 {% if avance.cargas %}
 <div class="caja tabla" style="margin-bottom:1rem">
-  <table class="cargas">
+  <table class="cargas apila">
     <thead><tr><th>Carga</th><th>Estado</th><th>Q muebles</th></tr></thead>
     <tbody>
     {% for c in avance.cargas %}

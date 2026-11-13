@@ -3,7 +3,7 @@
 {# textos) y `usadas` (encabezado de la columna). #}
 <form method="post" class="caja lista-ordenada">{% csrf_token %}
   <input type="hidden" name="orden">
-  <div class="tabla"><table>
+  <div class="tabla"><table class="apila sin-titulo">
     <thead><tr><th>Orden</th><th>Nombre</th><th>Prendida</th><th>{{ usadas }}</th><th></th></tr></thead>
     <tbody>
     {% for e in filas %}

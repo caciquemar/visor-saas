@@ -41,7 +41,7 @@
   <span class="suave" data-cuenta></span>
 </div>
 <div class="caja tabla">
-<table class="filas" id="tPersonas">
+<table class="filas apila" id="tPersonas">
   <thead><tr><th><button type="button" data-col="0">Nombre</button></th><th><button type="button" data-col="1">Entra con</button></th>
     <th><button type="button" data-col="2">Rol</button></th><th><button type="button" data-col="3">Estado</button></th></tr></thead>
   <tbody>
@@ -116,7 +116,7 @@
 {% else %}
 <div class="acciones" style="margin:0 0 .5rem"><a class="boton" href="{% url 'taller:rol_nuevo' taller=request.taller.slug %}">Agregar rol</a></div>
 <div class="caja tabla">
-<table class="filas" id="tRoles">
+<table class="filas apila" id="tRoles">
   <thead><tr><th>Rol</th><th>Personas</th><th>Entra con</th><th>Puede</th></tr></thead>
   <tbody>
   {% for r in roles %}
