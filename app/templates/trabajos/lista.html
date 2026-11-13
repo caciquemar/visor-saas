@@ -2,6 +2,8 @@
 {% block titulo %}Tareas{% endblock %}
 {% block cabeza %}
 <style>
+  .plegar-filtros summary { cursor:pointer; min-height:2rem; display:flex; align-items:center; gap:.4rem; flex-wrap:wrap; }
+  .plegar-filtros[open] summary { margin-bottom:.75rem; }
   .filtros { display:grid; gap:.5rem .75rem; grid-template-columns:repeat(auto-fit, minmax(11rem, 1fr)); align-items:end; }
   .filtros label { margin:0 0 .25rem; font-size:.875rem; }
   .filtros select { max-width:none; }
@@ -19,19 +21,17 @@
   .avanzar:hover { background:var(--c); color:#fff; }
   .trabajo .estado { border-color:var(--c); color:var(--c); }
   .vence-ya { color:var(--error); font-weight:600; }
-  /* colores del visor: pendiente naranja, en proceso violeta, hecha verde, instalada gris, vencida rojo */
-  .g-vencido { --c:#D32F2F; } .g-pendiente { --c:#F57C00; } .g-en-proceso { --c:#7B3FE4; } .g-hecho { --c:#2E9D5B; }
-  .g-instalado { --c:#78909C; }
-  @media (prefers-color-scheme: dark) {
-    .g-vencido { --c:#EF6F6F; } .g-pendiente { --c:#FFA94D; } .g-en-proceso { --c:#B49AF5; } .g-hecho { --c:#5FCB8C; }
-    .g-instalado { --c:#A7B6BE; }
-  }
+  /* como en el visor: pendiente naranja, en proceso azul, hecha verde, instalada gris, vencida rojo */
+  .g-vencido { --c:var(--error); } .g-pendiente { --c:#E89B0C; } .g-en-proceso { --c:var(--acento); }
+  .g-hecho { --c:var(--ok); } .g-instalado { --c:var(--suave); }
 </style>
 {% endblock %}
 {% block contenido %}
 <h1>Tareas</h1>
 
-<form class="caja filtros" method="get" id="filtros">
+<details class="caja plegar-filtros" id="plegar">
+<summary><strong>Filtros</strong> <span class="suave" id="resumenFiltros"></span></summary>
+<form class="filtros" method="get" id="filtros">
   <div><label for="fPara">Para quién</label>
     <select id="fPara" name="para">
       <option value="">Todos</option>
@@ -53,6 +53,17 @@
   <div><label class="check"><input type="checkbox" name="instalados" value="1"{% if f.instalados %} checked{% endif %}> Ver también las instaladas</label></div>
   <noscript><button type="submit">Filtrar</button></noscript>
 </form>
+</details>
+<script>
+  // en la PC los filtros van abiertos; en el celular, cerrados, con lo elegido al lado de "Filtros"
+  (() => {
+    const d = document.getElementById('plegar'), f = document.getElementById('filtros');
+    if (matchMedia('(min-width:700px)').matches) d.open = true;
+    const elegidos = [...f.querySelectorAll('select')].filter(s => s.value).map(s => s.options[s.selectedIndex].text);
+    if (f.instalados.checked) elegidos.push('con las instaladas');
+    document.getElementById('resumenFiltros').textContent = elegidos.length ? '· ' + elegidos.join(' · ') : '· todas las que faltan';
+  })();
+</script>
 
 {% if trabajos %}
 <p class="suave" style="margin:1rem 0 0">{{ trabajos|length }} tarea{{ trabajos|length|pluralize }}</p>

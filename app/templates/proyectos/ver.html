@@ -13,6 +13,14 @@
   .secciones a .icono { width:1.7rem; height:1.7rem; }
   .secciones a[aria-current=page] { color:var(--acento); border-bottom-color:var(--acento); font-weight:600; }
   .secciones a:hover { color:var(--texto); }
+  /* accesos del Resumen: en el celular, tres botones iguales en una fila, con el nombre corto */
+  .accesos .corto { display:none; }
+  @media (max-width:640px) {
+    .accesos { display:grid; grid-template-columns:repeat(3, 1fr); }
+    .accesos .boton { text-align:center; padding-left:.4rem; padding-right:.4rem; min-height:44px;
+                      display:flex; align-items:center; justify-content:center; }
+    .accesos .largo { display:none; } .accesos .corto { display:inline; }
+  }
   .fila { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
   .estado-proyecto { margin-bottom:1rem; }
   .selector-estado { display:inline-flex; border:1px solid var(--borde); border-radius:10px; padding:.2rem; gap:.2rem;

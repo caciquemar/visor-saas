@@ -1,10 +1,10 @@
 {# Proyecto → Resumen: datos, estado, avance general y accesos (proyectos/ver.html). #}
 {% if en_proceso %}<p class="suave">Se está convirtiendo una versión: mirala en <a href="?ver=versiones">Versiones</a>.</p>{% endif %}
 
-<div class="acciones" style="margin:0 0 1rem">
+<div class="acciones accesos" style="margin:0 0 1rem">
   {% if listo %}<a class="boton" href="{% url 'taller:proyectos:visor' taller=request.taller.slug %}?p={{ proyecto.pk }}">Ver 3D</a>
-  <a class="boton secundario-enlace" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">Lista de entrega</a>
-  <a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}">Imprimir etiquetas</a>{% endif %}
+  <a class="boton secundario-enlace" href="{% url 'taller:avance:entrega' taller=request.taller.slug id=proyecto.pk %}">{# en el celular, el nombre corto #}<span class="largo">Lista de entrega</span><span class="corto">Entrega</span></a>
+  <a class="boton secundario-enlace" href="{% url 'taller:etiquetas:imprimir' taller=request.taller.slug id=proyecto.pk %}"><span class="largo">Imprimir etiquetas</span><span class="corto">Etiquetas</span></a>{% endif %}
   {% if gestiona and not versiones %}<a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión</a>{% endif %}
 </div>
 

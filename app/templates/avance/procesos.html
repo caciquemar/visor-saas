@@ -21,10 +21,13 @@
 <p class="suave" style="margin:0"><a href="{% url 'taller:seccion' taller=request.taller.slug seccion='produccion' %}">Producción</a></p>
 <h1>Procesos</h1>
 {% if etapas is not None %}
-<p class="suave">Los procesos que se eligen en Mi puesto, en orden. Los del taller se marcan <strong>por pieza</strong>
+<details class="suave" style="margin:0 0 1rem">
+  <summary style="cursor:pointer;color:var(--acento);font-weight:600">¿Cómo funciona?</summary>
+  <p style="margin:.5rem 0 0">Los procesos que se eligen en Mi puesto, en orden. Los del taller se marcan <strong>por pieza</strong>
   (cada etiqueta, una pieza) o <strong>por mueble</strong> (cualquier etiqueta del mueble marca todas sus piezas). El avance
   de un mueble es el promedio de los procesos por pieza y Armado. Todos se ordenan arrastrándolos; los fijos (🔒) se
   renombran y se apagan, no se borran.</p>
+</details>
 <form method="post" class="caja lista-ordenada">{% csrf_token %}
   <input type="hidden" name="orden">
   <div class="tabla"><table class="apila sin-titulo">
