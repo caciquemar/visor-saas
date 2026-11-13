@@ -3,11 +3,11 @@
 {% block cabeza %}
 <style>
   .paso { margin-top:1rem; }
-  .paso h2 { margin-top:0; font-size:1.1rem; }
+  .paso h2 { margin-top:0; font-size:1rem; }
   .zona { border:2px dashed var(--borde); border-radius:10px; padding:1.25rem; text-align:center; margin-top:.5rem; }
   .zona.encima { border-color:var(--acento); background:var(--fondo); }
   .zona a { color:var(--acento); }
-  #lista { list-style:none; padding:0; margin:.75rem 0 0; font-size:.9rem; max-height:22rem; overflow:auto; }
+  #lista { list-style:none; padding:0; margin:.75rem 0 0; font-size:.875rem; max-height:22rem; overflow:auto; }
   #lista li { padding:.3rem 0; border-bottom:1px solid var(--borde); display:flex; gap:.5rem; justify-content:space-between; }
   #lista .ok { color:var(--acento); }
   #lista .mal { color:var(--error); }
@@ -57,7 +57,7 @@
   <p id="estado" class="suave" style="margin:.5rem 0 0"></p>
   <ul id="lista"></ul>
   <details style="margin-top:.75rem"><summary class="suave">Ver cuáles faltan</summary>
-    <ul class="suave" style="font-size:.85rem">{% for f in faltan %}<li>{{ f.tipo }} {{ f.nombre }} — {{ f.ruta }}</li>{% endfor %}</ul>
+    <ul class="suave" style="font-size:.875rem">{% for f in faltan %}<li>{{ f.tipo }} {{ f.nombre }} — {{ f.ruta }}</li>{% endfor %}</ul>
   </details>
   {{ faltan|json_script:"faltan" }}
   {% else %}

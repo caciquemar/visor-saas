@@ -3,21 +3,21 @@
 {% block cabeza %}{% if en_proceso and seccion == 'versiones' %}<meta http-equiv="refresh" content="5">{% endif %}
 <style>
   .encabezado h1 { margin-bottom:.15rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
-  .chip-estado { font-size:.8rem; font-weight:600; padding:.15rem .55rem; border-radius:999px; border:1px solid var(--borde); color:var(--suave); }
+  .chip-estado { font-size:.875rem; font-weight:600; padding:.15rem .55rem; border-radius:999px; border:1px solid var(--borde); color:var(--suave); }
   .chip-estado.produccion { background:var(--acento); color:var(--acento-texto); border-color:var(--acento); }
   .chip-estado.archivado { border-style:dashed; }
   .secciones { display:grid; grid-template-columns:repeat(4, 1fr); gap:.35rem; margin:1rem 0 1.25rem;
                border-bottom:1px solid var(--borde); }
   .secciones a { display:flex; flex-direction:column; align-items:center; gap:.2rem; padding:.5rem .25rem .6rem;
-                 color:var(--suave); text-decoration:none; font-size:.85rem; border-bottom:3px solid transparent; margin-bottom:-1px; }
+                 color:var(--suave); text-decoration:none; font-size:.875rem; border-bottom:3px solid transparent; margin-bottom:-1px; }
   .secciones a .icono { width:1.7rem; height:1.7rem; }
   .secciones a[aria-current=page] { color:var(--acento); border-bottom-color:var(--acento); font-weight:600; }
   .secciones a:hover { color:var(--texto); }
   .fila { display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
   .estado-proyecto { margin-bottom:1rem; }
-  .selector-estado { display:inline-flex; border:1px solid var(--borde); border-radius:999px; padding:.2rem; gap:.2rem;
+  .selector-estado { display:inline-flex; border:1px solid var(--borde); border-radius:10px; padding:.2rem; gap:.2rem;
                      background:var(--fondo); }
-  .selector-estado button { background:transparent; color:var(--suave); border:0; border-radius:999px;
+  .selector-estado button { background:transparent; color:var(--suave); border:0; border-radius:10px;
                             padding:.45rem 1rem; font-weight:600; }
   .selector-estado button[aria-checked=true] { background:var(--panel); color:var(--texto); box-shadow:0 1px 3px rgba(0,0,0,.15); }
   .selector-estado button[value="1"][aria-checked=true] { background:var(--acento); color:var(--acento-texto); }
@@ -49,14 +49,14 @@
   table.muebles th[aria-sort=ascending] button::after { content:" ▲"; font-size:.7em; }
   table.muebles th[aria-sort=descending] button::after { content:" ▼"; font-size:.7em; }
   #detalleMueble { width:min(32rem, calc(100% - 2rem)); max-height:calc(100% - 2rem); border:1px solid var(--borde);
-                   border-radius:14px; padding:1.25rem; background:var(--panel); color:var(--texto); }
+                   border-radius:10px; padding:1.25rem; background:var(--panel); color:var(--texto); }
   #detalleMueble::backdrop { background:rgba(0,0,0,.4); }
   #detalleMueble h3 { font-size:1rem; margin:1rem 0 .35rem; }
   .det-lista { list-style:none; padding:0; margin:.35rem 0 0; }
   .det-lista li { display:flex; justify-content:space-between; gap:.75rem; padding:.3rem 0; border-top:1px solid var(--borde); }
   .version { margin-top:1rem; }
   .version.actual { border-color:var(--acento); }
-  .version h3 { margin:0 0 .35rem; font-size:1.05rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
+  .version h3 { margin:0 0 .35rem; font-size:1rem; display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; }
   .version ul { margin:.35rem 0; padding-left:1.1rem; }
   .aviso-texturas { border-color:var(--acento); margin-bottom:1rem; }
   details summary { cursor:pointer; color:var(--suave); }

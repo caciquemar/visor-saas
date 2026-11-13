@@ -41,7 +41,7 @@
           data-qa="{% if m.control.ok %}2{% elif m.control %}1{% else %}0{% endif %}"
           data-carga="{% if m.carga.total %}{% widthratio m.carga.cargados m.carga.total 100 %}{% else %}-1{% endif %}"
           data-inst="{% if m.instalacion %}1{% else %}0{% endif %}">
-        <td><strong>{{ m.nombre }}</strong>{% if m.paso %}<br><span class="suave" style="font-size:.85rem">{{ m.paso }}</span>{% endif %}</td>
+        <td><strong>{{ m.nombre }}</strong>{% if m.paso %}<br><span class="suave" style="font-size:.875rem">{{ m.paso }}</span>{% endif %}</td>
         <td><strong>{{ m.pct }}%</strong></td>
         <td>{% if m.control.ok %}<span class="estado listo">Ok</span>{% elif m.control %}<span class="estado error">Obs.</span>{% else %}<span class="suave">—</span>{% endif %}</td>
         <td>{% if m.carga.total %}<span{% if m.carga.cargados == m.carga.total %} class="estado listo"{% endif %}>{{ m.carga.cargados }}/{{ m.carga.total }}</span>{% else %}<span class="suave">—</span>{% endif %}</td>
@@ -151,7 +151,7 @@
     {% for c in avance.cargas %}
       <tr data-href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}" tabindex="0">
         <td><a href="{% url 'taller:avance:carga' taller=request.taller.slug id=c.pk %}">Carga {{ c.pk }}</a><br>
-          <span class="suave" style="font-size:.85rem">{{ c.creada_en|date:"j/n H:i" }}</span></td>
+          <span class="suave" style="font-size:.875rem">{{ c.creada_en|date:"j/n H:i" }}</span></td>
         <td><span class="estado{% if c.estado == 'anulada' %} error{% elif c.estado != 'armando' %} listo{% endif %}">{{ c.get_estado_display }}</span></td>
         <td>{% if c.resumen %}{{ c.resumen.muebles|length }}{% else %}{{ c.muebles|length }}{% endif %}</td>
       </tr>

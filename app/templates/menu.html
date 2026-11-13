@@ -10,13 +10,13 @@
                                   letter-spacing:.01em; }
   .menu-app { position:relative; flex:none; }
   .btn-menu { display:grid; place-items:center; width:38px; height:38px; margin-left:-6px; padding:0; color:var(--texto);
-              background:none; border:1px solid transparent; border-radius:8px; cursor:pointer; }
+              background:none; border:1px solid transparent; border-radius:10px; cursor:pointer; }
   .btn-menu[aria-expanded="true"] { background:var(--fondo); border-color:var(--borde); }
   .menu-lista { position:absolute; left:0; top:calc(100% + 6px); z-index:20; min-width:220px; padding:6px;
-                background:var(--panel); border:1px solid var(--borde); border-radius:12px;
+                background:var(--panel); border:1px solid var(--borde); border-radius:10px;
                 box-shadow:0 8px 24px rgba(27,38,48,.18); display:flex; flex-direction:column; }
   .menu-lista[hidden] { display:none; }
-  .menu-lista a, .menu-lista button { display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; border-radius:8px;
+  .menu-lista a, .menu-lista button { display:flex; align-items:center; gap:10px; width:100%; padding:10px 12px; border-radius:10px;
               color:var(--texto); font:500 16px "Barlow", system-ui, sans-serif; text-decoration:none; text-align:left;
               background:none; border:0; cursor:pointer; }
   .menu-lista a:hover, .menu-lista button:hover { background:var(--fondo); }

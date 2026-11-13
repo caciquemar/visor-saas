@@ -11,12 +11,12 @@
   table.filas tbody tr[data-href] { cursor:pointer; }
   table.filas tbody tr[data-href]:hover, table.filas tbody tr[data-href]:focus-visible { background:var(--fondo); outline:none; }
   #agregar { width:min(30rem, calc(100% - 2rem)); max-height:calc(100% - 2rem); border:1px solid var(--borde);
-             border-radius:14px; padding:1.25rem; background:var(--panel); color:var(--texto); }
+             border-radius:10px; padding:1.25rem; background:var(--panel); color:var(--texto); }
   #agregar::backdrop { background:rgba(0,0,0,.4); }
   #agregar h2 { margin-top:0; }
   #agregar .campo-entra > div label { display:flex; gap:.5rem; align-items:center; font-weight:400; margin:.3rem 0; }
   #agregar input[type=radio] { width:auto; margin:0; }
-  .permisos-chicos { font-size:.85rem; }
+  .permisos-chicos { font-size:.875rem; }
 </style>
 {% endblock %}
 {% block contenido %}
@@ -62,10 +62,10 @@
       <td>{% if i.vence > ahora %}Pendiente <span class="suave">· vence {{ i.vence|date:"j/n" }}</span>{% else %}<span class="error">Vencida · venció el {{ i.vence|date:"j/n" }}</span>{% endif %}
         {% if request.membresia.es_admin or not i.rol.es_admin %}<br>
         <form class="enlinea" method="post" action="{% url 'taller:reenviar_invitacion' taller=request.taller.slug id=i.pk %}">{% csrf_token %}
-          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.85rem">Reenviar</button></form>
+          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.875rem">Reenviar</button></form>
         <form class="enlinea" method="post" action="{% url 'taller:anular_invitacion' taller=request.taller.slug id=i.pk %}"
               onsubmit="return confirm('¿Anular la invitación a {{ i.email|escapejs }}? El link del mail deja de andar.')">{% csrf_token %}
-          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.85rem">Anular</button></form>{% endif %}</td>
+          <button type="submit" class="secundario" style="padding:.25rem .6rem;font-size:.875rem">Anular</button></form>{% endif %}</td>
     </tr>
   {% endfor %}
   </tbody>

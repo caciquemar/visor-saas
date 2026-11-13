@@ -8,7 +8,7 @@
                      text-decoration:none; border-bottom:3px solid transparent; margin-bottom:-1px; }
   .secciones-mat a .icono { width:1.4rem; height:1.4rem; }
   .secciones-mat a[aria-current=page] { color:var(--acento); border-bottom-color:var(--acento); font-weight:600; }
-  .secciones-mat .cuenta { background:var(--error); color:#fff; border-radius:1rem; padding:0 .45rem; font-size:.75rem; }
+  .secciones-mat .cuenta { background:var(--error); color:#fff; border-radius:1rem; padding:0 .45rem; font-size:.875rem; }
   .filtros-mat { display:flex; gap:.5rem; align-items:center; flex-wrap:wrap; margin:.5rem 0 .75rem; }
   .filtros-mat input { flex:1 1 10rem; min-width:0; margin:0; }
   .filtros-mat select { width:auto; margin:0; }
@@ -16,11 +16,11 @@
   .grilla-mat a { display:flex; flex-direction:column; gap:.35rem; color:var(--texto); text-decoration:none;
                   padding:.4rem; border-radius:10px; border:1px solid transparent; }
   .grilla-mat a:hover, .grilla-mat a:focus-visible { background:var(--panel); border-color:var(--borde); outline:none; }
-  .grilla-mat .nombre { font-size:.85rem; line-height:1.2; overflow-wrap:anywhere; }
+  .grilla-mat .nombre { font-size:.875rem; line-height:1.2; overflow-wrap:anywhere; }
   .grilla-mat .nombre small { display:block; color:var(--suave); }
   /* muestra: textura o color, con la flecha de la veta; en rojo si falta todo */
-  .muestra { position:relative; aspect-ratio:1; border-radius:8px; border:1px solid var(--borde); overflow:hidden;
-             display:flex; align-items:center; justify-content:center; text-align:center; font-size:.75rem;
+  .muestra { position:relative; aspect-ratio:1; border-radius:10px; border:1px solid var(--borde); overflow:hidden;
+             display:flex; align-items:center; justify-content:center; text-align:center; font-size:.875rem;
              background:var(--panel); color:var(--suave); }
   .muestra img { position:absolute; inset:0; width:100%; height:100%; object-fit:cover; }
   .falta .muestra { border:2px solid var(--error); color:var(--error); }
@@ -28,7 +28,7 @@
   .flecha-veta svg { width:70%; height:1.3rem; filter:drop-shadow(0 0 2px rgba(0,0,0,.8)); }
   .flecha-veta.v svg { transform:rotate(90deg); }
   #agregar { width:min(30rem, calc(100% - 2rem)); max-height:calc(100% - 2rem); border:1px solid var(--borde);
-             border-radius:14px; padding:1.25rem; background:var(--panel); color:var(--texto); }
+             border-radius:10px; padding:1.25rem; background:var(--panel); color:var(--texto); }
   #agregar::backdrop { background:rgba(0,0,0,.4); }
   #agregar h2 { margin-top:0; }
   input[type=color] { width:4rem; height:2.5rem; padding:.15rem; }

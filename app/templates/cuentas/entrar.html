@@ -6,14 +6,14 @@
   .personas { display:grid; gap:.5rem; grid-template-columns:repeat(auto-fill, minmax(10rem, 1fr)); margin-bottom:1rem; }
   .persona { position:relative; }
   .persona > button:first-child { width:100%; padding:1rem .75rem; text-align:center; background:var(--panel);
-              color:var(--texto); border:2px solid var(--borde); border-radius:10px; font-size:1.05rem; }
-  .persona > button:first-child small { display:block; font-weight:400; color:var(--suave); font-size:.8rem; }
+              color:var(--texto); border:2px solid var(--borde); border-radius:10px; font-size:1rem; }
+  .persona > button:first-child small { display:block; font-weight:400; color:var(--suave); font-size:.875rem; }
   .persona.elegida > button:first-child { border-color:var(--acento); }
-  .persona .quitar { position:absolute; top:2px; right:2px; padding:.1rem .45rem; font-size:.9rem; font-weight:400;
+  .persona .quitar { position:absolute; top:2px; right:2px; padding:.1rem .45rem; font-size:.875rem; font-weight:400;
                      background:none; color:var(--suave); border:0; }
   #quien-es { display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; margin:.25rem 0; }
   #quien-es[hidden] { display:none; }
-  .huella { width:100%; max-width:24rem; padding:.9rem 1rem; font-size:1.05rem; }
+  .huella { width:100%; max-width:24rem; padding:.9rem 1rem; font-size:1rem; }
   .o { color:var(--suave); margin:.75rem 0 .25rem; }
 </style>
 {% endblock %}

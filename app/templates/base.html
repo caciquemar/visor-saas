@@ -4,50 +4,56 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 {% include 'icono_pestana.html' %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
 <title>{% block titulo %}Visor{% endblock %}{% if request.taller %} · {{ request.taller.nombre }}{% endif %}</title>
 <style>
-  :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;
-          --acento-texto:#fff; --error:#a8322d; --ok:#2f6f5e; }
+  /* la misma paleta, letra y redondeo que el visor (visor/index.html): azul para lo que se toca, verde solo
+     para "hecho", rojo para errores */
+  :root { --fondo:#EEF1F3; --panel:#fff; --texto:#1B2630; --suave:#55626D; --borde:#C5CDD3; --acento:#1D5FE0;
+          --acento-texto:#fff; --error:#B3261E; --ok:#2E7D32; }
   @media (prefers-color-scheme: dark) {
-    :root { --fondo:#171716; --panel:#222220; --texto:#ecebe7; --suave:#a3a19b; --borde:#3a3936; --acento:#5fae97;
-            --acento-texto:#0f1a17; --error:#e27a73; --ok:#7cc4ad; }
+    :root { --fondo:#1A2128; --panel:#243039; --texto:#E8EDF0; --suave:#9AA7B1; --borde:#3A4751; --acento:#5B8DF0;
+            --acento-texto:#0B1830; --error:#F28B82; --ok:#7CC98B; }
   }
   * { box-sizing: border-box; }
-  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.45 system-ui, sans-serif; }
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.45 "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
   header { display:flex; flex-wrap:wrap; gap:.5rem 1rem; align-items:center; padding:.75rem 1rem;
            border-bottom:1px solid var(--borde); background:var(--panel); }
   header .marca { font-weight:700; margin-right:auto; text-decoration:none; color:inherit; }
   header a { color:inherit; }
   main { max-width:860px; margin:0 auto; padding:1.25rem 1rem 3rem; }
-  h1 { font-size:1.5rem; margin:.25rem 0 1rem; }
-  h2 { font-size:1.15rem; margin:2rem 0 .75rem; }
+  h1 { font:700 1.5rem/1.15 "Barlow Condensed", "Arial Narrow", system-ui, sans-serif; margin:.25rem 0 1rem; }
+  h2 { font-size:1.25rem; margin:2rem 0 .75rem; }
+  h3 { font-size:1rem; }
   .caja { background:var(--panel); border:1px solid var(--borde); border-radius:10px; padding:1rem; }
   .suave { color:var(--suave); }
   a { color:var(--acento); }
   label { display:block; font-weight:600; margin:.75rem 0 .25rem; }
   input, select { font:inherit; width:100%; max-width:24rem; padding:.55rem .65rem; border:1px solid var(--borde);
-                  border-radius:8px; background:var(--fondo); color:inherit; }
+                  border-radius:10px; background:var(--fondo); color:inherit; }
   input[type=checkbox] { width:auto; }
   .con-ojo { display:flex; gap:.4rem; max-width:24rem; }
   .con-ojo input { flex:1; min-width:0; }
   .con-ojo button { padding:.55rem .75rem; font-weight:500; }
-  button, .boton { font:inherit; font-weight:600; padding:.6rem 1rem; border:0; border-radius:8px; cursor:pointer;
+  button, .boton { font:inherit; font-weight:600; padding:.6rem 1rem; border:0; border-radius:10px; cursor:pointer;
                    background:var(--acento); color:var(--acento-texto); text-decoration:none; display:inline-block; }
   button.secundario, .boton.secundario { background:transparent; color:var(--texto); border:1px solid var(--borde); }
   button.peligro { background:var(--error); color:#fff; border-color:var(--error); }
   form.enlinea { display:inline; }
   .acciones { margin-top:1rem; display:flex; gap:.5rem; flex-wrap:wrap; }
-  .helptext, .ayuda { display:block; color:var(--suave); font-size:.85rem; }
+  .helptext, .ayuda { display:block; color:var(--suave); font-size:.875rem; }
   .helptext ul { margin:.25rem 0; padding-left:1.1rem; }
   .errorlist, .error { color:var(--error); }
   .errorlist { padding-left:1.1rem; margin:.25rem 0; }
   .mensajes { list-style:none; padding:0; margin:0 0 1rem; }
-  .mensajes li { padding:.6rem .8rem; border-radius:8px; border:1px solid var(--borde); background:var(--panel); }
+  .mensajes li { padding:.6rem .8rem; border-radius:10px; border:1px solid var(--borde); background:var(--panel); }
   .mensajes .error { border-color:var(--error); }
   .mensajes .success { border-color:var(--ok); }
   table { width:100%; border-collapse:collapse; }
   th, td { text-align:left; padding:.5rem .4rem; border-bottom:1px solid var(--borde); vertical-align:top; }
-  th { font-size:.85rem; color:var(--suave); font-weight:600; }
+  th { font-size:.875rem; color:var(--suave); font-weight:600; }
   .tabla { overflow-x:auto; }
   /* Tablas en el celular (clase `apila`): cada fila pasa a ser una tarjeta, con el primer dato como título y los
      demás uno debajo del otro con el nombre de su columna (lo pone el script de abajo en data-t). Con `sin-titulo`
@@ -64,11 +70,11 @@
                                     padding:.55rem 0; margin:0; }
     table.apila td { display:flex; justify-content:space-between; align-items:baseline; gap:1rem; border:0;
                      padding:.25rem 0; text-align:right; }
-    table.apila td::before { content:attr(data-t); flex:none; color:var(--suave); font-size:.85rem; text-align:left; }
+    table.apila td::before { content:attr(data-t); flex:none; color:var(--suave); font-size:.875rem; text-align:left; }
     table.apila td:empty, table.apila td[data-vacio] { display:none; }
     table.apila td[colspan], table.apila:not(.sin-titulo) td:first-child { display:block; text-align:left; }
     table.apila td[colspan]::before, table.apila:not(.sin-titulo) td:first-child::before { content:none; }
-    table.apila:not(.sin-titulo) td:first-child { font-size:1.05rem; }
+    table.apila:not(.sin-titulo) td:first-child { font-size:1rem; }
     /* tablas de formulario (Procesos): la manija y el nombre en un renglón; lo demás, seguido en el siguiente */
     table.apila.sin-titulo tr { display:flex; flex-wrap:wrap; align-items:center; gap:.4rem 1rem; }
     table.apila.sin-titulo td { display:inline-flex; align-items:center; gap:.4rem; padding:0; text-align:left; }
@@ -78,12 +84,12 @@
     table.apila.sin-titulo td[colspan] { display:block; }
   }
   .grilla { display:grid; gap:1rem; grid-template-columns:repeat(auto-fit, minmax(17rem, 1fr)); }
-  .estado { display:inline-block; font-size:.8rem; font-weight:600; padding:.1rem .5rem; border-radius:99px;
+  .estado { display:inline-block; font-size:.875rem; font-weight:600; padding:.1rem .5rem; border-radius:99px;
             border:1px solid var(--borde); white-space:nowrap; }
   .estado.listo { border-color:var(--ok); color:var(--ok); }
   .estado.error { border-color:var(--error); color:var(--error); }
   .estado.en_cola, .estado.convirtiendo { color:var(--suave); }
-  .aviso-suscripcion { margin:0 0 1rem; padding:.6rem .8rem; border-radius:8px; border:1px solid var(--borde);
+  .aviso-suscripcion { margin:0 0 1rem; padding:.6rem .8rem; border-radius:10px; border:1px solid var(--borde);
                        background:var(--panel); }
   .aviso-suscripcion.grave { border-color:var(--error); }
 </style>

@@ -4,19 +4,22 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 {% include 'icono_pestana.html' %}
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600;700&family=Barlow+Condensed:wght@500;700&display=swap" rel="stylesheet">
 <meta name="theme-color" content="#1d1d1b">
 <title>Mi puesto · {{ request.taller.nombre }}</title>
 <style>
-  :root { --fondo:#f6f5f2; --panel:#fff; --texto:#1d1d1b; --suave:#6b6a66; --borde:#dddbd5; --acento:#2f6f5e;
+  :root { --fondo:#EEF1F3; --panel:#fff; --texto:#1B2630; --suave:#55626D; --borde:#C5CDD3; --acento:#1D5FE0;
           --acento-texto:#fff; --ok:#2e7d32; --ok-texto:#fff; --ya:#f2a900; --ya-texto:#2b1d00; --mal:#c62828;
           --mal-texto:#fff; }
   @media (prefers-color-scheme: dark) {
-    :root { --fondo:#171716; --panel:#222220; --texto:#ecebe7; --suave:#a3a19b; --borde:#3a3936; --acento:#5fae97;
-            --acento-texto:#0f1a17; }
+    :root { --fondo:#1A2128; --panel:#243039; --texto:#E8EDF0; --suave:#9AA7B1; --borde:#3A4751; --acento:#5B8DF0;
+            --acento-texto:#0B1830; }
   }
   * { box-sizing:border-box; }
   html, body { height:100%; }
-  body { margin:0; background:var(--fondo); color:var(--texto); font:17px/1.35 system-ui, sans-serif;
+  body { margin:0; background:var(--fondo); color:var(--texto); font:16px/1.35 "Barlow", system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
          display:flex; flex-direction:column; -webkit-tap-highlight-color:transparent; }
   [hidden] { display:none !important; }
   header { display:flex; align-items:center; gap:.75rem; padding:.6rem 1rem; background:var(--panel);
@@ -27,9 +30,9 @@
   main { flex:1; display:flex; flex-direction:column; gap:.75rem; padding:.75rem 1rem 1rem; max-width:560px;
          width:100%; margin:0 auto; min-height:0; }
   label.campo { font-size:.9rem; color:var(--suave); margin:.25rem 0 -.4rem; }
-  select, input, textarea { font:inherit; width:100%; padding:.8rem; border:1px solid var(--borde); border-radius:12px;
+  select, input, textarea { font:inherit; width:100%; padding:.8rem; border:1px solid var(--borde); border-radius:10px;
                             background:var(--panel); color:inherit; }
-  button { font:inherit; font-weight:600; border:0; border-radius:14px; cursor:pointer; padding:1rem;
+  button { font:inherit; font-weight:600; border:0; border-radius:10px; cursor:pointer; padding:1rem;
            background:var(--panel); color:var(--texto); border:1px solid var(--borde); }
   button.principal { background:var(--acento); color:var(--acento-texto); border-color:transparent; font-size:1.2rem; }
   .modos { display:grid; gap:.6rem; }
@@ -52,7 +55,7 @@
   .barra .nombre { font-size:1.3rem; font-weight:700; margin-right:auto; }
   .barra .cuenta { font-size:1.1rem; font-variant-numeric:tabular-nums; }
   .barra button, .barra .boton-chico { padding:.5rem .8rem; }
-  .boton-chico { border:1px solid var(--borde); border-radius:14px; background:var(--panel); color:var(--texto);
+  .boton-chico { border:1px solid var(--borde); border-radius:10px; background:var(--panel); color:var(--texto);
                  font-weight:600; text-decoration:none; }
   .punto { border-top:1px solid var(--borde); padding:.6rem 0; display:grid; gap:.5rem; }
   .fila-punto { display:flex; align-items:center; gap:.75rem; justify-content:space-between; }
@@ -64,11 +67,11 @@
   label.check { display:flex; gap:.5rem; align-items:center; font-weight:600; }
   label.check input { width:auto; }
   .contador.chico button { padding:.5rem .9rem; }
-  .fotos img { width:5rem; height:5rem; object-fit:cover; border-radius:8px; border:1px solid var(--borde); }
-  .camara { position:relative; background:#111; border-radius:14px; overflow:hidden; height:28vh; min-height:140px;
+  .fotos img { width:5rem; height:5rem; object-fit:cover; border-radius:10px; border:1px solid var(--borde); }
+  .camara { position:relative; background:#111; border-radius:10px; overflow:hidden; height:28vh; min-height:140px;
             flex:none; }
   .camara video { width:100%; height:100%; object-fit:cover; display:block; }
-  .camara .marco { position:absolute; inset:18% 22%; border:3px solid rgba(255,255,255,.85); border-radius:12px; }
+  .camara .marco { position:absolute; inset:18% 22%; border:3px solid rgba(255,255,255,.85); border-radius:10px; }
   .camara p { position:absolute; left:0; right:0; bottom:.4rem; margin:0; text-align:center; color:#eee;
               font-size:.85rem; text-shadow:0 1px 2px #000; padding:0 .5rem; }
   .aviso { flex:1; min-height:9rem; border-radius:16px; padding:1rem; display:flex; flex-direction:column;
@@ -85,13 +88,13 @@
   .escribir input { text-transform:uppercase; }
   .escribir button { flex:none; }
   .deshacer { font-size:1.15rem; }
-  details { background:var(--panel); border:1px solid var(--borde); border-radius:12px; padding:.6rem .8rem; }
+  details { background:var(--panel); border:1px solid var(--borde); border-radius:10px; padding:.6rem .8rem; }
   details summary { font-weight:600; cursor:pointer; }
   ul.lista { list-style:none; margin:.5rem 0 0; padding:0; }
   ul.lista li { display:flex; gap:.5rem; align-items:center; padding:.4rem 0; border-top:1px solid var(--borde);
                 font-size:.95rem; }
   ul.lista li span { flex:1; }
-  ul.lista li button { padding:.35rem .6rem; font-size:.85rem; border-radius:8px; }
+  ul.lista li button { padding:.35rem .6rem; font-size:.85rem; border-radius:10px; }
   ul.lista .deshecha { text-decoration:line-through; color:var(--suave); }
   .tarjeta { background:var(--panel); border:1px solid var(--borde); border-radius:16px; padding:1rem; display:grid;
              gap:.6rem; }

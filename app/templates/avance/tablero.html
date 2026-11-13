@@ -3,9 +3,9 @@
 {% block cabeza %}
 <style>
   .indicadores { display:grid; gap:.75rem; grid-template-columns:repeat(auto-fit, minmax(9.5rem, 1fr)); }
-  .indicador { background:var(--panel); border:1px solid var(--borde); border-radius:12px; padding:.8rem 1rem; }
+  .indicador { background:var(--panel); border:1px solid var(--borde); border-radius:10px; padding:.8rem 1rem; }
   .indicador .valor { font-size:2rem; font-weight:700; line-height:1.1; font-variant-numeric:tabular-nums; }
-  .indicador .nombre { color:var(--suave); font-size:.9rem; }
+  .indicador .nombre { color:var(--suave); font-size:.875rem; }
   .indicador a { text-decoration:none; color:inherit; }
   .indicador.alerta .valor { color:var(--error); }
   .barra { height:.55rem; border-radius:99px; background:var(--borde); overflow:hidden; }
@@ -13,22 +13,22 @@
   .etapas { display:grid; gap:.6rem; }
   .etapa { display:grid; grid-template-columns:1fr auto; gap:.3rem .75rem; align-items:baseline; }
   .etapa .barra { grid-column:1 / -1; }
-  .etapa .cifras { font-size:.85rem; color:var(--suave); text-align:right; font-variant-numeric:tabular-nums; }
+  .etapa .cifras { font-size:.875rem; color:var(--suave); text-align:right; font-variant-numeric:tabular-nums; }
   .etapa .cifras b { color:var(--texto); }
-  .cuello { margin-top:.75rem; padding:.6rem .8rem; border-radius:8px; border:1px solid var(--error); }
+  .cuello { margin-top:.75rem; padding:.6rem .8rem; border-radius:10px; border:1px solid var(--error); }
   .proyectos { display:grid; gap:.75rem; }
-  .proyecto h3 { margin:0; font-size:1.05rem; display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
+  .proyecto h3 { margin:0; font-size:1rem; display:flex; gap:.5rem; align-items:baseline; flex-wrap:wrap; }
   .proyecto h3 a { color:inherit; }
-  .proyecto h3 .pct { margin-left:auto; font-size:1.3rem; }
+  .proyecto h3 .pct { margin-left:auto; font-size:1.25rem; }
   .proyecto .barra { margin:.4rem 0 .6rem; height:.7rem; }
-  .mini { display:grid; gap:.3rem .75rem; grid-template-columns:repeat(auto-fit, minmax(8rem, 1fr)); font-size:.85rem; }
+  .mini { display:grid; gap:.3rem .75rem; grid-template-columns:repeat(auto-fit, minmax(8rem, 1fr)); font-size:.875rem; }
   .mini .barra { height:.35rem; margin:.15rem 0 0; }
-  .meta { margin-top:.6rem; font-size:.85rem; color:var(--suave); }
+  .meta { margin-top:.6rem; font-size:.875rem; color:var(--suave); }
   .meta b { color:var(--texto); }
   .barra-pasos { display:flex; height:1rem; border-radius:99px; overflow:hidden; background:var(--borde); }
   .barra-pasos.chica { height:.5rem; margin:.5rem 0 .2rem; }
   .barra-pasos i { display:block; height:100%; }
-  .leyenda { display:flex; flex-wrap:wrap; gap:.3rem 1rem; font-size:.9rem; color:var(--suave); margin-top:.5rem; }
+  .leyenda { display:flex; flex-wrap:wrap; gap:.3rem 1rem; font-size:.875rem; color:var(--suave); margin-top:.5rem; }
   .leyenda i { display:inline-block; width:.8rem; height:.8rem; border-radius:3px; margin-right:.3rem; vertical-align:-.1rem; }
   .leyenda b { color:var(--texto); }
   form.filtro label { display:flex; gap:.4rem; align-items:center; font-weight:400; margin:0; }
@@ -94,7 +94,7 @@
   {% for x in proyectos %}
   <div class="caja proyecto">
     <h3><a href="{% url 'taller:avance:entrega' taller=request.taller.slug id=x.proyecto.pk %}">{{ x.proyecto.nombre }}</a>
-      {% if x.proyecto.cliente %}<span class="suave" style="font-weight:400;font-size:.9rem">{{ x.proyecto.cliente }}</span>{% endif %}
+      {% if x.proyecto.cliente %}<span class="suave" style="font-weight:400;font-size:.875rem">{{ x.proyecto.cliente }}</span>{% endif %}
       {% if not x.en_curso %}<span class="estado listo">Terminado</span>{% endif %}
       <span class="pct">{{ x.pct }}%</span></h3>
     <div class="barra"><i style="width:{{ x.pct }}%"></i></div>
