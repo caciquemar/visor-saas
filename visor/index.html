@@ -195,13 +195,7 @@ body.modo-avance .leyenda-entrega{bottom:74px}
 .vista button:disabled{opacity:.45}
 @media (max-width:380px){ .vista button{font-size:14px;padding:5px 8px} }
 .cargando[hidden],.vista[hidden]{display:none}
-/* [Mueble | Pieza]: dos botones pegados, el activo es lo que está elegido */
-.segmento{display:flex}
-.segmento[hidden]{display:none}
-.segmento button{border-radius:0}
-.segmento button:first-child{border-radius:10px 0 0 10px}
-.segmento button:last-child{border-radius:0 10px 10px 0;margin-left:-1px}
-.segmento button[aria-pressed="true"],.abre.activo{background:var(--tiza);border-color:var(--tiza);color:#fff}
+.abre.activo{background:var(--tiza);border-color:var(--tiza);color:#fff}
 /* desplegables Cotas y Vista */
 .grupo{position:relative}
 .abre::after{content:"";display:inline-block;margin-left:6px;vertical-align:2px;border:5px solid transparent;
@@ -506,10 +500,6 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:3px solid 
       <button type="submit" id="btnCodigoAvance">OK</button>
     </form>
     <div class="vista" hidden id="vista">
-      <div class="segmento solo-taller" id="nivel" role="group" aria-label="Qué está elegido" hidden>
-        <button id="verMueble" aria-pressed="false" title="Ver el mueble elegido">Mueble</button>
-        <button id="verPieza" aria-pressed="false" title="Poner la pieza de frente">Pieza</button>
-      </div>
       <div class="grupo">
         <button class="abre" id="abreCotas" aria-expanded="false" aria-controls="menuCotas">Cotas</button>
         <div class="desplegable" id="menuCotas" hidden>
@@ -2130,18 +2120,6 @@ $('manual').addEventListener('submit', () => {            // el número escrito 
   $('numManual').blur(); cerrarEscaner();
   if (AVP.id) registrarEnAvance(v); else buscar(v);
 });
-$('verPieza').onclick = () => { if (!seleccion || !seleccion.mallas.length) return; modoPieza = true; pintar(); verPieza(); };
-function verPieza(){
-  // mirar de frente la cara con más taladros
-  const m = seleccion.mallas[0], p = m.userData.p;
-  const caja = new THREE.Box3().setFromObject(m), s = caja.getSize(new THREE.Vector3());
-  const ejes = ['x','y','z'], fino = ejes.reduce((a,b) => s[a] <= s[b] ? a : b);
-  let suma = 0;
-  (p.tal || []).forEach(t => { if (!t[9]) suma += ({x:t[3], y:t[4], z:t[5]})[fino]; });
-  const dir = new THREE.Vector3(); dir[fino] = suma > 0 ? -1 : 1;   // los taladros entran en sentido n: se ven desde -n
-  const otros = ejes.filter(e => e !== fino); dir[otros[0]] += .18; dir[otros[1]] += .18;
-  encuadrar(caja, false, dir);
-}
 $('verTodo').onclick = () => {
   cerrarDesplegables();
   if (CLIENTE){ verCliente(null, true); return; }
@@ -2170,17 +2148,10 @@ $('verDespiece').onclick = () => {
   separar(despiece === seleccion.mueble ? null : seleccion.mueble);
   encuadrar(cajaDe(paneles.filter(m => m.userData.p.mueble === seleccion.mueble)));
 };
-// "Mueble": con una pieza elegida, sube al mueble; con el mueble elegido, lo vuelve a encuadrar
-$('verMueble').onclick = () => { if (seleccion) verMueble(seleccion.mueble); };
 
-/* ---------- barra del dibujo: [Mueble | Pieza], Cotas y Vista; camino Proyecto › Mueble › Pieza ---------- */
+/* ---------- barra del dibujo: Cotas y Vista; camino Proyecto › Mueble › Pieza (qué está elegido se cambia
+   tocando el dibujo, la X de la ficha o el camino: ya no hay botones [Mueble | Pieza]) ---------- */
 function actualizarBarra(){
-  const pieza = !!(seleccion && seleccion.mallas.length);
-  $('nivel').hidden = !seleccion;
-  $('verMueble').setAttribute('aria-pressed', !!seleccion && !pieza);
-  $('verPieza').setAttribute('aria-pressed', pieza);
-  $('verPieza').disabled = !pieza;
-  $('verPieza').title = pieza ? 'Poner la pieza de frente' : 'Tocá una pieza del mueble';
   $('abreCotas').classList.toggle('activo', COTAS.generales || COTAS.internas || (COTAS.mecanizado && !CLIENTE));
   $('abreVista').classList.toggle('activo', !!(aislado || despiece || transparente));
   $('verAislar').disabled = $('verDespiece').disabled = !seleccion;
