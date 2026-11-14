@@ -654,7 +654,7 @@ class Resultado:
     avisos: list = field(default_factory=list)
     resumen: dict = field(default_factory=dict)
 
-def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None, sin_canto=None):
+def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None, sin_canto=None, fusion=None):
     """Convierte un proyecto de Polyboard para el visor.
 
     dxf: DXF 3D exportado de Polyboard. ocps: uno o varios .ocp (proyecto dividido en partes).
@@ -663,11 +663,17 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
     (por defecto, junto a la primera de texturas). codigo: código del link del cliente, o una función
     proyecto -> código, para conservar el link entre conversiones; si falta se inventa uno.
     sin_canto: color #RRGGBB de los lados sin canto en los modelos de AR (si falta, SIN_CANTO).
+    Sin .ocp y con un DXF exportado de Fusion, convierte el proyecto de Fusion (conversor/fusion.py); `fusion`
+    son sus opciones (materiales y eje vertical).
     Si el proyecto no se puede convertir, lanza ErrorConversion con un mensaje para el taller."""
-    ocps = [ocps] if isinstance(ocps, (str, Path)) else list(ocps)
-    if not ocps:
-        raise ErrorConversion("Falta la lista de OptiCut (.ocp) del proyecto.")
+    ocps = [ocps] if isinstance(ocps, (str, Path)) else list(ocps or [])
     texturas = [texturas] if isinstance(texturas, (str, Path)) else list(texturas or [])
+    if not ocps:
+        from .fusion import convertir_fusion, es_de_fusion
+        if es_de_fusion(dxf):         # Fusion: solo el DXF (ficha 24)
+            return convertir_fusion(dxf, destino, texturas, biblioteca=biblioteca, codigo=codigo,
+                                    sin_canto=sin_canto, opciones=fusion)
+        raise ErrorConversion("Falta la lista de OptiCut (.ocp) del proyecto.")
     piezas = []
     for ocp in ocps:     # un proyecto dividido en partes: se suman las piezas de todos los .ocp
         partes = leer_ocp(ocp)
@@ -685,6 +691,16 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
                 c['esp'] = e
     if not proyecto or len(ocps) > 1:    # con varias partes, el nombre es el del DXF
         proyecto = Path(dxf).stem
+    for h in herrajes:
+        h['mueble'] = h['ruta'][0].split('.', 1)[-1] + (f"-{letra(h['inst'])}" if cuenta.get(h['ruta'][0], 1) > 1 else '')
+    return armar(proyecto, paneles, herrajes, muros, avisos, destino, texturas, ocps, biblioteca=biblioteca,
+                 codigo=codigo, sin_canto=sin_canto, piezas_ocp=len(piezas))
+
+def armar(proyecto, paneles, herrajes, muros, avisos, destino, texturas, ocps, *, biblioteca=None, codigo=None,
+          sin_canto=None, piezas_ocp=0, extra=None):
+    """Lo común a Polyboard y Fusion: materiales y texturas, <proyecto>.json, la versión del cliente y el resumen.
+    Cada panel trae mueble, nombre, med, mat, cantos, taladros, caras y ruta; cada herraje, mueble y caras.
+    `extra`: claves que se suman a <proyecto>.json."""
     mats, mats_cantos = {}, {}
     if texturas:
         biblioteca = biblioteca or Path(texturas[0]).parent / 'Materials'
@@ -711,10 +727,9 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
                       tal=[a_y_arriba(h['c']) + [round(h['n'][0], 3), round(h['n'][2], 3), round(-h['n'][1], 3),
                            h['d'], h['prof'], round(h['vis'], 1), 1 if h['canto'] else 0] for h in p['taladros']],
                       t=tris_planos(p['caras'])) for p in paneles],
-        herrajes=[dict(mueble=vincular_mueble, b=caja(h['caras']))
-                  for h in herrajes
-                  for vincular_mueble in [h['ruta'][0].split('.', 1)[-1] + (f"-{letra(h['inst'])}" if cuenta.get(h['ruta'][0], 1) > 1 else '')]],
+        herrajes=[dict(mueble=h['mueble'], b=caja(h['caras'])) for h in herrajes],
         muros=[tris_planos(m['caras']) for m in muros],
+        **(extra or {}),
     )
     # 'materiales': los tableros, y también los cantos cuyo nombre no es el de un tablero, para que un visor
     # que todavía no lee 'cantos' siga mostrando sus colores y espesores. 'cantos': todos los cantos.
@@ -730,7 +745,7 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
     archivo.write_text(json.dumps(datos, separators=(',', ':'), ensure_ascii=False), encoding='utf-8')
 
     resumen = dict(
-        piezas_ocp=len(piezas),
+        piezas_ocp=piezas_ocp,
         paneles=len(paneles),
         con_mecanizado=sum(1 for p in paneles if p['num']),
         piezas_con_numero=len({p['num'] for p in paneles if p['num']}),
@@ -744,7 +759,8 @@ def convertir(dxf, ocps, destino, texturas=None, *, biblioteca=None, codigo=None
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     ap.add_argument('dxf')
-    ap.add_argument('ocp', nargs='+', help='uno o varios .ocp (si el proyecto se dividió en partes)')
+    ap.add_argument('ocp', nargs='*', help='uno o varios .ocp (si el proyecto se dividió en partes); ninguno con un '
+                                           'DXF de Fusion')
     ap.add_argument('-o', '--salida', default='data')
     ap.add_argument('--texturas', action='append', metavar='CARPETA',
                     help='carpeta Textures de Polyboard (se puede repetir)')

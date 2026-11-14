@@ -78,6 +78,8 @@ def test_hay_muestras_de_los_dos_opticut():
     from conversor.polyboard_a_app import descomprimir
     versiones = set()
     for c in carpetas():
+        if not any(c.glob('*.ocp')):          # proyecto de Fusion: solo el DXF
+            continue
         d = descomprimir(next(c.glob('*.ocp')))
         versiones.add('vieja' if d.count(b'\x06' + b'\x00' * 7) > d.count(b'\x07' + b'\x00' * 7) else 'nueva')
     assert len(carpetas()) >= 3

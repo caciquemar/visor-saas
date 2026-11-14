@@ -6,6 +6,7 @@ from django.core.files.uploadedfile import UploadedFile
 from django.utils.html import format_html
 
 from .archivos import solo_nombre
+from conversor.fusion import es_de_fusion
 from conversor.polyboard_a_app import clave as clave_de_material
 from talleres.models import Taller
 
@@ -43,7 +44,8 @@ class FormSubida(forms.Form):
     """Un DXF 3D y uno o varios .ocp. Se controla tipo, tamaño y que el contenido sea lo que dice ser."""
     archivos = CampoArchivos(label='Archivos del proyecto',
                              help_text='El DXF 3D y la lista de OptiCut (.ocp) exportados de Polyboard. '
-                                       'Si el proyecto está dividido, todos los .ocp.')
+                                       'Si el proyecto está dividido, todos los .ocp. '
+                                       'De Fusion, solo el DXF (Archivo → Exportar → DXF).')
 
     def clean_archivos(self):
         archivos = self.cleaned_data['archivos']
@@ -72,7 +74,7 @@ class FormSubida(forms.Form):
             errores.append('Falta el DXF 3D del proyecto.')
         elif len(dxfs) > 1:
             errores.append('Subí un solo DXF por proyecto (el 3D completo).')
-        if not ocps:
+        if len(dxfs) == 1 and not ocps and not errores and not es_de_fusion(dxfs[0]):
             errores.append('Falta la lista de OptiCut (.ocp) del proyecto.')
         if errores:
             raise forms.ValidationError(errores)
@@ -86,6 +88,42 @@ class FormProyectoNuevo(FormSubida):
                                        help_text='Si no, queda en desarrollo: el cliente lo ve en su link, pero no '
                                                  'aparece en Mi puesto, el Tablero, el visor ni Tareas.')
     field_order = ['nombre', 'archivos', 'en_produccion']
+
+
+class FormFusion(forms.Form):
+    """Materiales de un proyecto de Fusion (ficha 24): un tablero para todo y, si hace falta, otro por grupo de piezas
+    con el mismo nombre, o "No se fabrica". Arma las `opciones` de conversor/fusion.py."""
+    IGUAL, NO_SE_FABRICA = '', '-'
+    todo = forms.ChoiceField(label='Material de todo el mueble', required=False)
+    arriba = forms.ChoiceField(label='Eje vertical en Fusion', choices=[('y', 'Y (lo normal)'), ('z', 'Z')],
+                               help_text='Si el mueble se ve acostado, cambialo.')
+
+    def __init__(self, *args, grupos=(), opciones=None, **kwargs):
+        opciones = opciones or {}
+        elegidos = opciones.get('piezas') or {}
+        super().__init__(*args, initial={'todo': opciones.get('todo', ''), 'arriba': opciones.get('arriba', 'y')},
+                         **kwargs)
+        tableros = list(Material.objects.filter(tipo=Material.Tipo.TABLERO).values_list('nombre', flat=True))
+        usados = [opciones.get('todo', '')] + list(elegidos.values())
+        tableros += [n for n in usados if n and n != self.NO_SE_FABRICA and n not in tableros]  # borrado o renombrado
+        tableros.sort(key=str.lower)
+        self.fields['todo'].choices = [('', 'Sin elegir')] + [(n, n) for n in tableros]
+        self.grupos = []
+        for i, g in enumerate(grupos):
+            campo = f'pieza_{i}'
+            self.fields[campo] = forms.ChoiceField(
+                label=g['nombre'], required=False, initial=elegidos.get(g['nombre'], ''),
+                choices=[(self.IGUAL, 'Igual que el mueble'), (self.NO_SE_FABRICA, 'No se fabrica')]
+                + [(n, n) for n in tableros])
+            self.grupos.append((g, campo))
+
+    def campos_de_piezas(self):
+        return [(g, self[campo]) for g, campo in self.grupos]
+
+    def opciones(self):
+        d = self.cleaned_data
+        piezas = {g['nombre']: d[campo] for g, campo in self.grupos if d.get(campo)}
+        return {'todo': d.get('todo', ''), 'arriba': d['arriba'], 'piezas': piezas}
 
 
 class FormDatos(forms.ModelForm):

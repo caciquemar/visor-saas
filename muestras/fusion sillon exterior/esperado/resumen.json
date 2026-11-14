@@ -1,0 +1,24 @@
+{
+ "proyecto": "sillon exterior 2m",
+ "piezas_ocp": 0,
+ "paneles": 19,
+ "con_mecanizado": 0,
+ "piezas_con_numero": 0,
+ "vinculados": 0,
+ "taladros": 0,
+ "herrajes": 0,
+ "muros": 0,
+ "paneles_por_mueble": {
+  "sillon exterior 2m": 19
+ },
+ "materiales": [
+  ""
+ ],
+ "avisos": [
+  "Piezas sin material (elegilo en Materiales de Fusion): Component16, almohadones, parrillarespaldo, pata, respaldo, viga."
+ ],
+ "glb": {
+  "mueble-1.glb": "34c6e1046eb1536e851491da18c0acc076297cb40bc1a88fed23cf5a3d4d6029",
+  "todo.glb": "34c6e1046eb1536e851491da18c0acc076297cb40bc1a88fed23cf5a3d4d6029"
+ }
+}

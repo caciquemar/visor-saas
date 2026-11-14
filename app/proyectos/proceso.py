@@ -3,7 +3,8 @@ en un JSON y deja el resultado en otro, así un proyecto que se cuelga o se come
 
     python -m proyectos.proceso entrada.json
 
-entrada.json: {dxf, ocps, destino, texturas, biblioteca, codigo, memoria_mb, salida}
+entrada.json: {dxf, ocps, destino, texturas, biblioteca, codigo, memoria_mb, sin_canto, fusion, salida}
+              (ocps vacío y fusion: proyecto de Fusion, ficha 24)
 salida.json:  {proyecto, archivo, avisos, resumen, con_imagen}  o  {error: mensaje para el taller}
               o {memoria: true} si se quedó sin memoria.
 con_imagen: materiales usados que en Polyboard tienen imagen,
@@ -51,7 +52,7 @@ def main(ruta_entrada):
     from conversor import ErrorConversion, convertir
     try:
         r = convertir(e['dxf'], e['ocps'], e['destino'], e['texturas'], biblioteca=e['biblioteca'],
-                      codigo=e['codigo'], sin_canto=e.get('sin_canto'))
+                      codigo=e['codigo'], sin_canto=e.get('sin_canto'), fusion=e.get('fusion'))
         res = dict(proyecto=r.proyecto, archivo=r.archivo.name, avisos=r.avisos, resumen=r.resumen,
                    con_imagen=materiales_con_imagen(r.archivo, e['ocps']))
     except ErrorConversion as error:

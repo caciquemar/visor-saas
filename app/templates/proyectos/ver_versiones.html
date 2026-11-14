@@ -13,6 +13,27 @@
 </div>
 {% endif %}
 
+{% if form_fusion %}
+<form class="caja fusion" method="post" action="{% url 'taller:proyectos:materiales_fusion' taller=request.taller.slug id=proyecto.pk %}">{% csrf_token %}
+  <h3>Materiales de Fusion</h3>
+  <p class="suave">El DXF de Fusion no trae los materiales: elegilos de los tableros de
+    <a href="{% url 'taller:proyectos:materiales' taller=request.taller.slug %}">Materiales</a>. Lo que no se fabrica
+    (almohadones, vidrios) se ve en el 3D pero no cuenta en etiquetas ni avance. Al guardar se vuelve a convertir.</p>
+  <label for="{{ form_fusion.todo.id_for_label }}">{{ form_fusion.todo.label }}</label>{{ form_fusion.todo }}
+  <style>.fusion-piezas td{vertical-align:middle}.fusion-piezas select{margin:0}.fusion-piezas label{margin:0}</style>
+  <div class="tabla"><table class="apila fusion-piezas">
+    <thead><tr><th>Pieza</th><th>Cantidad</th><th>Material</th></tr></thead>
+    <tbody>{% for g, campo in form_fusion.campos_de_piezas %}
+      <tr><td><label for="{{ campo.id_for_label }}">{{ g.nombre }}</label></td>
+        <td>{{ g.cant }}</td><td>{{ campo }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  <label for="{{ form_fusion.arriba.id_for_label }}">{{ form_fusion.arriba.label }}</label>{{ form_fusion.arriba }}
+  <span class="ayuda">{{ form_fusion.arriba.help_text }}</span>
+  <div class="acciones"><button type="submit"{% if en_proceso %} disabled title="Esperá a que termine la conversión"{% endif %}>Guardar y convertir</button></div>
+</form>
+{% endif %}
+
 {% if gestiona %}<div class="acciones" style="margin:0 0 .5rem">
   <a class="boton" href="{% url 'taller:proyectos:nueva_version' taller=request.taller.slug id=proyecto.pk %}">Subir versión nueva</a>
 </div>{% endif %}
@@ -28,7 +49,11 @@
   {% if v.estado == 'convirtiendo' %}<p>Convirtiendo… suele tardar uno o dos minutos. Esta página se actualiza sola.</p>{% endif %}
   {% if v.estado == 'error' %}<p class="error"><strong>No se pudo convertir.</strong> {{ v.mensaje }}</p>{% endif %}
   {% if v.estado == 'listo' %}
+    {% if v.resumen.fusion %}
+    <p>De Fusion · {{ v.resumen.paneles }} pieza{{ v.resumen.paneles|pluralize }}{% if v.resumen.herrajes %} · {{ v.resumen.herrajes }} que no se fabrica{{ v.resumen.herrajes|pluralize:"n" }}{% endif %}</p>
+    {% else %}
     <p>{{ v.resumen.piezas_con_numero }} piezas · {{ v.resumen.paneles }} paneles 3D ({{ v.resumen.vinculados }} vinculados a la lista){% if v.resumen.herrajes %} · {{ v.resumen.herrajes }} herrajes{% endif %}</p>
+    {% endif %}
     {% if v.avisos %}
     <details><summary>{{ v.avisos|length }} aviso{{ v.avisos|length|pluralize }} para revisar</summary>
       <ul>{% for a in v.avisos %}<li>{{ a }}</li>{% endfor %}</ul></details>

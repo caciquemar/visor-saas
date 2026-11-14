@@ -34,7 +34,8 @@ y los trabajos pendientes quedan registrados con fotos.
 ## Estructura
 
 ```
-conversor/        paquete: from conversor import convertir, ErrorConversion (polyboard_a_app.py, base armado/armado @59fc33b)
+conversor/        paquete: from conversor import convertir, ErrorConversion (polyboard_a_app.py, base armado/armado @59fc33b;
+                  fusion.py: el DXF de Fusion, ficha 24)
 visor/            index.html (copia del visor actual) -> se adapta a multi-taller
 referencia/       api.py y nginx.conf actuales, solo como referencia (no se ejecutan)
 muestras/         proyectos reales de Polyboard para pruebas, uno por carpeta (ver muestras/README.md)
@@ -452,7 +453,22 @@ todo va solo a este servicio. No hace falta llevar allá los cambios del visor n
   no la seguía: el GLB era válido (se bajó con curl y estaba bien). Ahora los `.glb` los entrega la app directo
   (`abrir_de_taller(..., directo=True)` desde `proyectos/visor.py: servir`); JSON y texturas siguen yendo a R2.
 
+- 2026-11-14: **ficha 24 hecha: proyectos de Fusion** (pedido de Martín). Se sube **solo el DXF** que exporta
+  Fusion (`conversor/fusion.py`: sólidos ACIS → malla con `ezdxf.acis`, arreglo del `transform` nuevo de Fusion que
+  ezdxf 1.4 no lee, cm con escala en los INSERT, Y arriba → Z arriba). `convertir()` sin .ocp y con un DXF de Fusion
+  va a `convertir_fusion`; la parte común quedó en `armar()` (las muestras de Polyboard dan lo mismo). Un mueble por
+  archivo, cada cuerpo una pieza "s/n", lados del mismo material. **Materiales de Fusion** en Versiones
+  (`FormFusion`, `vistas.materiales_fusion`, `Proyecto.fusion`, migración `proyectos 0010`): tablero para todo, por
+  grupo de piezas o "No se fabrica" (va como herraje); guardar vuelve a convertir. Muestra `muestras/fusion sillon
+  exterior`. Ver `docs/sesiones/24-fusion.md`. Probado en el navegador integrado (PC y celular): subida, materiales,
+  3D con los almohadones como herraje y la ficha de la pieza.
+
 ## Pendientes
+
+- **Fusion (ficha 24)**: probar con un mueble de melamina diseñado en Fusion (tableros con veta: hoy la veta va a lo
+  largo del lado mayor). La ficha de la pieza muestra el tablero en los 4 lados del esquema de cantos (madera maciza):
+  si molesta, ocultar el esquema en piezas de Fusion. Si el diseño se modela con Z arriba, elegirlo en Materiales de
+  Fusion. Las piezas de Fusion no tienen número de mecanizado: se identifican por la etiqueta con QR.
 
 - **AR en Android, confirmar el arreglo** en el celular de Martín (con y sin cambiar colores). Si sigue cerrándose,
   mirar si Cloudflare le pone un desafío al pedido de Scene Viewer (Security → Events, user agent de Google).

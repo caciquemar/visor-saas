@@ -423,3 +423,14 @@ tiene todo, no se edita (solo se renombra), solo otro administrador lo da y siem
 "entrar con usuario y PIN"; esos roles no pueden tener Equipo, Roles, Marca ni Borrar proyectos (un PIN de 4 números
 no alcanza). Un rol se borra solo si nadie lo tiene. Agregar persona: con mail, invitación; sin mail, solo en un rol
 con PIN. La baja de una persona es desactivarla (su nombre queda en lo que hizo).
+
+## 2026-11-14 · Proyectos de Fusion por el DXF, con los materiales elegidos en el visor (ficha 24)
+Martín diseña algunos muebles en Autodesk Fusion. Se suben con **el DXF que exporta Fusion, solo** (sin lista de
+OptiCut ni complemento instalado en Fusion; el complemento queda para más adelante si hace falta que los materiales
+salgan solos de Fusion). Un DXF con sólidos y sin caras es de Fusion; uno de Polyboard sin .ocp sigue sin aceptarse.
+Un mueble por archivo (o uno por componente de primer nivel, si todos son conjuntos); cada cuerpo es una pieza, "s/n".
+Como el DXF no trae materiales, en Versiones → **Materiales de Fusion** se elige un tablero de la biblioteca para todo
+el mueble y, si hace falta, otro por grupo de piezas del mismo nombre, o **No se fabrica** (almohadones, vidrios: se
+ven como herraje y no cuentan en etiquetas ni avance). Se guarda en el proyecto (`Proyecto.fusion`), vale para las
+versiones siguientes y al guardar se vuelve a convertir la versión en uso. Los lados de cada pieza van del mismo
+material que la pieza (madera maciza).

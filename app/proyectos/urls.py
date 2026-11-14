@@ -20,6 +20,7 @@ urlpatterns = [
     path('proyectos/<int:id>/versiones/<int:numero>/borrar/', vistas.borrar_version, name='borrar_version'),
     path('proyectos/<int:id>/versiones/<int:numero>/originales/<int:original_id>/', vistas.original,
          name='original'),
+    path('proyectos/<int:id>/fusion/', vistas.materiales_fusion, name='materiales_fusion'),
     path('proyectos/<int:id>/links/nuevo/', vistas.nuevo_link, name='nuevo_link'),
     path('proyectos/<int:id>/links/<int:link_id>/anular/', vistas.anular_link, name='anular_link'),
     path('proyectos/<int:id>/colores/nuevo/', vistas.grupo_color, name='grupo_color_nuevo'),

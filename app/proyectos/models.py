@@ -51,6 +51,9 @@ class Proyecto(DatoDeTaller):
                                       editable=False)
     version_actual = models.ForeignKey('Version', on_delete=models.SET_NULL, null=True, blank=True,
                                        related_name='+', verbose_name='versión actual')
+    # Proyectos de Fusion (ficha 24): materiales elegidos y eje vertical, las `opciones` de conversor/fusion.py.
+    # Valen para todas las versiones del proyecto.
+    fusion = models.JSONField('opciones de Fusion', default=dict, blank=True)
     creado = models.DateTimeField('creado', auto_now_add=True)
     creado_por = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True,
                                    related_name='+')

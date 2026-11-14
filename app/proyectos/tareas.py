@@ -118,7 +118,7 @@ def preparar(version, tmp):
     return dict(dxf=dxf, ocps=ocps, destino=str(resultado), texturas=[str(texturas)],
                 biblioteca=str(tmp / 'Materials'),       # vacía: en el servidor no están las de Polyboard
                 codigo=version.proyecto.codigo_cliente, memoria_mb=settings.CONVERSION_MEMORIA_MB,
-                sin_canto=version.taller.color_sin_canto,
+                sin_canto=version.taller.color_sin_canto, fusion=version.proyecto.fusion or None,
                 salida=str(tmp / 'salida.json'))
 
 
@@ -166,8 +166,11 @@ def guardar_resultado(version, resultado, res):
             archivo_proyecto = guardado
 
     faltan = anotar_materiales(res.get('con_imagen', {}))
+    fusion = None
     try:
-        anotar_lisos(json.loads((resultado / res['archivo']).read_text(encoding='utf-8')))
+        datos = json.loads((resultado / res['archivo']).read_text(encoding='utf-8'))
+        fusion = datos.get('fusion')          # piezas de un proyecto de Fusion, para elegir sus materiales
+        anotar_lisos(datos)
     except (OSError, ValueError):
         log.warning('No se pudieron leer los materiales lisos de la versión %s', version.pk)
     # Las imágenes que faltan se muestran aparte, con el botón para subirlas: no se repiten como avisos (el
@@ -182,7 +185,8 @@ def guardar_resultado(version, resultado, res):
 
     version.estado = Version.Estado.LISTO
     version.avisos = avisos
-    version.resumen = {**res['resumen'], 'proyecto_polyboard': res['proyecto']}
+    version.resumen = {**res['resumen'], 'proyecto_polyboard': res['proyecto'],
+                       **({'fusion': fusion} if fusion else {})}
     version.faltan_texturas = faltan
     version.archivo_proyecto = archivo_proyecto
     version.terminada = timezone.now()

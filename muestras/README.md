@@ -27,6 +27,7 @@ vinculados, avisos) y escribir `NOTAS.md`.
 | Kogan | nuevo | 91 | 100 | 18 | 1 |
 | Rack florencia | nuevo | 68 | 70 | 14 | 11 |
 | rack tv terrero | nuevo | 69 | 110 | 0 | 3 |
+| fusion sillon exterior | — (Fusion, solo DXF) | 0 | 19 | 0 | 1 |
 
 **Zicar:** `muestras/zicar/<proyecto>/` tiene carpetas del postprocesador de Polyboard (una subcarpeta por material
 con un DXF por pieza), para las pruebas del módulo Zicar (`tests/app/test_modulos.py`). No tienen `esperado/`: se

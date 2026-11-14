@@ -25,8 +25,8 @@ from talleres.roles import con_permiso, miembro, puede
 from . import probador
 from .archivos import solo_nombre
 from . import borrar as borrado
-from .formularios import (FormBiblioteca, FormDatos, FormMaterial, FormMaterialNuevo, FormProyectoNuevo,
-                          FormSinCanto, FormSubida)
+from .formularios import (FormBiblioteca, FormDatos, FormFusion, FormMaterial, FormMaterialNuevo,
+                          FormProyectoNuevo, FormSinCanto, FormSubida)
 from .models import GrupoDeColor, LinkCliente, Material, Original, Proyecto, Version, para_produccion
 from .tareas import encolar
 from .visor import url_de_link
@@ -185,6 +185,8 @@ def ver(request, taller, id):
         'en_proceso': any(v.en_proceso or any(m.en_proceso(v) for m in modulos) for v in versiones),
         'gestiona': gestiona, 'borra': puede(request, 'proyectos_borrar'), 'puede_marca': puede(request, 'marca'),
         'form_datos': FormDatos(instance=proyecto) if gestiona else None,
+        'form_fusion': FormFusion(grupos=grupos, opciones=proyecto.fusion) if (
+            gestiona and seccion == 'versiones' and (grupos := grupos_de_fusion(proyecto))) else None,
         'avance': avance,
     })
 
@@ -351,6 +353,37 @@ def reconvertir(request, taller, id, numero):
     with transaction.atomic():
         version = crear_version(proyecto, request.user, copiar_de=origen)
     messages.success(request, f'Se está convirtiendo de nuevo como versión {version.numero}.')
+    return a_proyecto(request, proyecto, 'versiones')
+
+
+def grupos_de_fusion(proyecto):
+    """Las piezas de Fusion (por nombre) de la versión en uso, o de la última lista; vacío si no es de Fusion."""
+    base = proyecto.version_actual
+    if base is None or base.estado != Version.Estado.LISTO:
+        base = proyecto.versiones.filter(estado=Version.Estado.LISTO).order_by('-numero').first()
+    return ((base.resumen or {}).get('fusion') or {}).get('grupos') or [] if base else []
+
+
+@require_POST
+@con_permiso('proyectos_gestion')
+def materiales_fusion(request, taller, id):
+    """Guarda los materiales de un proyecto de Fusion y vuelve a convertir la versión en uso con ellos."""
+    proyecto = get_object_or_404(Proyecto.objects.select_related('version_actual'), pk=id)
+    grupos = grupos_de_fusion(proyecto)
+    if not grupos:
+        raise Http404()
+    form = FormFusion(request.POST, grupos=grupos, opciones=proyecto.fusion)
+    if not form.is_valid():
+        messages.error(request, 'No se pudieron guardar los materiales: ' + '; '.join(
+            f'{form[c].label}: {" ".join(e)}' for c, e in form.errors.items()))
+        return a_proyecto(request, proyecto, 'versiones')
+    origen = proyecto.version_actual or proyecto.ultima_version()
+    with transaction.atomic():
+        proyecto.fusion = form.opciones()
+        proyecto.save(update_fields=['fusion', 'actualizado'])
+        version = crear_version(proyecto, request.user, copiar_de=origen) if origen else None
+    messages.success(request, 'Guardaste los materiales.' + (
+        f' Se está convirtiendo de nuevo como versión {version.numero}.' if version else ''))
     return a_proyecto(request, proyecto, 'versiones')
 
 
